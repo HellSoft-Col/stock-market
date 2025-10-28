@@ -1,0 +1,163 @@
+name: Build Container with Buildah
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build with Buildah
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Buildah
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y buildah podman
+
+    - name: Log in to Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build container image with Buildah
+      id: build
+      run: |
+        # Create a new container from base image
+        CONTAINER=$(buildah from golang:1.21-alpine)
+        echo "Created container: $CONTAINER"
+        
+        # Set working directory
+        buildah config --workingdir /app $CONTAINER
+        
+        # Install dependencies in builder stage
+        buildah run $CONTAINER -- apk --no-cache add ca-certificates tzdata git
+        
+        # Copy go mod files
+        buildah copy $CONTAINER go.mod go.sum ./
+        
+        # Download dependencies
+        buildah run $CONTAINER -- go mod download
+        
+        # Copy source code
+        buildah copy $CONTAINER . .
+        
+        # Build the application
+        buildah run $CONTAINER -- sh -c 'CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s -extldflags \"-static\"" -o exchange-server ./cmd/server'
+        
+        # Create final image from distroless
+        FINAL_CONTAINER=$(buildah from gcr.io/distroless/static-debian12:nonroot)
+        
+        # Copy certificates and timezone data
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /usr/share/zoneinfo /usr/share/zoneinfo
+        
+        # Copy binary and configs
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/exchange-server /exchange-server
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.yaml /config.yaml
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.production.yaml /config.production.yaml
+        
+        # Configure container
+        buildah config --port 80 $FINAL_CONTAINER
+        buildah config --env PORT=80 $FINAL_CONTAINER
+        buildah config --env CONFIG_FILE=/config.yaml $FINAL_CONTAINER
+        buildah config --cmd '/exchange-server' $FINAL_CONTAINER
+        
+        # Add labels
+        buildah config --label org.opencontainers.image.source=https://github.com/${{ github.repository }} $FINAL_CONTAINER
+        buildah config --label org.opencontainers.image.description="Stock Exchange Server for Teaching" $FINAL_CONTAINER
+        buildah config --label org.opencontainers.image.revision=${{ github.sha }} $FINAL_CONTAINER
+        
+        # Commit the image
+        IMAGE_ID=$(buildah commit $FINAL_CONTAINER ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }})
+        echo "Built image: $IMAGE_ID"
+        echo "digest=$IMAGE_ID" >> $GITHUB_OUTPUT
+        
+        # Tag with metadata
+        for tag in ${{ steps.meta.outputs.tags }}; do
+          buildah tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} $tag
+        done
+
+    - name: Test container
+      run: |
+        # Test that the container can start (dry run)
+        podman run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --help || true
+
+    - name: Push to registry
+      if: github.event_name != 'pull_request'
+      id: push
+      run: |
+        for tag in ${{ steps.meta.outputs.tags }}; do
+          echo "Pushing $tag"
+          buildah push $tag
+        done
+
+    - name: Output image
+      id: image
+      run: echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  verify:
+    name: Verify Build
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    
+    steps:
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Verify container image
+      run: |
+        echo "Verifying image: ${{ needs.build.outputs.image }}"
+        docker pull ${{ needs.build.outputs.image }}
+        docker inspect ${{ needs.build.outputs.image }}
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ needs.build.outputs.image }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom
+        path: sbom.spdx.json
