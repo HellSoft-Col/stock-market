@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intergalactic Avocado Stock Exchange</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            grid-template-rows: 80px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            overflow-y: auto;
+        }
+        
+        .login-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .market-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .ticker-board {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 200px;
+        }
+        
+        .order-book {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            flex: 1;
+        }
+        
+        .trading-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .order-form {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        
+        .messages {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .status.disconnected {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+        }
+        
+        .status.connected {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid #2ecc71;
+        }
+        
+        .status.authenticated {
+            background: rgba(52, 152, 219, 0.2);
+            border: 1px solid #3498db;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        button {
+            background: rgba(52, 152, 219, 0.3);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        button:hover {
+            background: rgba(52, 152, 219, 0.5);
+        }
+        
+        button:disabled {
+            background: rgba(127, 140, 141, 0.3);
+            cursor: not-allowed;
+        }
+        
+        .ticker-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .ticker-item:last-child {
+            border-bottom: none;
+        }
+        
+        .product {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .price {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .bid { color: #2ecc71; }
+        .ask { color: #e74c3c; }
+        .mid { color: #f39c12; }
+        
+        .message {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+        
+        .message.info { background: rgba(52, 152, 219, 0.2); }
+        .message.success { background: rgba(46, 204, 113, 0.2); }
+        .message.error { background: rgba(231, 76, 60, 0.2); }
+        .message.fill { background: rgba(155, 89, 182, 0.2); }
+        
+        h2, h3 {
+            margin-bottom: 15px;
+            font-weight: 300;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .form-row input,
+        .form-row select {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🥑 Intergalactic Avocado Stock Exchange</h1>
+            <div>
+                <span id="connection-time"></span>
+                <span id="server-time"></span>
+            </div>
+        </div>
+        
+        <div class="panel login-panel">
+            <h2>Authentication</h2>
+            <div id="status" class="status disconnected">Disconnected</div>
+            
+            <input type="text" id="token" placeholder="Enter your team token (TK-...)" />
+            <button id="connect-btn" onclick="connect()">Connect</button>
+            <button id="login-btn" onclick="login()" disabled>Login</button>
+            
+            <div id="team-info" style="display: none;">
+                <h3>Team Information</h3>
+                <div id="team-details"></div>
+            </div>
+        </div>
+        
+        <div class="panel market-panel">
+            <h2>Market Data</h2>
+            
+            <div class="ticker-board">
+                <h3>Live Ticker</h3>
+                <div id="ticker-list"></div>
+            </div>
+            
+            <div class="order-book">
+                <h3>Order Book</h3>
+                <div id="order-book-data">
+                    <p>Select a product to view order book</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel trading-panel">
+            <h2>Trading</h2>
+            
+            <div class="order-form">
+                <h3>Place Order</h3>
+                <select id="side">
+                    <option value="BUY">Buy</option>
+                    <option value="SELL">Sell</option>
+                </select>
+                
+                <select id="mode">
+                    <option value="MARKET">Market Order</option>
+                    <option value="LIMIT">Limit Order</option>
+                </select>
+                
+                <select id="product">
+                    <option value="FOSFO">FOSFO</option>
+                    <option value="PITA">PITA</option>
+                    <option value="PALTA-OIL">PALTA-OIL</option>
+                    <option value="GUACA">GUACA</option>
+                    <option value="SEBO">SEBO</option>
+                    <option value="H-GUACA">H-GUACA</option>
+                </select>
+                
+                <div class="form-row">
+                    <input type="number" id="qty" placeholder="Quantity" min="1" />
+                    <input type="number" id="price" placeholder="Price (for limit orders)" step="0.01" />
+                </div>
+                
+                <input type="text" id="message" placeholder="Optional message" />
+                <button id="place-order-btn" onclick="placeOrder()" disabled>Place Order</button>
+            </div>
+            
+            <div class="messages">
+                <h3>Messages</h3>
+                <div id="message-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let connected = false;
+        let authenticated = false;
+        let teamInfo = null;
+        
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connect-btn');
+        const loginBtn = document.getElementById('login-btn');
+        const placeOrderBtn = document.getElementById('place-order-btn');
+        const messageList = document.getElementById('message-list');
+        const tickerList = document.getElementById('ticker-list');
+        const connectionTime = document.getElementById('connection-time');
+        const serverTime = document.getElementById('server-time');
+        
+        function updateStatus(status, message) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = message;
+        }
+        
+        function addMessage(type, message) {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messageList.appendChild(msg);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+        
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            updateStatus('connecting', 'Connecting...');
+            addMessage('info', 'Connecting to WebSocket...');
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                connected = true;
+                updateStatus('connected', 'Connected - Please login');
+                addMessage('success', 'WebSocket connected');
+                connectBtn.textContent = 'Disconnect';
+                loginBtn.disabled = false;
+                connectionTime.textContent = `Connected: ${new Date().toLocaleTimeString()}`;
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (e) {
+                    addMessage('error', `Failed to parse message: ${e.message}`);
+                }
+            };
+            
+            ws.onclose = function() {
+                connected = false;
+                authenticated = false;
+                updateStatus('disconnected', 'Disconnected');
+                addMessage('error', 'WebSocket disconnected');
+                connectBtn.textContent = 'Connect';
+                loginBtn.disabled = true;
+                placeOrderBtn.disabled = true;
+                document.getElementById('team-info').style.display = 'none';
+            };
+            
+            ws.onerror = function(error) {
+                addMessage('error', `WebSocket error: ${error}`);
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+        
+        function login() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                addMessage('error', 'Please enter a token');
+                return;
+            }
+            
+            const loginMsg = {
+                type: 'LOGIN',
+                token: token
+            };
+            
+            addMessage('info', `Attempting login with token: ${token}`);
+            ws.send(JSON.stringify(loginMsg));
+        }
+        
+        function placeOrder() {
+            if (!authenticated) {
+                addMessage('error', 'Must be authenticated to place orders');
+                return;
+            }
+            
+            const side = document.getElementById('side').value;
+            const mode = document.getElementById('mode').value;
+            const product = document.getElementById('product').value;
+            const qty = parseInt(document.getElementById('qty').value);
+            const price = parseFloat(document.getElementById('price').value);
+            const message = document.getElementById('message').value;
+            
+            if (!qty || qty <= 0) {
+                addMessage('error', 'Please enter a valid quantity');
+                return;
+            }
+            
+            if (mode === 'LIMIT' && (!price || price <= 0)) {
+                addMessage('error', 'Please enter a valid price for limit orders');
+                return;
+            }
+            
+            const clOrdID = `ORD-${teamInfo.team}-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+            
+            const orderMsg = {
+                type: 'ORDER',
+                clOrdID: clOrdID,
+                side: side,
+                mode: mode,
+                product: product,
+                qty: qty,
+                message: message || undefined
+            };
+            
+            if (mode === 'LIMIT') {
+                orderMsg.price = price;
+            }
+            
+            addMessage('info', `Placing ${side} order: ${qty} ${product} @ ${mode}`);
+            ws.send(JSON.stringify(orderMsg));
+            
+            // Clear form
+            document.getElementById('qty').value = '';
+            document.getElementById('price').value = '';
+            document.getElementById('message').value = '';
+        }
+        
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'LOGIN_OK':
+                    authenticated = true;
+                    teamInfo = data;
+                    updateStatus('authenticated', `Authenticated as ${data.team}`);
+                    addMessage('success', `Logged in as ${data.team} (${data.species})`);
+                    placeOrderBtn.disabled = false;
+                    
+                    // Show team info
+                    const teamInfoEl = document.getElementById('team-info');
+                    const teamDetailsEl = document.getElementById('team-details');
+                    teamDetailsEl.innerHTML = `
+                        <p><strong>Team:</strong> ${data.team}</p>
+                        <p><strong>Species:</strong> ${data.species}</p>
+                        <p><strong>Balance:</strong> $${data.initialBalance}</p>
+                        <p><strong>Products:</strong> ${data.authorizedProducts.join(', ')}</p>
+                    `;
+                    teamInfoEl.style.display = 'block';
+                    break;
+                    
+                case 'ERROR':
+                    addMessage('error', `${data.code}: ${data.reason}`);
+                    break;
+                    
+                case 'FILL':
+                    addMessage('fill', `FILL: ${data.fillQty} ${data.product} @ $${data.fillPrice} (${data.side}) - Counterparty: ${data.counterparty}`);
+                    break;
+                    
+                case 'TICKER':
+                    updateTicker(data);
+                    if (data.serverTime) {
+                        serverTime.textContent = `Server: ${new Date(data.serverTime).toLocaleTimeString()}`;
+                    }
+                    break;
+                    
+                case 'OFFER':
+                    addMessage('info', `OFFER: ${data.buyer} wants ${data.quantityRequested} ${data.product} @ max $${data.maxPrice} (expires in ${data.expiresIn}ms)`);
+                    break;
+                    
+                case 'ECHO':
+                    addMessage('info', `Echo: ${JSON.stringify(data.original)}`);
+                    break;
+                    
+                default:
+                    addMessage('info', `${data.type}: ${JSON.stringify(data)}`);
+            }
+        }
+        
+        function updateTicker(ticker) {
+            let tickerItem = document.querySelector(`[data-product="${ticker.product}"]`);
+            
+            if (!tickerItem) {
+                tickerItem = document.createElement('div');
+                tickerItem.className = 'ticker-item';
+                tickerItem.setAttribute('data-product', ticker.product);
+                tickerList.appendChild(tickerItem);
+            }
+            
+            tickerItem.innerHTML = `
+                <div class="product">${ticker.product}</div>
+                <div class="price">
+                    <span class="bid">Bid: $${ticker.bestBid || 'N/A'}</span> |
+                    <span class="ask">Ask: $${ticker.bestAsk || 'N/A'}</span> |
+                    <span class="mid">Mid: $${ticker.mid || 'N/A'}</span>
+                </div>
+            `;
+        }
+        
+        // Auto-connect on page load
+        window.onload = function() {
+            // Set up connect button click handler
+            connectBtn.onclick = function() {
+                if (connected) {
+                    disconnect();
+                } else {
+                    connect();
+                }
+            };
+        };
+        
+        // Handle Enter key in token input
+        document.getElementById('token').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                if (!connected) {
+                    connect();
+                } else {
+                    login();
+                }
+            }
+        });
+        
+        // Handle Enter key in order form
+        ['qty', 'price', 'message'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    placeOrder();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
