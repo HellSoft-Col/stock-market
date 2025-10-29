@@ -71,7 +71,7 @@ func Load(filename string) (*Config, error) {
 	}
 
 	// Override with environment variables if set
-	if mongoURI := os.Getenv("MONGO_URI"); mongoURI != "" {
+	if mongoURI := os.Getenv("MONGODB_URI"); mongoURI != "" {
 		config.MongoDB.URI = mongoURI
 	}
 

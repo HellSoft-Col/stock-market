@@ -1,0 +1,35 @@
+server:
+  protocol: "websocket"
+  host: "0.0.0.0"
+  port: 80  # Will be overridden by PORT env var
+  maxConnections: 100
+  readTimeout: 30s
+  writeTimeout: 10s
+  maxMessageSize: 16384
+
+mongodb:
+  # URI will be injected via MONGODB_URI environment variable
+  uri: ""  # This will be overridden by env var at runtime
+  database: "avocado_exchange_prod"
+  timeout: 10s
+
+market:
+  tickerInterval: 5s
+  offerTimeout: 5000ms
+  orderBookDepth: 100
+  enablePartialFills: true
+  transactionRetries: 3
+
+tournament:
+  enabled: true
+  duration: 15m
+
+logging:
+  level: "info"  # Will be overridden by LOG_LEVEL env var
+  format: "json"
+  output: "stdout"
+
+security:
+  rateLimitOrdersPerMin: 100
+  rateLimitConnectionsPerIP: 10
+  maxMessageRetries: 3
