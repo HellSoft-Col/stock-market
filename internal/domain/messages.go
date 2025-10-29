@@ -20,6 +20,7 @@ type OrderMessage struct {
 	LimitPrice *float64 `json:"limitPrice,omitempty"`
 	ExpiresAt  *string  `json:"expiresAt,omitempty"`
 	Message    string   `json:"message,omitempty"`
+	DebugMode  string   `json:"debugMode,omitempty"` // "AUTO_ACCEPT", "TEAM_ONLY", ""
 }
 
 type ProductionUpdateMessage struct {
@@ -116,6 +117,32 @@ type InventoryUpdateMessage struct {
 	Type       string         `json:"type"`
 	Inventory  map[string]int `json:"inventory"`
 	ServerTime string         `json:"serverTime"`
+}
+
+type OrderBookUpdateMessage struct {
+	Type       string          `json:"type"`
+	Product    string          `json:"product"`
+	BuyOrders  []*OrderSummary `json:"buyOrders"`
+	SellOrders []*OrderSummary `json:"sellOrders"`
+	ServerTime string          `json:"serverTime"`
+}
+
+type OrderSummary struct {
+	ClOrdID   string   `json:"clOrdID"`
+	TeamName  string   `json:"teamName"`
+	Side      string   `json:"side"`
+	Mode      string   `json:"mode"`
+	Quantity  int      `json:"quantity"`
+	Price     *float64 `json:"price,omitempty"`
+	FilledQty int      `json:"filledQty"`
+	Message   string   `json:"message,omitempty"`
+	CreatedAt string   `json:"createdAt"`
+}
+
+type AllOrdersMessage struct {
+	Type       string          `json:"type"`
+	Orders     []*OrderSummary `json:"orders"`
+	ServerTime string          `json:"serverTime"`
 }
 
 // Base message for parsing

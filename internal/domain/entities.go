@@ -48,7 +48,8 @@ type Order struct {
 	Price      *float64           `bson:"price,omitempty" json:"price,omitempty"` // For LIMIT orders
 	LimitPrice *float64           `bson:"limitPrice,omitempty" json:"limitPrice,omitempty"`
 	Message    string             `bson:"message" json:"message"`
-	Status     string             `bson:"status" json:"status"` // "PENDING", "FILLED", "PARTIALLY_FILLED", "CANCELLED"
+	DebugMode  string             `bson:"debugMode,omitempty" json:"debugMode,omitempty"` // "AUTO_ACCEPT", "TEAM_ONLY"
+	Status     string             `bson:"status" json:"status"`                           // "PENDING", "FILLED", "PARTIALLY_FILLED", "CANCELLED"
 	FilledBy   *string            `bson:"filledBy,omitempty" json:"filledBy,omitempty"`
 	FilledQty  int                `bson:"filledQty" json:"filledQty"`
 	CreatedAt  time.Time          `bson:"createdAt" json:"createdAt"`

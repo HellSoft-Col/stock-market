@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intergalactic Avocado Stock Exchange</title>
+    <title>🥑 Avocado Exchange - Debug Console</title>
     <style>
         * {
             margin: 0;
@@ -19,130 +19,119 @@
             overflow: hidden;
         }
         
-        .container {
+        .debug-container {
             display: grid;
-            grid-template-columns: 350px 1fr 350px;
-            grid-template-rows: 80px 1fr;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 70px 1fr;
             height: 100vh;
-            gap: 10px;
-            padding: 10px;
+            gap: 8px;
+            padding: 8px;
         }
         
         .header {
             grid-column: 1 / -1;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 30px;
+            padding: 0 20px;
             color: white;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.37);
         }
         
         .panel {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 16px;
             color: white;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.37);
             overflow-y: auto;
-        }
-        
-        .login-panel {
             display: flex;
             flex-direction: column;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-rows: 200px 1fr 200px;
+            gap: 8px;
+        }
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
             gap: 15px;
-        }
-        
-        .market-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .ticker-board {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            padding: 15px;
-            min-height: 200px;
-        }
-        
-        .order-book {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            padding: 15px;
-            flex: 1;
-        }
-        
-        .trading-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        .order-form {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            padding: 15px;
-        }
-        
-        .messages {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            padding: 15px;
-            height: 200px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
             font-size: 12px;
         }
         
-        .status {
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 10px;
+        .status-indicator {
+            padding: 4px 8px;
+            border-radius: 6px;
             font-weight: bold;
+            font-size: 11px;
         }
         
-        .status.disconnected {
-            background: rgba(231, 76, 60, 0.2);
-            border: 1px solid #e74c3c;
+        .status-disconnected { background: rgba(231, 76, 60, 0.3); border: 1px solid #e74c3c; }
+        .status-connected { background: rgba(46, 204, 113, 0.3); border: 1px solid #2ecc71; }
+        .status-authenticated { background: rgba(52, 152, 219, 0.3); border: 1px solid #3498db; }
+        
+        .tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 12px;
         }
         
-        .status.connected {
-            background: rgba(46, 204, 113, 0.2);
-            border: 1px solid #2ecc71;
-        }
-        
-        .status.authenticated {
-            background: rgba(52, 152, 219, 0.2);
-            border: 1px solid #3498db;
-        }
-        
-        input, select, button {
-            width: 100%;
-            padding: 12px;
+        .tab {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
             border: none;
-            border-radius: 8px;
+            border-radius: 6px 6px 0 0;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .tab.active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        input, select, button, textarea {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
             background: rgba(255, 255, 255, 0.1);
             color: white;
-            font-size: 14px;
-            margin-bottom: 10px;
+            font-size: 12px;
+            margin-bottom: 8px;
         }
         
-        input::placeholder {
+        input::placeholder, textarea::placeholder {
             color: rgba(255, 255, 255, 0.7);
         }
         
         button {
             background: rgba(52, 152, 219, 0.3);
             cursor: pointer;
-            transition: background 0.3s ease;
+            transition: background 0.3s;
+            font-weight: bold;
         }
         
-        button:hover {
+        button:hover:not(:disabled) {
             background: rgba(52, 152, 219, 0.5);
         }
         
@@ -151,36 +140,63 @@
             cursor: not-allowed;
         }
         
-        .ticker-item {
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 10px;
+            margin: 2px;
+            width: auto;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .form-row input, .form-row select {
+            margin-bottom: 8px;
+        }
+        
+        .ticker-item, .order-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 6px;
+            border-left: 3px solid;
+            font-size: 11px;
+        }
+        
+        .order-item.buy { border-left-color: #2ecc71; }
+        .order-item.sell { border-left-color: #e74c3c; }
+        .order-item.filled { border-left-color: #9b59b6; }
+        .order-item.pending { border-left-color: #f39c12; }
+        
+        .order-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .ticker-item:last-child {
-            border-bottom: none;
-        }
-        
-        .product {
+            margin-bottom: 4px;
             font-weight: bold;
-            font-size: 16px;
         }
         
-        .price {
+        .order-details {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        
+        .messages {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            padding: 8px;
+            height: 150px;
+            overflow-y: auto;
             font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-size: 10px;
         }
-        
-        .bid { color: #2ecc71; }
-        .ask { color: #e74c3c; }
-        .mid { color: #f39c12; }
         
         .message {
-            margin-bottom: 5px;
-            padding: 5px;
-            border-radius: 4px;
+            margin-bottom: 3px;
+            padding: 3px;
+            border-radius: 3px;
             word-wrap: break-word;
         }
         
@@ -189,137 +205,203 @@
         .message.error { background: rgba(231, 76, 60, 0.2); }
         .message.fill { background: rgba(155, 89, 182, 0.2); }
         
-        h2, h3 {
-            margin-bottom: 15px;
-            font-weight: 300;
+        .price-bid { color: #2ecc71; }
+        .price-ask { color: #e74c3c; }
+        .price-mid { color: #f39c12; }
+        
+        h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            font-weight: 400;
         }
         
-        .form-row {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .form-row input,
-        .form-row select {
-            margin-bottom: 10px;
-        }
-        
-        .order-item {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 10px;
+        h3 {
+            font-size: 14px;
             margin-bottom: 8px;
-            border-left: 4px solid;
+            font-weight: 400;
         }
         
-        .order-item.buy { border-left-color: #2ecc71; }
-        .order-item.sell { border-left-color: #e74c3c; }
-        .order-item.pending { border-left-color: #f39c12; }
-        .order-item.filled { border-left-color: #9b59b6; }
-        
-        .order-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 5px;
+        .team-info {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-size: 11px;
         }
         
-        .order-details {
+        .team-info p {
+            margin: 2px 0;
+        }
+        
+        .debug-section {
+            margin-bottom: 12px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+        
+        .debug-section h4 {
             font-size: 12px;
-            opacity: 0.8;
+            margin-bottom: 8px;
+            color: #f39c12;
         }
         
-        .order-actions {
-            display: flex;
-            gap: 5px;
+        .order-book-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
             margin-top: 8px;
         }
         
-        .order-actions button {
-            flex: 1;
-            margin-bottom: 0;
-            padding: 6px 12px;
-            font-size: 12px;
+        .order-book-side {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px;
         }
         
-        .approve-btn {
-            background: rgba(46, 204, 113, 0.3) !important;
+        .order-book-side h5 {
+            font-size: 11px;
+            margin-bottom: 6px;
+            text-align: center;
         }
         
-        .approve-btn:hover {
-            background: rgba(46, 204, 113, 0.5) !important;
-        }
+        .order-book-side.buy h5 { color: #2ecc71; }
+        .order-book-side.sell h5 { color: #e74c3c; }
         
-        .deny-btn {
-            background: rgba(231, 76, 60, 0.3) !important;
-        }
-        
-        .deny-btn:hover {
-            background: rgba(231, 76, 60, 0.5) !important;
+        .order-book-entry {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            padding: 2px 4px;
+            margin: 1px 0;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.05);
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="debug-container">
         <div class="header">
-            <h1>🥑 Intergalactic Avocado Stock Exchange</h1>
-            <div>
+            <h1>🥑 Avocado Exchange - Debug Console</h1>
+            <div class="status-bar">
+                <div id="status-indicator" class="status-indicator status-disconnected">Disconnected</div>
                 <span id="connection-time"></span>
                 <span id="server-time"></span>
             </div>
         </div>
         
-        <div class="panel login-panel">
-            <h2>Authentication</h2>
-            <div id="status" class="status disconnected">Disconnected</div>
-            
-            <input type="text" id="token" placeholder="Enter your team token (TK-...)" />
-            <button id="connect-btn" onclick="connect()">Connect</button>
-            <button id="login-btn" onclick="login()" disabled>Login</button>
-            
-            <div id="team-info" style="display: none;">
-                <h3>Team Information</h3>
-                <div id="team-details"></div>
-            </div>
-        </div>
-        
-        <div class="panel market-panel">
-            <h2>Market Data</h2>
-            
-            <div class="ticker-board">
-                <h3>Live Ticker</h3>
-                <div id="ticker-list"></div>
+        <!-- Left Panel: Authentication & Debug Tools -->
+        <div class="panel">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('auth')">Auth</button>
+                <button class="tab" onclick="switchTab('debug')">Debug</button>
             </div>
             
-            <div class="order-book">
-                <h3>Order Book</h3>
-                <div id="order-book-data">
-                    <p>Select a product to view order book</p>
-                </div>
-            </div>
-            
-            <div class="order-management" style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 15px; margin-top: 10px;">
-                <h3>Live Orders</h3>
-                <div id="live-orders-list" style="max-height: 200px; overflow-y: auto;">
-                    <p>No active orders</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="panel trading-panel">
-            <h2>Trading</h2>
-            
-            <div class="order-form">
-                <h3>Place Order</h3>
-                <select id="side">
-                    <option value="BUY">Buy</option>
-                    <option value="SELL">Sell</option>
-                </select>
+            <div id="auth-tab" class="tab-content active">
+                <h3>Authentication</h3>
+                <input type="text" id="token" placeholder="Team token (TK-...)" />
+                <button id="connect-btn" onclick="toggleConnection()">Connect</button>
+                <button id="login-btn" onclick="login()" disabled>Login</button>
                 
-                <select id="mode">
-                    <option value="MARKET">Market Order</option>
-                    <option value="LIMIT">Limit Order</option>
+                <div id="team-info" class="team-info" style="display: none;">
+                    <div id="team-details"></div>
+                </div>
+            </div>
+            
+            <div id="debug-tab" class="tab-content">
+                <div class="debug-section">
+                    <h4>🧪 Production Test</h4>
+                    <select id="prod-product">
+                        <option value="FOSFO">FOSFO</option>
+                        <option value="PITA">PITA</option>
+                        <option value="PALTA-OIL">PALTA-OIL</option>
+                        <option value="GUACA">GUACA</option>
+                        <option value="SEBO">SEBO</option>
+                        <option value="H-GUACA">H-GUACA</option>
+                    </select>
+                    <input type="number" id="prod-qty" placeholder="Quantity" min="1" />
+                    <button onclick="testProduction()" disabled id="prod-btn">Produce</button>
+                </div>
+                
+                <div class="debug-section">
+                    <h4>📊 Market Data</h4>
+                    <button onclick="requestAllOrders()" disabled id="all-orders-btn">Get All Orders</button>
+                    <button onclick="requestOrderBook()" disabled id="order-book-btn">Refresh Order Book</button>
+                </div>
+                
+                <div class="debug-section">
+                    <h4>🔄 Connection Test</h4>
+                    <button onclick="sendPing()" disabled id="ping-btn">Send Ping</button>
+                    <button onclick="requestResync()" disabled id="resync-btn">Request Resync</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Center Panel: Market Data & Order Book -->
+        <div class="panel main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchMainTab('ticker')">Ticker</button>
+                <button class="tab" onclick="switchMainTab('orderbook')">Order Book</button>
+                <button class="tab" onclick="switchMainTab('orders')">All Orders</button>
+            </div>
+            
+            <div id="ticker-tab" class="tab-content active">
+                <h3>Live Market Ticker</h3>
+                <div id="ticker-list">
+                    <p>No market data available</p>
+                </div>
+            </div>
+            
+            <div id="orderbook-tab" class="tab-content">
+                <h3>Order Book</h3>
+                <select id="product-selector" onchange="updateOrderBook()">
+                    <option value="">Select Product</option>
+                    <option value="FOSFO">FOSFO</option>
+                    <option value="PITA">PITA</option>
+                    <option value="PALTA-OIL">PALTA-OIL</option>
+                    <option value="GUACA">GUACA</option>
+                    <option value="SEBO">SEBO</option>
+                    <option value="H-GUACA">H-GUACA</option>
                 </select>
+                <div class="order-book-grid">
+                    <div class="order-book-side buy">
+                        <h5>BUY ORDERS</h5>
+                        <div id="buy-orders"></div>
+                    </div>
+                    <div class="order-book-side sell">
+                        <h5>SELL ORDERS</h5>
+                        <div id="sell-orders"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="orders-tab" class="tab-content">
+                <h3>All Market Orders</h3>
+                <div id="all-orders-list">
+                    <p>No orders available</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel: Trading & Messages -->
+        <div class="panel">
+            <div class="tabs">
+                <button class="tab active" onclick="switchRightTab('trading')">Trading</button>
+                <button class="tab" onclick="switchRightTab('messages')">Messages</button>
+            </div>
+            
+            <div id="trading-tab" class="tab-content active">
+                <h3>Place Order</h3>
+                <div class="form-row">
+                    <select id="side">
+                        <option value="BUY">Buy</option>
+                        <option value="SELL">Sell</option>
+                    </select>
+                    <select id="mode">
+                        <option value="MARKET">Market</option>
+                        <option value="LIMIT">Limit</option>
+                    </select>
+                </div>
                 
                 <select id="product">
                     <option value="FOSFO">FOSFO</option>
@@ -332,16 +414,27 @@
                 
                 <div class="form-row">
                     <input type="number" id="qty" placeholder="Quantity" min="1" />
-                    <input type="number" id="price" placeholder="Price (for limit orders)" step="0.01" />
+                    <input type="number" id="price" placeholder="Price" step="0.01" />
                 </div>
                 
-                <input type="text" id="message" placeholder="Optional message" />
+                <select id="debug-mode">
+                    <option value="">Normal Order</option>
+                    <option value="AUTO_ACCEPT">Auto-Accept (Debug)</option>
+                    <option value="TEAM_ONLY">Team Only (Debug)</option>
+                </select>
+                
+                <textarea id="message" placeholder="Optional message" rows="2"></textarea>
                 <button id="place-order-btn" onclick="placeOrder()" disabled>Place Order</button>
+                
+                <h3 style="margin-top: 16px;">My Orders</h3>
+                <div id="my-orders-list">
+                    <p>No active orders</p>
+                </div>
             </div>
             
-            <div class="messages">
-                <h3>Messages</h3>
-                <div id="message-list"></div>
+            <div id="messages-tab" class="tab-content">
+                <h3>System Messages</h3>
+                <div class="messages" id="message-list"></div>
             </div>
         </div>
     </div>
@@ -355,9 +448,13 @@
         let maxReconnectAttempts = 5;
         let reconnectDelay = 1000;
         let pingInterval = null;
-        let orders = new Map();
+        let myOrders = new Map();
+        let allOrders = [];
+        let orderBook = { buy: [], sell: [] };
+        let currentProduct = '';
         
-        const statusEl = document.getElementById('status');
+        // UI Elements
+        const statusIndicator = document.getElementById('status-indicator');
         const connectBtn = document.getElementById('connect-btn');
         const loginBtn = document.getElementById('login-btn');
         const placeOrderBtn = document.getElementById('place-order-btn');
@@ -366,17 +463,39 @@
         const connectionTime = document.getElementById('connection-time');
         const serverTime = document.getElementById('server-time');
         
-        function updateStatus(status, message) {
-            statusEl.className = `status ${status}`;
-            statusEl.textContent = message;
+        // Tab Management
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
         }
         
-        function addMessage(type, message) {
-            const msg = document.createElement('div');
-            msg.className = `message ${type}`;
-            msg.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            messageList.appendChild(msg);
-            messageList.scrollTop = messageList.scrollHeight;
+        function switchMainTab(tabName) {
+            document.querySelectorAll('#main-content .tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('#main-content .tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+        
+        function switchRightTab(tabName) {
+            const panel = event.target.closest('.panel');
+            panel.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            panel.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+        
+        // Connection Management
+        function toggleConnection() {
+            if (connected) {
+                disconnect();
+            } else {
+                connect();
+            }
         }
         
         function connect() {
@@ -395,13 +514,11 @@
             ws.onopen = function() {
                 connected = true;
                 reconnectAttempts = 0;
-                updateStatus('connected', 'Connected - Please login');
+                updateStatus('connected', 'Connected');
                 addMessage('success', 'WebSocket connected');
                 connectBtn.textContent = 'Disconnect';
                 loginBtn.disabled = false;
                 connectionTime.textContent = `Connected: ${new Date().toLocaleTimeString()}`;
-                
-                // Start ping/pong mechanism
                 startPing();
             };
             
@@ -424,9 +541,8 @@
                     addMessage('info', 'WebSocket disconnected cleanly');
                 } else {
                     updateStatus('disconnected', 'Connection lost');
-                    addMessage('error', `WebSocket disconnected unexpectedly: ${event.code} ${event.reason}`);
+                    addMessage('error', `WebSocket disconnected unexpectedly: ${event.code}`);
                     
-                    // Attempt reconnection
                     if (reconnectAttempts < maxReconnectAttempts) {
                         attemptReconnect();
                     } else {
@@ -436,7 +552,7 @@
                 
                 connectBtn.textContent = 'Connect';
                 loginBtn.disabled = true;
-                placeOrderBtn.disabled = true;
+                disableDebugButtons();
                 document.getElementById('team-info').style.display = 'none';
             };
             
@@ -445,9 +561,15 @@
             };
         }
         
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+        
         function attemptReconnect() {
             reconnectAttempts++;
-            const delay = reconnectDelay * Math.pow(2, reconnectAttempts - 1); // Exponential backoff
+            const delay = reconnectDelay * Math.pow(2, reconnectAttempts - 1);
             
             updateStatus('connecting', `Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`);
             addMessage('info', `Attempting reconnection ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`);
@@ -464,7 +586,7 @@
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({type: 'PING'}));
                 }
-            }, 25000); // Ping every 25 seconds
+            }, 25000);
         }
         
         function stopPing() {
@@ -474,12 +596,21 @@
             }
         }
         
-        function disconnect() {
-            if (ws) {
-                ws.close();
-            }
+        // Status Management
+        function updateStatus(status, message) {
+            statusIndicator.className = `status-indicator status-${status}`;
+            statusIndicator.textContent = message;
         }
         
+        function addMessage(type, message) {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messageList.appendChild(msg);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+        
+        // Authentication
         function login() {
             const token = document.getElementById('token').value.trim();
             if (!token) {
@@ -496,6 +627,210 @@
             ws.send(JSON.stringify(loginMsg));
         }
         
+        // Message Handling
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'LOGIN_OK':
+                    authenticated = true;
+                    teamInfo = data;
+                    updateStatus('authenticated', `Authenticated as ${data.team}`);
+                    addMessage('success', `Logged in as ${data.team} (${data.species})`);
+                    enableDebugButtons();
+                    displayTeamInfo(data);
+                    requestAllOrders();
+                    break;
+                    
+                case 'ERROR':
+                    addMessage('error', `${data.code}: ${data.reason}`);
+                    if (data.clOrdID) {
+                        updateMyOrderStatus(data.clOrdID, 'error', data.reason);
+                    }
+                    break;
+                    
+                case 'ORDER_ACK':
+                    addMessage('success', `Order acknowledged: ${data.clOrdID}`);
+                    updateMyOrderStatus(data.clOrdID, 'pending', 'Order acknowledged');
+                    break;
+                    
+                case 'FILL':
+                    addMessage('fill', `FILL: ${data.fillQty} ${data.product} @ $${data.fillPrice} (${data.side}) - Counterparty: ${data.counterparty}`);
+                    updateMyOrderStatus(data.clOrdID, 'filled', `Filled ${data.fillQty}/${data.totalQty} @ $${data.fillPrice}`);
+                    break;
+                    
+                case 'TICKER':
+                    updateTicker(data);
+                    if (data.serverTime) {
+                        serverTime.textContent = `Server: ${new Date(data.serverTime).toLocaleTimeString()}`;
+                    }
+                    break;
+                    
+                case 'OFFER':
+                    addMessage('info', `OFFER: ${data.buyer} wants ${data.quantityRequested} ${data.product} @ max $${data.maxPrice}`);
+                    displayOffer(data);
+                    break;
+                    
+                case 'INVENTORY_UPDATE':
+                    updateInventoryDisplay(data.inventory);
+                    addMessage('info', 'Inventory updated');
+                    break;
+                    
+                case 'ALL_ORDERS':
+                    allOrders = data.orders;
+                    updateAllOrdersDisplay();
+                    break;
+                    
+                case 'ORDER_BOOK_UPDATE':
+                    if (data.product === currentProduct) {
+                        updateOrderBookDisplay(data);
+                    }
+                    break;
+                    
+                case 'PONG':
+                    break;
+                    
+                case 'ECHO':
+                    addMessage('info', `Echo: ${JSON.stringify(data.original)}`);
+                    break;
+                    
+                default:
+                    addMessage('info', `${data.type}: ${JSON.stringify(data)}`);
+            }
+        }
+        
+        // Display Functions
+        function displayTeamInfo(data) {
+            const teamInfoEl = document.getElementById('team-info');
+            const teamDetailsEl = document.getElementById('team-details');
+            
+            const inventoryHtml = data.inventory ? 
+                Object.entries(data.inventory)
+                    .filter(([product, qty]) => qty > 0)
+                    .map(([product, qty]) => `${product}: ${qty}`)
+                    .join(', ') || 'No inventory' 
+                : 'No inventory';
+            
+            teamDetailsEl.innerHTML = `
+                <p><strong>Team:</strong> ${data.team}</p>
+                <p><strong>Species:</strong> ${data.species}</p>
+                <p><strong>Balance:</strong> $${data.currentBalance || data.initialBalance}</p>
+                <p><strong>Inventory:</strong> ${inventoryHtml}</p>
+                <p><strong>Authorized:</strong> ${data.authorizedProducts.join(', ')}</p>
+            `;
+            teamInfoEl.style.display = 'block';
+        }
+        
+        function updateInventoryDisplay(inventory) {
+            if (!teamInfo) return;
+            teamInfo.inventory = inventory;
+            displayTeamInfo(teamInfo);
+        }
+        
+        function updateTicker(ticker) {
+            let tickerItem = document.querySelector(`[data-product="${ticker.product}"]`);
+            
+            if (!tickerItem) {
+                tickerItem = document.createElement('div');
+                tickerItem.className = 'ticker-item';
+                tickerItem.setAttribute('data-product', ticker.product);
+                tickerList.appendChild(tickerItem);
+            }
+            
+            tickerItem.innerHTML = `
+                <div class="order-header">
+                    <span class="product">${ticker.product}</span>
+                    <span class="price">
+                        <span class="price-bid">$${ticker.bestBid || 'N/A'}</span> | 
+                        <span class="price-ask">$${ticker.bestAsk || 'N/A'}</span> | 
+                        <span class="price-mid">$${ticker.mid || 'N/A'}</span>
+                    </span>
+                </div>
+                <div class="order-details">Vol: ${ticker.volume24h || 0}</div>
+            `;
+        }
+        
+        function updateAllOrdersDisplay() {
+            const container = document.getElementById('all-orders-list');
+            
+            if (allOrders.length === 0) {
+                container.innerHTML = '<p>No orders available</p>';
+                return;
+            }
+            
+            container.innerHTML = allOrders.map(order => {
+                const priceText = order.mode === 'LIMIT' && order.price ? `@ $${order.price}` : '@ Market';
+                const progress = order.filledQty > 0 ? ` (${order.filledQty}/${order.quantity} filled)` : '';
+                
+                return `
+                    <div class="order-item ${order.side.toLowerCase()}">
+                        <div class="order-header">
+                            <strong>${order.teamName}</strong>
+                            <span>${order.side} ${order.quantity} ${order.product}</span>
+                        </div>
+                        <div class="order-details">
+                            ${order.mode} ${priceText}${progress}
+                            ${order.message ? `| "${order.message}"` : ''}
+                        </div>
+                        ${teamInfo && teamInfo.team !== order.teamName ? `
+                            <div style="margin-top: 6px;">
+                                <button class="btn-small" onclick="respondToOrder('${order.clOrdID}', true)">Accept</button>
+                                <button class="btn-small" onclick="respondToOrder('${order.clOrdID}', false)">Reject</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateOrderBookDisplay(data) {
+            const buyContainer = document.getElementById('buy-orders');
+            const sellContainer = document.getElementById('sell-orders');
+            
+            buyContainer.innerHTML = data.buyOrders.map(order => `
+                <div class="order-book-entry">
+                    <span>${order.quantity}@${order.price || 'MKT'}</span>
+                    <span>${order.teamName}</span>
+                </div>
+            `).join('') || '<p>No buy orders</p>';
+            
+            sellContainer.innerHTML = data.sellOrders.map(order => `
+                <div class="order-book-entry">
+                    <span>${order.quantity}@${order.price || 'MKT'}</span>
+                    <span>${order.teamName}</span>
+                </div>
+            `).join('') || '<p>No sell orders</p>';
+        }
+        
+        function displayOffer(offer) {
+            const container = document.getElementById('all-orders-list');
+            
+            const offerElement = document.createElement('div');
+            offerElement.className = 'order-item pending';
+            offerElement.innerHTML = `
+                <div class="order-header">
+                    <strong>OFFER: ${offer.buyer}</strong>
+                    <span>${offer.quantityRequested} ${offer.product} @ max $${offer.maxPrice}</span>
+                </div>
+                <div class="order-details">
+                    Offer ID: ${offer.offerId} | Expires in: ${offer.expiresIn}ms
+                </div>
+                <div style="margin-top: 6px;" id="offer-actions-${offer.offerId}">
+                    <button class="btn-small" onclick="respondToOffer('${offer.offerId}', true)">Approve</button>
+                    <button class="btn-small" onclick="respondToOffer('${offer.offerId}', false)">Deny</button>
+                </div>
+            `;
+            
+            container.insertBefore(offerElement, container.firstChild);
+            
+            if (offer.expiresIn) {
+                setTimeout(() => {
+                    if (offerElement.parentNode) {
+                        offerElement.remove();
+                    }
+                }, offer.expiresIn);
+            }
+        }
+        
+        // Order Management
         function placeOrder() {
             if (!authenticated) {
                 addMessage('error', 'Must be authenticated to place orders');
@@ -508,6 +843,7 @@
             const qty = parseInt(document.getElementById('qty').value);
             const price = parseFloat(document.getElementById('price').value);
             const message = document.getElementById('message').value;
+            const debugMode = document.getElementById('debug-mode').value;
             
             if (!qty || qty <= 0) {
                 addMessage('error', 'Please enter a valid quantity');
@@ -528,18 +864,18 @@
                 mode: mode,
                 product: product,
                 qty: qty,
-                message: message || undefined
+                message: message || undefined,
+                debugMode: debugMode || undefined
             };
             
             if (mode === 'LIMIT') {
-                orderMsg.price = price;
+                orderMsg.limitPrice = price;
             }
             
-            addMessage('info', `Placing ${side} order: ${qty} ${product} @ ${mode}`);
+            addMessage('info', `Placing ${side} order: ${qty} ${product} @ ${mode}${debugMode ? ` (${debugMode})` : ''}`);
             ws.send(JSON.stringify(orderMsg));
             
-            // Track the order locally
-            addOrderToTracker(clOrdID, side, mode, product, qty, price, message);
+            addMyOrder(clOrdID, side, mode, product, qty, price, message, debugMode);
             
             // Clear form
             document.getElementById('qty').value = '';
@@ -547,225 +883,136 @@
             document.getElementById('message').value = '';
         }
         
-        function handleMessage(data) {
-            switch (data.type) {
-                case 'LOGIN_OK':
-                    authenticated = true;
-                    teamInfo = data;
-                    updateStatus('authenticated', `Authenticated as ${data.team}`);
-                    addMessage('success', `Logged in as ${data.team} (${data.species})`);
-                    placeOrderBtn.disabled = false;
-                    
-                    // Show team info with inventory
-                    const teamInfoEl = document.getElementById('team-info');
-                    const teamDetailsEl = document.getElementById('team-details');
-                    
-                    const inventoryHtml = data.inventory ? 
-                        Object.entries(data.inventory)
-                            .filter(([product, qty]) => qty > 0)
-                            .map(([product, qty]) => `${product}: ${qty}`)
-                            .join(', ') || 'No inventory' 
-                        : 'No inventory';
-                    
-                    teamDetailsEl.innerHTML = `
-                        <p><strong>Team:</strong> ${data.team}</p>
-                        <p><strong>Species:</strong> ${data.species}</p>
-                        <p><strong>Balance:</strong> $${data.currentBalance || data.initialBalance}</p>
-                        <p><strong>Inventory:</strong> ${inventoryHtml}</p>
-                        <p><strong>Authorized Products:</strong> ${data.authorizedProducts.join(', ')}</p>
-                    `;
-                    teamInfoEl.style.display = 'block';
-                    break;
-                    
-                case 'ERROR':
-                    addMessage('error', `${data.code}: ${data.reason}`);
-                    // If order error, update order status
-                    if (data.clOrdID) {
-                        updateOrderStatus(data.clOrdID, 'error', data.reason);
-                    }
-                    break;
-                    
-                case 'ORDER_ACK':
-                    addMessage('success', `Order acknowledged: ${data.clOrdID}`);
-                    updateOrderStatus(data.clOrdID, 'pending', 'Order acknowledged by server');
-                    break;
-                    
-                case 'FILL':
-                    addMessage('fill', `FILL: ${data.fillQty} ${data.product} @ $${data.fillPrice} (${data.side}) - Counterparty: ${data.counterparty}`);
-                    updateOrderStatus(data.clOrdID, 'filled', `Filled ${data.fillQty}/${data.totalQty} @ $${data.fillPrice}`);
-                    break;
-                    
-                case 'TICKER':
-                    updateTicker(data);
-                    if (data.serverTime) {
-                        serverTime.textContent = `Server: ${new Date(data.serverTime).toLocaleTimeString()}`;
-                    }
-                    break;
-                    
-                case 'OFFER':
-                    addMessage('info', `OFFER: ${data.buyer} wants ${data.quantityRequested} ${data.product} @ max $${data.maxPrice} (expires in ${data.expiresIn}ms)`);
-                    displayOfferForApproval(data);
-                    break;
-                    
-                case 'INVENTORY_UPDATE':
-                    updateInventoryDisplay(data.inventory);
-                    addMessage('info', 'Inventory updated');
-                    break;
-                    
-                case 'PONG':
-                    // Server responded to ping
-                    break;
-                    
-                case 'ECHO':
-                    addMessage('info', `Echo: ${JSON.stringify(data.original)}`);
-                    break;
-                    
-                default:
-                    addMessage('info', `${data.type}: ${JSON.stringify(data)}`);
-            }
-        }
-        
-        function updateTicker(ticker) {
-            let tickerItem = document.querySelector(`[data-product="${ticker.product}"]`);
-            
-            if (!tickerItem) {
-                tickerItem = document.createElement('div');
-                tickerItem.className = 'ticker-item';
-                tickerItem.setAttribute('data-product', ticker.product);
-                tickerList.appendChild(tickerItem);
-            }
-            
-            tickerItem.innerHTML = `
-                <div class="product">${ticker.product}</div>
-                <div class="price">
-                    <span class="bid">Bid: $${ticker.bestBid || 'N/A'}</span> |
-                    <span class="ask">Ask: $${ticker.bestAsk || 'N/A'}</span> |
-                    <span class="mid">Mid: $${ticker.mid || 'N/A'}</span>
-                </div>
-            `;
-        }
-        
-        // Auto-connect on page load
-        window.onload = function() {
-            // Set up connect button click handler
-            connectBtn.onclick = function() {
-                if (connected) {
-                    disconnect();
-                } else {
-                    connect();
-                }
-            };
-        };
-        
-        // Handle Enter key in token input
-        document.getElementById('token').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                if (!connected) {
-                    connect();
-                } else {
-                    login();
-                }
-            }
-        });
-        
-        // Handle Enter key in order form
-        ['qty', 'price', 'message'].forEach(id => {
-            document.getElementById(id).addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    placeOrder();
-                }
-            });
-        });
-        
-        // Order tracking functions
-        function addOrderToTracker(clOrdID, side, mode, product, qty, price, message) {
+        function addMyOrder(clOrdID, side, mode, product, qty, price, message, debugMode) {
             const order = {
-                clOrdID,
-                side,
-                mode,
-                product,
-                qty,
-                price,
-                message,
+                clOrdID, side, mode, product, qty, price, message, debugMode,
                 status: 'submitted',
                 timestamp: new Date(),
                 statusText: 'Submitted to server'
             };
             
-            orders.set(clOrdID, order);
-            updateOrdersDisplay();
+            myOrders.set(clOrdID, order);
+            updateMyOrdersDisplay();
         }
         
-        function updateOrderStatus(clOrdID, status, statusText) {
-            const order = orders.get(clOrdID);
+        function updateMyOrderStatus(clOrdID, status, statusText) {
+            const order = myOrders.get(clOrdID);
             if (order) {
                 order.status = status;
                 order.statusText = statusText;
                 order.lastUpdate = new Date();
-                updateOrdersDisplay();
+                updateMyOrdersDisplay();
             }
         }
         
-        function updateOrdersDisplay() {
-            const ordersContainer = document.getElementById('live-orders-list');
+        function updateMyOrdersDisplay() {
+            const container = document.getElementById('my-orders-list');
             
-            if (orders.size === 0) {
-                ordersContainer.innerHTML = '<p>No active orders</p>';
+            if (myOrders.size === 0) {
+                container.innerHTML = '<p>No active orders</p>';
                 return;
             }
             
-            const orderArray = Array.from(orders.values()).sort((a, b) => b.timestamp - a.timestamp);
+            const orderArray = Array.from(myOrders.values()).sort((a, b) => b.timestamp - a.timestamp);
             
-            ordersContainer.innerHTML = orderArray.map(order => {
+            container.innerHTML = orderArray.map(order => {
                 const priceText = order.mode === 'LIMIT' && order.price ? `@ $${order.price}` : '@ Market';
                 const timeText = order.timestamp.toLocaleTimeString();
+                const debugText = order.debugMode ? ` [${order.debugMode}]` : '';
                 
                 return `
                     <div class="order-item ${order.side.toLowerCase()} ${order.status}">
                         <div class="order-header">
                             <strong>${order.side} ${order.qty} ${order.product}</strong>
-                            <span class="timestamp">${timeText}</span>
+                            <span>${timeText}</span>
                         </div>
                         <div class="order-details">
-                            ${order.mode} ${priceText} | Status: ${order.statusText}
-                            ${order.message ? `| Message: "${order.message}"` : ''}
+                            ${order.mode} ${priceText}${debugText} | ${order.statusText}
+                            ${order.message ? `| "${order.message}"` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
         }
         
-        function displayOfferForApproval(offer) {
-            const ordersContainer = document.getElementById('live-orders-list');
+        // Debug Functions
+        function enableDebugButtons() {
+            document.getElementById('prod-btn').disabled = false;
+            document.getElementById('all-orders-btn').disabled = false;
+            document.getElementById('order-book-btn').disabled = false;
+            document.getElementById('ping-btn').disabled = false;
+            document.getElementById('resync-btn').disabled = false;
+            document.getElementById('place-order-btn').disabled = false;
+        }
+        
+        function disableDebugButtons() {
+            document.getElementById('prod-btn').disabled = true;
+            document.getElementById('all-orders-btn').disabled = true;
+            document.getElementById('order-book-btn').disabled = true;
+            document.getElementById('ping-btn').disabled = true;
+            document.getElementById('resync-btn').disabled = true;
+            document.getElementById('place-order-btn').disabled = true;
+        }
+        
+        function testProduction() {
+            const product = document.getElementById('prod-product').value;
+            const qty = parseInt(document.getElementById('prod-qty').value);
             
-            // Create offer element for approval/denial
-            const offerElement = document.createElement('div');
-            offerElement.className = 'order-item pending';
-            offerElement.innerHTML = `
-                <div class="order-header">
-                    <strong>OFFER: ${offer.buyer} wants ${offer.quantityRequested} ${offer.product}</strong>
-                    <span>@ max $${offer.maxPrice}</span>
-                </div>
-                <div class="order-details">
-                    Offer ID: ${offer.offerId} | Expires in: ${offer.expiresIn}ms
-                </div>
-                <div class="order-actions" id="offer-actions-${offer.offerId}">
-                    <button class="approve-btn" onclick="respondToOffer('${offer.offerId}', true)">Approve</button>
-                    <button class="deny-btn" onclick="respondToOffer('${offer.offerId}', false)">Deny</button>
-                </div>
-            `;
-            
-            // Add to top of orders list
-            ordersContainer.insertBefore(offerElement, ordersContainer.firstChild);
-            
-            // Auto-remove after expiration
-            if (offer.expiresIn) {
-                setTimeout(() => {
-                    if (offerElement.parentNode) {
-                        offerElement.remove();
-                    }
-                }, offer.expiresIn);
+            if (!qty || qty <= 0) {
+                addMessage('error', 'Please enter a valid quantity');
+                return;
             }
+            
+            const prodMsg = {
+                type: 'PRODUCTION_UPDATE',
+                product: product,
+                quantity: qty
+            };
+            
+            addMessage('info', `Testing production: ${qty} ${product}`);
+            ws.send(JSON.stringify(prodMsg));
+            
+            document.getElementById('prod-qty').value = '';
+        }
+        
+        function requestAllOrders() {
+            const msg = { type: 'REQUEST_ALL_ORDERS' };
+            ws.send(JSON.stringify(msg));
+        }
+        
+        function requestOrderBook() {
+            const product = document.getElementById('product-selector').value;
+            if (!product) {
+                addMessage('error', 'Please select a product first');
+                return;
+            }
+            
+            const msg = { type: 'REQUEST_ORDER_BOOK', product: product };
+            ws.send(JSON.stringify(msg));
+        }
+        
+        function updateOrderBook() {
+            const product = document.getElementById('product-selector').value;
+            currentProduct = product;
+            
+            if (product) {
+                requestOrderBook();
+            } else {
+                document.getElementById('buy-orders').innerHTML = '<p>Select a product</p>';
+                document.getElementById('sell-orders').innerHTML = '<p>Select a product</p>';
+            }
+        }
+        
+        function sendPing() {
+            const msg = { type: 'PING' };
+            ws.send(JSON.stringify(msg));
+            addMessage('info', 'Ping sent');
+        }
+        
+        function requestResync() {
+            const msg = { type: 'RESYNC', lastSync: '' };
+            ws.send(JSON.stringify(msg));
+            addMessage('info', 'Resync requested');
         }
         
         function respondToOffer(offerId, accept) {
@@ -782,7 +1029,6 @@
             
             ws.send(JSON.stringify(response));
             
-            // Remove offer actions
             const actionsEl = document.getElementById(`offer-actions-${offerId}`);
             if (actionsEl) {
                 actionsEl.innerHTML = `<span style="color: ${accept ? '#2ecc71' : '#e74c3c'};">${accept ? 'APPROVED' : 'DENIED'}</span>`;
@@ -791,42 +1037,50 @@
             addMessage('info', `Offer ${offerId} ${accept ? 'approved' : 'denied'}`);
         }
         
-        function updateInventoryDisplay(inventory) {
-            if (!teamInfo) return;
-            
-            // Update the stored team info
-            teamInfo.inventory = inventory;
-            
-            // Update the display
-            const teamDetailsEl = document.getElementById('team-details');
-            const inventoryHtml = inventory ? 
-                Object.entries(inventory)
-                    .filter(([product, qty]) => qty > 0)
-                    .map(([product, qty]) => `${product}: ${qty}`)
-                    .join(', ') || 'No inventory' 
-                : 'No inventory';
-            
-            teamDetailsEl.innerHTML = `
-                <p><strong>Team:</strong> ${teamInfo.team}</p>
-                <p><strong>Species:</strong> ${teamInfo.species}</p>
-                <p><strong>Balance:</strong> $${teamInfo.currentBalance || teamInfo.initialBalance}</p>
-                <p><strong>Inventory:</strong> ${inventoryHtml}</p>
-                <p><strong>Authorized Products:</strong> ${teamInfo.authorizedProducts.join(', ')}</p>
-            `;
+        function respondToOrder(clOrdID, accept) {
+            addMessage('info', `Order response not implemented yet: ${clOrdID} ${accept ? 'accepted' : 'rejected'}`);
         }
         
-        // Clean up old orders periodically
-        setInterval(() => {
-            const cutoff = new Date(Date.now() - 300000); // 5 minutes ago
-            for (const [clOrdID, order] of orders.entries()) {
-                if (order.status === 'filled' || order.status === 'error') {
-                    if (order.timestamp < cutoff) {
-                        orders.delete(clOrdID);
+        // Auto-connect on page load
+        window.onload = function() {
+            // Clean up old orders periodically
+            setInterval(() => {
+                const cutoff = new Date(Date.now() - 300000); // 5 minutes ago
+                for (const [clOrdID, order] of myOrders.entries()) {
+                    if (order.status === 'filled' || order.status === 'error') {
+                        if (order.timestamp < cutoff) {
+                            myOrders.delete(clOrdID);
+                        }
                     }
                 }
+                updateMyOrdersDisplay();
+            }, 60000);
+        };
+        
+        // Handle Enter key in forms
+        document.getElementById('token').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                if (!connected) {
+                    connect();
+                } else {
+                    login();
+                }
             }
-            updateOrdersDisplay();
-        }, 60000); // Clean every minute
+        });
+        
+        ['qty', 'price'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    placeOrder();
+                }
+            });
+        });
+        
+        document.getElementById('prod-qty').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                testProduction();
+            }
+        });
     </script>
 </body>
 </html>

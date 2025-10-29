@@ -20,6 +20,8 @@ type MessageRouter struct {
 	resyncService     domain.ResyncService
 	productionService domain.ProductionService
 	rateLimiter       *service.RateLimiter
+	orderRepo         domain.OrderRepository
+	orderBook         domain.OrderBookRepository
 }
 
 func NewMessageRouter(
@@ -30,6 +32,8 @@ func NewMessageRouter(
 	resyncService domain.ResyncService,
 	productionService domain.ProductionService,
 	rateLimiter *service.RateLimiter,
+	orderRepo domain.OrderRepository,
+	orderBook domain.OrderBookRepository,
 ) *MessageRouter {
 	return &MessageRouter{
 		authService:       authService,
@@ -39,6 +43,8 @@ func NewMessageRouter(
 		resyncService:     resyncService,
 		productionService: productionService,
 		rateLimiter:       rateLimiter,
+		orderRepo:         orderRepo,
+		orderBook:         orderBook,
 	}
 }
 
@@ -66,10 +72,13 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleAcceptOffer(ctx, rawMessage, client)
 	case "RESYNC":
 		return r.handleResync(ctx, rawMessage, client)
+	case "REQUEST_ALL_ORDERS":
+		return r.handleRequestAllOrders(ctx, client)
+	case "REQUEST_ORDER_BOOK":
+		return r.handleRequestOrderBook(ctx, rawMessage, client)
 	case "PING":
 		return r.handlePing(ctx, client)
 	default:
-		// For unimplemented messages, echo back for now
 		return r.handleEcho(ctx, baseMsg, client)
 	}
 }
@@ -338,10 +347,109 @@ func (r *MessageRouter) handleEcho(ctx context.Context, baseMsg domain.BaseMessa
 }
 
 func (r *MessageRouter) handlePing(ctx context.Context, client MessageClient) error {
-	// Respond with PONG
 	response := map[string]any{
 		"type":      "PONG",
 		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client MessageClient) error {
+	if client.GetTeamName() == "" {
+		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	orders, err := r.orderRepo.GetPendingOrders(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get pending orders")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get orders", "")
+	}
+
+	orderSummaries := make([]*domain.OrderSummary, 0, len(orders))
+	for _, order := range orders {
+		summary := &domain.OrderSummary{
+			ClOrdID:   order.ClOrdID,
+			TeamName:  order.TeamName,
+			Side:      order.Side,
+			Mode:      order.Mode,
+			Quantity:  order.Quantity,
+			Price:     order.Price,
+			FilledQty: order.FilledQty,
+			Message:   order.Message,
+			CreatedAt: order.CreatedAt.Format(time.RFC3339),
+		}
+		orderSummaries = append(orderSummaries, summary)
+	}
+
+	response := &domain.AllOrdersMessage{
+		Type:       "ALL_ORDERS",
+		Orders:     orderSummaries,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client.GetTeamName() == "" {
+		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	var request struct {
+		Type    string `json:"type"`
+		Product string `json:"product"`
+	}
+
+	if err := json.Unmarshal([]byte(rawMessage), &request); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid REQUEST_ORDER_BOOK message format", "")
+	}
+
+	if request.Product == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Product is required", "")
+	}
+
+	buyOrders := r.orderBook.GetBuyOrders(request.Product)
+	sellOrders := r.orderBook.GetSellOrders(request.Product)
+
+	buySummaries := make([]*domain.OrderSummary, 0, len(buyOrders))
+	for _, order := range buyOrders {
+		summary := &domain.OrderSummary{
+			ClOrdID:   order.ClOrdID,
+			TeamName:  order.TeamName,
+			Side:      order.Side,
+			Mode:      order.Mode,
+			Quantity:  order.Quantity,
+			Price:     order.Price,
+			FilledQty: order.FilledQty,
+			Message:   order.Message,
+			CreatedAt: order.CreatedAt.Format(time.RFC3339),
+		}
+		buySummaries = append(buySummaries, summary)
+	}
+
+	sellSummaries := make([]*domain.OrderSummary, 0, len(sellOrders))
+	for _, order := range sellOrders {
+		summary := &domain.OrderSummary{
+			ClOrdID:   order.ClOrdID,
+			TeamName:  order.TeamName,
+			Side:      order.Side,
+			Mode:      order.Mode,
+			Quantity:  order.Quantity,
+			Price:     order.Price,
+			FilledQty: order.FilledQty,
+			Message:   order.Message,
+			CreatedAt: order.CreatedAt.Format(time.RFC3339),
+		}
+		sellSummaries = append(sellSummaries, summary)
+	}
+
+	response := &domain.OrderBookUpdateMessage{
+		Type:       "ORDER_BOOK_UPDATE",
+		Product:    request.Product,
+		BuyOrders:  buySummaries,
+		SellOrders: sellSummaries,
+		ServerTime: time.Now().Format(time.RFC3339),
 	}
 
 	return client.SendMessage(response)

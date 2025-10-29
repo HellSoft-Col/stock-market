@@ -74,6 +74,7 @@ func (s *OrderService) ProcessOrder(ctx context.Context, teamName string, orderM
 		Price:      price,
 		LimitPrice: orderMsg.LimitPrice,
 		Message:    orderMsg.Message,
+		DebugMode:  orderMsg.DebugMode,
 		ExpiresAt:  expiresAt,
 	}
 

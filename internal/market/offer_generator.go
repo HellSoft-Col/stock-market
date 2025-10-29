@@ -237,6 +237,11 @@ func (og *OfferGenerator) GenerateOffer(buyOrder *domain.Order) error {
 }
 
 func (og *OfferGenerator) GenerateTargetedOffer(buyOrder *domain.Order, eligibleTeams []*domain.Team) error {
+	// Handle debug modes
+	if buyOrder.DebugMode == "AUTO_ACCEPT" {
+		return og.handleAutoAcceptOrder(buyOrder)
+	}
+
 	// Calculate offer price (10% above current mid price)
 	marketState, err := og.marketRepo.GetByProduct(context.Background(), buyOrder.Product)
 	if err != nil {
@@ -406,6 +411,51 @@ func (og *OfferGenerator) executeOfferMatch(buyOrder, sellOrder *domain.Order) e
 
 	// Execute the trade using market engine's transaction logic
 	return og.marketEngine.executeTradeTransaction(buyOrder, sellOrder, result)
+}
+
+func (og *OfferGenerator) handleAutoAcceptOrder(buyOrder *domain.Order) error {
+	// For AUTO_ACCEPT debug mode, create a virtual sell order with server-generated price
+	marketState, err := og.marketRepo.GetByProduct(context.Background(), buyOrder.Product)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to get market state for auto-accept")
+		return err
+	}
+
+	var price float64
+	if marketState.Mid != nil {
+		price = *marketState.Mid
+	} else {
+		price = 10.0 // Default price
+	}
+
+	virtualSellOrder := &domain.Order{
+		ClOrdID:   fmt.Sprintf("AUTO-SELL-%d-%s", time.Now().UnixNano(), uuid.New().String()[:8]),
+		TeamName:  "SERVER",
+		Side:      "SELL",
+		Mode:      "LIMIT",
+		Product:   buyOrder.Product,
+		Quantity:  buyOrder.Quantity - buyOrder.FilledQty,
+		Price:     &price,
+		Message:   "Auto-accept debug order",
+		CreatedAt: time.Now(),
+		Status:    "PENDING",
+		FilledQty: 0,
+	}
+
+	// Execute immediate match
+	err = og.executeOfferMatch(buyOrder, virtualSellOrder)
+	if err != nil {
+		return fmt.Errorf("failed to execute auto-accept order: %w", err)
+	}
+
+	log.Info().
+		Str("buyClOrdID", buyOrder.ClOrdID).
+		Str("product", buyOrder.Product).
+		Int("qty", virtualSellOrder.Quantity).
+		Float64("price", price).
+		Msg("Auto-accept debug order executed")
+
+	return nil
 }
 
 func minInt(a, b int) int {
