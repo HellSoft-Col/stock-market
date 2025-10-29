@@ -49,10 +49,13 @@ jobs:
           fi
         else
           # For automatic deployment after build, use the SHA-based tag that was actually created
-          # This matches the build workflow: type=sha,prefix={{branch}}-
-          TAG="${{ github.ref_name }}-${{ github.sha }}"
+          # The metadata-action uses SHORT SHA format, so we need to match that
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          TAG="${{ github.ref_name }}-$SHORT_SHA"
         fi
         
+        echo "Full SHA: ${{ github.sha }}"
+        echo "Short SHA: $(echo "${{ github.sha }}" | cut -c1-7)"
         echo "Selected tag: $TAG"
         echo "Full image: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:$TAG"
         
@@ -100,18 +103,18 @@ jobs:
         name: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
         properties:
           containers:
-          # Main application container
           - name: trading-app
             properties:
               image: ${{ steps.image.outputs.image }}
+              command:
+              - '/exchange-server'
+              - '-config=/config.production.yaml'
               ports:
               - protocol: TCP
                 port: 8080
               environmentVariables:
               - name: 'MONGODB_URI'
                 secureValue: '${{ secrets.MONGODB_URI }}'
-              - name: 'CONFIG_FILE'
-                value: '${{ vars.CONFIG_FILE || '/config.production.yaml' }}'
               - name: 'PORT'
                 value: '8080'
               - name: 'LOG_LEVEL'
@@ -120,7 +123,6 @@ jobs:
                 requests:
                   memoryInGB: ${{ vars.MEMORY_GB || 1 }}
                   cpu: ${{ vars.CPU_CORES || 0.5 }}
-          # Nginx + Let's Encrypt container
           - name: nginx-ssl
             properties:
               image: nginxproxy/nginx-proxy:alpine
@@ -147,11 +149,10 @@ jobs:
                 mountPath: /etc/nginx/vhost.d
               - name: nginx-html
                 mountPath: /usr/share/nginx/html
-               resources:
-                 requests:
-                   memoryInGB: 0.5
-                   cpu: 0.3
-          # Let's Encrypt companion
+              resources:
+                requests:
+                  memoryInGB: 0.5
+                  cpu: 0.3
           - name: letsencrypt
             properties:
               image: nginxproxy/acme-companion:latest
@@ -167,10 +168,10 @@ jobs:
                 mountPath: /usr/share/nginx/html
               - name: acme-state
                 mountPath: /etc/acme.sh
-               resources:
-                 requests:
-                   memoryInGB: 0.3
-                   cpu: 0.1
+              resources:
+                requests:
+                  memoryInGB: 0.3
+                  cpu: 0.1
           imageRegistryCredentials:
           - server: ${{ env.REGISTRY }}
             username: ${{ github.actor }}
@@ -405,14 +406,15 @@ jobs:
           - name: trading-app
             properties:
               image: $ROLLBACK_IMAGE
+              command:
+              - '/exchange-server'
+              - '-config=/config.production.yaml'
               ports:
               - protocol: TCP
                 port: 8080
               environmentVariables:
               - name: 'MONGODB_URI'
                 secureValue: '${{ secrets.MONGODB_URI }}'
-              - name: 'CONFIG_FILE'
-                value: '${{ vars.CONFIG_FILE || '/config.production.yaml' }}'
               - name: 'PORT'
                 value: '8080'
               resources:
