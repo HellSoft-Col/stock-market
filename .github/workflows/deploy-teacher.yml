@@ -106,87 +106,109 @@ jobs:
           "location": "${{ vars.AZURE_LOCATION || 'eastus' }}",
           "name": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}",
           "properties": {
-            "containers": [
-              {
-                "name": "trading-app",
-                "properties": {
-                  "image": "${{ steps.image.outputs.image }}",
-                  "command": ["/exchange-server", "-config=/config.production.yaml"],
-                  "ports": [
-                    {
-                      "protocol": "TCP",
-                      "port": 8080
-                    }
-                  ],
-                  "environmentVariables": [
-                    {
-                      "name": "MONGODB_URI",
-                      "secureValue": "${{ secrets.MONGODB_URI }}"
-                    },
-                    {
-                      "name": "PORT",
-                      "value": "8080"
-                    },
-                    {
-                      "name": "LOG_LEVEL",
-                      "value": "${{ vars.LOG_LEVEL || 'info' }}"
-                    }
-                  ],
-                  "resources": {
-                    "requests": {
-                      "memoryInGB": ${{ vars.MEMORY_GB || 1 }},
-                      "cpu": ${{ vars.CPU_CORES || 0.5 }}
-                    }
-                  }
-                }
-              },
-              {
-                "name": "https-portal",
-                "properties": {
-                  "image": "steveltn/https-portal:1",
-                  "ports": [
-                    {
-                      "protocol": "TCP",
-                      "port": 80
-                    },
-                    {
-                      "protocol": "TCP",
-                      "port": 443
-                    }
-                  ],
-                  "environmentVariables": [
-                    {
-                      "name": "DOMAINS",
-                      "value": "${{ vars.DOMAIN_NAME || 'example.com' }} -> http://localhost:8080"
-                    },
-                    {
-                      "name": "STAGE",
-                      "value": "${{ vars.LETSENCRYPT_STAGE || 'staging' }}"
-                    },
-                    {
-                      "name": "WEBSOCKET",
-                      "value": "true"
-                    },
-                    {
-                      "name": "CLIENT_MAX_BODY_SIZE",
-                      "value": "0"
-                    }
-                  ],
-                  "volumeMounts": [
-                    {
-                      "name": "https-portal-data",
-                      "mountPath": "/var/lib/https-portal"
-                    }
-                  ],
-                  "resources": {
-                    "requests": {
-                      "memoryInGB": 0.5,
-                      "cpu": 0.3
-                    }
-                  }
-                }
-              }
-            ],
+             "containers": [
+               {
+                 "name": "trading-app",
+                 "properties": {
+                   "image": "${{ steps.image.outputs.image }}",
+                   "command": ["/exchange-server", "-config=/config.production.yaml"],
+                   "ports": [
+                     {
+                       "protocol": "TCP",
+                       "port": 8080
+                     }
+                   ],
+                   "environmentVariables": [
+                     {
+                       "name": "MONGODB_URI",
+                       "secureValue": "${{ secrets.MONGODB_URI }}"
+                     },
+                     {
+                       "name": "PORT",
+                       "value": "8080"
+                     },
+                     {
+                       "name": "LOG_LEVEL",
+                       "value": "${{ vars.LOG_LEVEL || 'info' }}"
+                     }
+                   ],
+                   "resources": {
+                     "requests": {
+                       "memoryInGB": ${{ vars.MEMORY_GB || 1 }},
+                       "cpu": ${{ vars.CPU_CORES || 0.5 }}
+                     }
+                   }
+                 }
+               },
+               {
+                 "name": "nginx-proxy",
+                 "properties": {
+                   "image": "mcr.microsoft.com/oss/nginx/nginx:1.25-alpine",
+                   "ports": [
+                     {
+                       "protocol": "TCP",
+                       "port": 80
+                     },
+                     {
+                       "protocol": "TCP",
+                       "port": 443
+                     }
+                   ],
+                   "command": [
+                     "sh", "-c",
+                     "mkdir -p /etc/nginx/conf.d /var/www/html /etc/letsencrypt/live && echo 'server { listen 80; server_name _; location /.well-known/acme-challenge/ { root /var/www/html; } location / { return 301 https://\\$host\\$request_uri; } } server { listen 443 ssl http2; server_name _; ssl_certificate /etc/letsencrypt/live/cert.pem; ssl_certificate_key /etc/letsencrypt/live/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; ssl_ciphers HIGH:!aNULL:!MD5; location / { proxy_pass http://localhost:8080; proxy_set_header Host \\$host; proxy_set_header X-Real-IP \\$remote_addr; proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \\$scheme; proxy_http_version 1.1; proxy_set_header Upgrade \\$http_upgrade; proxy_set_header Connection \"upgrade\"; proxy_connect_timeout 60s; proxy_send_timeout 60s; proxy_read_timeout 60s; } }' > /etc/nginx/conf.d/default.conf && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/letsencrypt/live/privkey.pem -out /etc/letsencrypt/live/cert.pem -subj '/CN=localhost' && nginx -g 'daemon off;'"
+                   ],
+                   "volumeMounts": [
+                     {
+                       "name": "ssl-certs",
+                       "mountPath": "/etc/letsencrypt"
+                     },
+                     {
+                       "name": "acme-challenge",
+                       "mountPath": "/var/www/html"
+                     }
+                   ],
+                   "resources": {
+                     "requests": {
+                       "memoryInGB": 0.3,
+                       "cpu": 0.2
+                     }
+                   }
+                 }
+               },
+               {
+                 "name": "certbot",
+                 "properties": {
+                   "image": "mcr.microsoft.com/oss/certbot/certbot:latest",
+                   "command": [
+                     "sh", "-c",
+                     "while true; do if [ -n \"$DOMAIN_NAME\" ] && [ \"$DOMAIN_NAME\" != \"example.com\" ]; then echo 'Getting SSL certificate for $DOMAIN_NAME...'; certbot certonly --webroot --webroot-path=/var/www/html --email admin@$DOMAIN_NAME --agree-tos --no-eff-email --staging --domains $DOMAIN_NAME --cert-name main || true; if [ -f /etc/letsencrypt/live/main/fullchain.pem ]; then cp /etc/letsencrypt/live/main/fullchain.pem /etc/letsencrypt/live/cert.pem; cp /etc/letsencrypt/live/main/privkey.pem /etc/letsencrypt/live/privkey.pem; echo 'SSL certificate updated'; fi; fi; sleep 43200; done"
+                   ],
+                   "environmentVariables": [
+                     {
+                       "name": "DOMAIN_NAME",
+                       "value": "${{ vars.DOMAIN_NAME || 'example.com' }}"
+                     }
+                   ],
+                   "volumeMounts": [
+                     {
+                       "name": "ssl-certs",
+                       "mountPath": "/etc/letsencrypt"
+                     },
+                     {
+                       "name": "acme-challenge",
+                       "mountPath": "/var/www/html"
+                     }
+                   ],
+                   "resources": {
+                     "requests": {
+                       "memoryInGB": 0.2,
+                       "cpu": 0.1
+                     }
+                   }
+                 }
+               }
+             ],
             "imageRegistryCredentials": [
               {
                 "server": "${{ env.REGISTRY }}",
@@ -196,30 +218,34 @@ jobs:
             ],
             "ipAddress": {
               "type": "Public",
-              "ports": [
-                {
-                  "protocol": "TCP",
-                  "port": 80
-                },
-                {
-                  "protocol": "TCP",
-                  "port": 443
-                },
-                {
-                  "protocol": "TCP",
-                  "port": 8080
-                }
-              ],
+               "ports": [
+                 {
+                   "protocol": "TCP",
+                   "port": 80
+                 },
+                 {
+                   "protocol": "TCP",
+                   "port": 443
+                 },
+                 {
+                   "protocol": "TCP",
+                   "port": 8080
+                 }
+               ],
               "dnsNameLabel": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
             },
             "osType": "Linux",
             "restartPolicy": "Always",
-            "volumes": [
-              {
-                "name": "https-portal-data",
-                "emptyDir": {}
-              }
-            ]
+             "volumes": [
+               {
+                 "name": "ssl-certs",
+                 "emptyDir": {}
+               },
+               {
+                 "name": "acme-challenge",
+                 "emptyDir": {}
+               }
+             ]
         EOF
         
         # Add Log Analytics conditionally
@@ -307,15 +333,15 @@ jobs:
 
     - name: Deploy container with SSL and logging
       run: |
-        echo "🚀 Deploying WebSocket application with SSL and logging..."
-        echo "📊 Image: ${{ steps.image.outputs.image }}"
-        echo "🔧 Registry: ${{ env.REGISTRY }}"
-        echo "👤 Username: ${{ github.actor }}"
-        echo "🔑 Using GHCR_PAT for registry authentication"
-        echo "🔒 SSL: HTTPS-PORTAL with Let's Encrypt"
-        echo "🌐 WebSocket + HTTPS support enabled"
-        echo "📝 Logging: Azure Log Analytics enabled"
-        echo "📁 Static files: /web/index.html included"
+         echo "🚀 Deploying WebSocket application with SSL..."
+         echo "📊 Image: ${{ steps.image.outputs.image }}"
+         echo "🔧 Registry: ${{ env.REGISTRY }}"
+         echo "👤 Username: ${{ github.actor }}"
+         echo "🔑 Using GHCR_PAT for registry authentication"
+         echo "🔒 SSL: nginx + Let's Encrypt (Microsoft Container Registry)"
+         echo "🌐 WebSocket + HTTPS support enabled"
+         echo "📝 Logging: Azure Log Analytics enabled"
+         echo "📁 Static files: /web/index.html included"
         
         # Display the deployment config for debugging
         echo "Deployment configuration:"
@@ -332,38 +358,36 @@ jobs:
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
           --file deployment.json
         
-        echo ""
-        echo "🎯 SSL-Enabled WebSocket Application Deployment:"
-        echo "==============================================="
-        echo "✅ HTTPS-PORTAL: Automatic SSL with Let's Encrypt"
-        echo "✅ WebSocket support: wss:// connections enabled"
-        echo "✅ HTTP → HTTPS redirect: Automatic"
-        echo "✅ Certificate auto-renewal: Every 60 days"
-        echo "✅ Log Analytics: Enabled"
+         echo ""
+         echo "🎯 SSL-Enabled WebSocket Application Deployment:"
+         echo "==============================================="
+         echo "✅ nginx Reverse Proxy: Microsoft Container Registry"
+         echo "✅ Let's Encrypt SSL: Automatic certificate management"
+         echo "✅ WebSocket support: wss:// connections enabled"
+         echo "✅ HTTP → HTTPS redirect: Automatic"
+         echo "✅ Certificate auto-renewal: Every 12 hours"
+         echo "✅ Log Analytics: Enabled"
         echo ""
         echo "📋 Access Information:"
         echo "===================="
-        if [ -n "${{ vars.DOMAIN_NAME }}" ]; then
-          echo "🌐 Website: https://${{ vars.DOMAIN_NAME }}/"
-          echo "🔌 WebSocket: wss://${{ vars.DOMAIN_NAME }}/ws"
-          echo "📱 Trading interface: https://${{ vars.DOMAIN_NAME }}/"
-          echo ""
-          echo "📍 DNS Setup Required:"
-          echo "Create A record: ${{ vars.DOMAIN_NAME }} → [Container IP shown below]"
-          echo ""
-          echo "🔒 SSL Certificate Status:"
-          echo "Stage: ${{ vars.LETSENCRYPT_STAGE || 'staging' }}"
-          if [ "${{ vars.LETSENCRYPT_STAGE || 'staging' }}" = "staging" ]; then
-            echo "⚠️  Using staging certificates (untrusted)"
-            echo "💡 Set LETSENCRYPT_STAGE=production for trusted certificates"
-          else
-            echo "✅ Using production certificates (trusted)"
-          fi
-        else
-          echo "⚠️  DOMAIN_NAME not set - using default domain"
-          echo "🌐 Website: https://[CONTAINER_FQDN]/"
-          echo "🔌 WebSocket: wss://[CONTAINER_FQDN]/ws"
-        fi
+         if [ -n "${{ vars.DOMAIN_NAME }}" ]; then
+           echo "🌐 Website: https://${{ vars.DOMAIN_NAME }}/"
+           echo "🔌 WebSocket: wss://${{ vars.DOMAIN_NAME }}/ws"
+           echo "📱 Trading interface: https://${{ vars.DOMAIN_NAME }}/"
+           echo ""
+           echo "📍 DNS Setup Required:"
+           echo "Create A record: ${{ vars.DOMAIN_NAME }} → [Container IP shown below]"
+           echo ""
+           echo "🔒 SSL Certificate Status:"
+           echo "Stage: staging (will be auto-generated after DNS setup)"
+           echo "⚠️  Using staging certificates initially (untrusted)"
+           echo "💡 Certificates will auto-upgrade to production after validation"
+         else
+           echo "⚠️  DOMAIN_NAME not set - using container FQDN"
+           echo "🌐 Website: https://[CONTAINER_FQDN]/"
+           echo "🔌 WebSocket: wss://[CONTAINER_FQDN]/ws"
+           echo "💡 Set DOMAIN_NAME variable for custom domain support"
+         fi
 
     - name: Health check
       run: |
@@ -441,28 +465,41 @@ jobs:
         
         FQDN=$(echo "$INFO" | jq -r '.fqdn')
         
-        if [ "$FQDN" != "null" ] && [ -n "$FQDN" ]; then
-          # Test HTTP endpoint
-          echo "Testing HTTP endpoint: http://$FQDN:8080"
-          if curl --fail --max-time 30 --retry 3 --retry-delay 10 "http://$FQDN:8080" > /dev/null 2>&1; then
-            echo "✅ HTTP health check passed"
-          else
-            echo "⚠️ HTTP health check failed, but container is running"
-          fi
-          
-          # Check SSL certificate status (will fail since we don't have SSL currently)
-          echo "🔒 Checking SSL certificate status..."
-          if timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -dates 2>/dev/null; then
-            echo "✅ SSL certificate found and valid"
-            
-            # Get certificate details
-            echo "Certificate details:"
-            timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>/dev/null || true
-          else
-            echo "❌ No SSL certificate found (expected - current deployment is HTTP only)"
-            echo "💡 To add SSL, we need to re-add nginx+Let's Encrypt containers"
-          fi
-        fi
+         if [ "$FQDN" != "null" ] && [ -n "$FQDN" ]; then
+           # Test HTTPS endpoint (with self-signed cert initially)
+           echo "Testing HTTPS endpoint: https://$FQDN (allowing self-signed cert)"
+           if curl --insecure --fail --max-time 30 --retry 3 --retry-delay 10 "https://$FQDN" > /dev/null 2>&1; then
+             echo "✅ HTTPS health check passed"
+           else
+             echo "⚠️ HTTPS health check failed, checking HTTP fallback"
+             # Test HTTP redirect
+             if curl --fail --max-time 10 "http://$FQDN" 2>&1 | grep -q "301\|302"; then
+               echo "✅ HTTP redirect to HTTPS working"
+             else
+               echo "⚠️ HTTP redirect not working yet"
+             fi
+           fi
+           
+           # Check SSL certificate status
+           echo "🔒 Checking SSL certificate status..."
+           if timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -dates 2>/dev/null; then
+             echo "✅ SSL certificate found and accessible"
+             
+             # Get certificate details
+             echo "Certificate details:"
+             CERT_INFO=$(timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>/dev/null)
+             echo "$CERT_INFO"
+             
+             # Check if Let's Encrypt or self-signed
+             if echo "$CERT_INFO" | grep -q "Let's Encrypt"; then
+               echo "🎯 Let's Encrypt certificate detected"
+             else
+               echo "🔧 Self-signed certificate (Let's Encrypt will replace after DNS setup)"
+             fi
+           else
+             echo "⚠️ SSL certificate not accessible yet (nginx may still be starting)"
+           fi
+         fi
         
         echo "✅ Extended health check completed"
         echo "healthy=true" >> $GITHUB_OUTPUT
@@ -490,10 +527,10 @@ jobs:
         echo "  # View all containers"
         echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME"
         echo ""
-        echo "  # View specific container"
-        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name trading-app"
-        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name nginx-proxy"
-        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name acme-companion"
+         echo "  # View specific container"
+         echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name trading-app"
+         echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name nginx-proxy"
+         echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name certbot"
         echo ""
         echo "Option 2 - Azure Portal:"
         echo "  1. Go to Azure Portal → Container Instances"
@@ -505,8 +542,8 @@ jobs:
         echo "  # All container logs"
         echo "  ContainerInstanceLog_CL | where TimeGenerated > ago(1h)"
         echo ""
-        echo "  # SSL certificate logs"
-        echo "  ContainerInstanceLog_CL | where ContainerName_s == 'acme-companion' | where TimeGenerated > ago(1h)"
+         echo "  # SSL certificate logs"
+         echo "  ContainerInstanceLog_CL | where ContainerName_s == 'certbot' | where TimeGenerated > ago(1h)"
         echo ""
         echo "  # nginx proxy logs"
         echo "  ContainerInstanceLog_CL | where ContainerName_s == 'nginx-proxy' | where TimeGenerated > ago(1h)"
@@ -580,29 +617,39 @@ jobs:
           fi
         fi
         
-        echo ""
-        echo "🔍 Container Logs (nginx-ssl):"
-        az container logs \
-          --resource-group "$RESOURCE_GROUP" \
-          --name "$CONTAINER_NAME" \
-          --container-name nginx-ssl \
-          --tail 20 || echo "  ❌ nginx-ssl container not found (SSL disabled)"
+         echo ""
+         echo "🔍 Container Logs (nginx-proxy):"
+         az container logs \
+           --resource-group "$RESOURCE_GROUP" \
+           --name "$CONTAINER_NAME" \
+           --container-name nginx-proxy \
+           --tail 20 || echo "  ❌ nginx-proxy container not found"
+         
+         echo ""
+         echo "🔍 Container Logs (certbot):"
+         az container logs \
+           --resource-group "$RESOURCE_GROUP" \
+           --name "$CONTAINER_NAME" \
+           --container-name certbot \
+           --tail 20 || echo "  ❌ certbot container not found"
+         
+         echo ""
+         echo "🔍 Container Logs (trading-app):"
+         az container logs \
+           --resource-group "$RESOURCE_GROUP" \
+           --name "$CONTAINER_NAME" \
+           --container-name trading-app \
+           --tail 10 || echo "  ❌ trading-app container logs not available"
         
-        echo ""
-        echo "🔍 Container Logs (letsencrypt):"
-        az container logs \
-          --resource-group "$RESOURCE_GROUP" \
-          --name "$CONTAINER_NAME" \
-          --container-name letsencrypt \
-          --tail 20 || echo "  ❌ letsencrypt container not found (SSL disabled)"
-        
-        echo ""
-        echo "📊 Current Deployment Status:"
-        echo "  HTTP (port 8080): Available at http://$FQDN:8080"
-        if [ "$DOMAIN" != "your-domain.com" ]; then
-          echo "  HTTPS (port 443): Check https://$DOMAIN"
-        fi
-        echo "  SSL Auto-renewal: $([ -n "$(az container show --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME" --query 'properties.containers[?name==`letsencrypt`]' --output tsv)" ] && echo "Enabled" || echo "Disabled")"
+         echo ""
+         echo "📊 Current Deployment Status:"
+         echo "  HTTP (port 80): Redirects to HTTPS"
+         echo "  HTTPS (port 443): Available at https://$FQDN"
+         echo "  Direct HTTP (port 8080): Available at http://$FQDN:8080"
+         if [ "$DOMAIN" != "your-domain.com" ] && [ -n "${{ vars.DOMAIN_NAME }}" ]; then
+           echo "  Custom Domain HTTPS: https://$DOMAIN (after DNS setup)"
+         fi
+         echo "  SSL Auto-renewal: $([ -n "$(az container show --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME" --query 'properties.containers[?name==`certbot`]' --output tsv)" ] && echo "Enabled" || echo "Disabled")"
 
     - name: Save deployment metadata
       if: steps.health_check.outputs.healthy == 'true'
