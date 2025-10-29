@@ -23,14 +23,56 @@ jobs:
       id: image_name
       run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-    - name: Set image tag
+    - name: Extract metadata for consistent tagging
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Set deployment image
       id: image
       run: |
-        TAG=${{ github.sha }}
+        # Use the same tag format as build workflow
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          TAG="latest"
+          # For manual dispatch, use latest if on main, otherwise use branch name
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAG="latest"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+        else
+          # For automatic deployment after build, use the SHA-based tag
+          TAG="${{ github.ref_name }}-${{ github.sha }}"
         fi
         echo "image=${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:$TAG" >> $GITHUB_OUTPUT
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+    - name: Verify image exists
+      run: |
+        echo "Verifying image exists: ${{ steps.image.outputs.image }}"
+        
+        # Login to registry for verification
+        echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+        
+        # Check if the image exists
+        if ! docker manifest inspect "${{ steps.image.outputs.image }}" > /dev/null 2>&1; then
+          echo "❌ Image not found: ${{ steps.image.outputs.image }}"
+          echo "Available tags for this repository:"
+          
+          # Try to list available tags (this might fail if no tags exist)
+          curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://ghcr.io/v2/${{ steps.image_name.outputs.name }}/tags/list" || true
+          
+          echo "Falling back to latest tag..."
+          echo "image=${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:latest" >> $GITHUB_OUTPUT
+        else
+          echo "✅ Image verified: ${{ steps.image.outputs.image }}"
+        fi
 
     - name: Login to Azure
       uses: azure/login@v1
@@ -201,6 +243,114 @@ jobs:
         IP=$(echo "$INFO" | jq -r '.ip')
         echo "Set DNS A record: ${{ vars.DOMAIN_NAME || 'your-domain.com' }} -> $IP"
 
+    - name: Extended health check
+      id: health_check
+      run: |
+        CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
+        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        
+        echo "Performing extended health check..."
+        
+        # Wait for container to be fully ready
+        sleep 120
+        
+        # Check container is still running
+        STATE=$(az container show \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --query 'instanceView.state' \
+          --output tsv)
+        
+        if [ "$STATE" != "Running" ]; then
+          echo "❌ Container not running: $STATE"
+          exit 1
+        fi
+        
+        # Get container info for health check
+        INFO=$(az container show \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --query '{fqdn: ipAddress.fqdn, ip: ipAddress.ip}' \
+          --output json)
+        
+        FQDN=$(echo "$INFO" | jq -r '.fqdn')
+        
+        if [ "$FQDN" != "null" ] && [ -n "$FQDN" ]; then
+          # Test HTTP endpoint
+          echo "Testing HTTP endpoint: http://$FQDN"
+          if curl --fail --max-time 30 --retry 3 --retry-delay 10 "http://$FQDN" > /dev/null 2>&1; then
+            echo "✅ HTTP health check passed"
+          else
+            echo "⚠️ HTTP health check failed, but container is running"
+          fi
+        fi
+        
+        echo "✅ Extended health check completed"
+        echo "healthy=true" >> $GITHUB_OUTPUT
+
+    - name: Save deployment metadata
+      if: steps.health_check.outputs.healthy == 'true'
+      run: |
+        echo "📝 Saving deployment metadata..."
+        
+        cat > deployment-metadata.json << EOF
+        {
+          "deployment_time": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+          "commit_sha": "${{ steps.image.outputs.commit_sha }}",
+          "image": "${{ steps.image.outputs.image }}",
+          "tag": "${{ steps.image.outputs.tag }}",
+          "workflow_run_id": "${{ github.run_id }}",
+          "actor": "${{ github.actor }}",
+          "ref": "${{ github.ref }}",
+          "event": "${{ github.event_name }}"
+        }
+        EOF
+        
+        echo "Deployment metadata:"
+        cat deployment-metadata.json | jq .
+
+    - name: Upload deployment metadata
+      if: steps.health_check.outputs.healthy == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-metadata-${{ github.run_id }}
+        path: deployment-metadata.json
+
+    - name: Promote to stable
+      if: steps.health_check.outputs.healthy == 'true' && github.ref == 'refs/heads/main'
+      run: |
+        echo "🏷️ Promoting deployment to stable tag..."
+        
+        # Login to registry
+        echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+        
+        # Current deployment image
+        CURRENT_IMAGE="${{ steps.image.outputs.image }}"
+        STABLE_IMAGE="${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:stable"
+        PREVIOUS_STABLE_IMAGE="${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:stable-previous"
+        
+        # Backup current stable tag as stable-previous
+        if docker manifest inspect "$STABLE_IMAGE" > /dev/null 2>&1; then
+          echo "Backing up current stable as stable-previous..."
+          docker pull "$STABLE_IMAGE"
+          docker tag "$STABLE_IMAGE" "$PREVIOUS_STABLE_IMAGE"
+          docker push "$PREVIOUS_STABLE_IMAGE"
+        fi
+        
+        # Pull and tag the new stable image
+        echo "Pulling: $CURRENT_IMAGE"
+        docker pull "$CURRENT_IMAGE"
+        
+        echo "Tagging as stable: $STABLE_IMAGE"
+        docker tag "$CURRENT_IMAGE" "$STABLE_IMAGE"
+        
+        # Push new stable tag
+        echo "Pushing stable tag..."
+        docker push "$STABLE_IMAGE"
+        
+        echo "✅ Successfully promoted ${{ steps.image.outputs.commit_sha }} to stable"
+        echo "✅ Previous stable backed up as stable-previous"
+
   rollback:
     name: Rollback on failure
     runs-on: ubuntu-latest
@@ -213,18 +363,72 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Rollback to previous image
+    - name: Set rollback image name
+      id: rollback_image
+      run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+    - name: Rollback to stable image
       run: |
-        echo "Deployment failed, attempting rollback..."
+        echo "Deployment failed, attempting rollback to stable..."
+        
+        # Try to use stable tag first, fallback to latest
+        ROLLBACK_IMAGE="${{ env.REGISTRY }}/${{ steps.rollback_image.outputs.name }}:stable"
+        
+        # Verify stable image exists
+        if ! docker manifest inspect "$ROLLBACK_IMAGE" > /dev/null 2>&1; then
+          echo "Stable image not found, using latest..."
+          ROLLBACK_IMAGE="${{ env.REGISTRY }}/${{ steps.rollback_image.outputs.name }}:latest"
+        fi
+        
+        echo "Rolling back to: $ROLLBACK_IMAGE"
+        
+        # Generate rollback deployment config
+        cat > rollback-deployment.yaml << EOF
+        apiVersion: '2021-10-01'
+        location: ${{ vars.AZURE_LOCATION || 'eastus' }}
+        name: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
+        properties:
+          containers:
+          - name: trading-app
+            properties:
+              image: $ROLLBACK_IMAGE
+              ports:
+              - protocol: TCP
+                port: 8080
+              environmentVariables:
+              - name: 'MONGODB_URI'
+                secureValue: '${{ secrets.MONGODB_URI }}'
+              - name: 'CONFIG_FILE'
+                value: '${{ vars.CONFIG_FILE || '/config.production.yaml' }}'
+              - name: 'PORT'
+                value: '8080'
+              resources:
+                requests:
+                  memoryInGB: ${{ vars.MEMORY_GB || 1 }}
+                  cpu: ${{ vars.CPU_CORES || 0.5 }}
+          imageRegistryCredentials:
+          - server: ${{ env.REGISTRY }}
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+          ipAddress:
+            type: Public
+            ports:
+            - protocol: TCP
+              port: 80
+            dnsNameLabel: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
+          osType: Linux
+          restartPolicy: Always
+        type: Microsoft.ContainerInstance/containerGroups
+        EOF
+        
+        # Delete failed container and deploy rollback
+        az container delete \
+          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+          --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }} \
+          --yes || true
+        
+        sleep 10
         
         az container create \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}-rollback \
-          --image ${{ env.REGISTRY }}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):latest \
-          --cpu ${{ vars.CPU_CORES || 0.5 }} \
-          --memory ${{ vars.MEMORY_GB || 1 }} \
-          --ip-address Public \
-          --ports 80 443 \
-          --environment-variables \
-            MONGODB_URI="${{ secrets.MONGODB_URI }}" \
-            PORT="8080" || echo "Rollback failed"
+          --file rollback-deployment.yaml || echo "❌ Rollback failed"

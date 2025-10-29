@@ -53,6 +53,8 @@ jobs:
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value={{sha}},enable={{is_default_branch}}
+          type=raw,value=stable,enable={{is_default_branch}}
 
     - name: Build container image with Buildah
       id: build
@@ -142,6 +144,9 @@ jobs:
     if: github.event_name != 'pull_request'
     
     steps:
+    - name: Set image name
+      id: image_name
+      run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
     - name: Install cosign
       uses: sigstore/cosign-installer@v3
 
@@ -154,14 +159,15 @@ jobs:
 
     - name: Verify container image
       run: |
-        echo "Verifying image: ${{ needs.build.outputs.image }}"
-        docker pull ${{ needs.build.outputs.image }}
-        docker inspect ${{ needs.build.outputs.image }}
+        VERIFY_IMAGE="${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:latest"
+        echo "Verifying image: $VERIFY_IMAGE"
+        docker pull "$VERIFY_IMAGE"
+        docker inspect "$VERIFY_IMAGE"
 
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ needs.build.outputs.image }}
+        image: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:latest
         format: spdx-json
         output-file: sbom.spdx.json
 
