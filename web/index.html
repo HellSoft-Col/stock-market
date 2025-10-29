@@ -332,8 +332,11 @@
                             <button onclick="switchMainTab('orderbook')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="orderbook-tab">
                                 <i class="fas fa-list-alt mr-2"></i>Order Book
                             </button>
-                            <button onclick="switchMainTab('transactions')" class="main-tab px-6 py-3 text-sm font-medium whitespace-nowrap" id="transactions-tab">
+                            <button onclick="switchMainTab('transactions')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="transactions-tab">
                                 <i class="fas fa-history mr-2"></i>History
+                            </button>
+                            <button onclick="switchMainTab('docs')" class="main-tab px-6 py-3 text-sm font-medium whitespace-nowrap" id="docs-tab">
+                                <i class="fas fa-book mr-2"></i>Docs
                             </button>
                         </nav>
                     </div>
@@ -611,6 +614,212 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Documentation Content -->
+                    <div id="docs-content" class="p-6" style="display: none;">
+                        <div class="max-w-4xl mx-auto">
+                            <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                                <i class="fas fa-book mr-3 text-primary-600"></i>📚 Platform Documentation
+                            </h3>
+                            
+                            <!-- Quick Start Guide -->
+                            <div class="bg-gradient-to-r from-primary-50 to-green-50 dark:from-primary-900/20 dark:to-green-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-6 mb-8">
+                                <h4 class="text-xl font-semibold text-primary-800 dark:text-primary-200 mb-4">
+                                    🚀 Quick Start Guide
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-3">
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Connect to Server</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Click "Connect" in the Authentication tab to establish connection</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Authenticate</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Enter your team token (format: TK-XXXX) and click "Login"</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Verify Status</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Confirm your inventory and balance appear correctly</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">4</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Start Trading</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Use Trading or Simulator tabs to place orders</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Main Features -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                <!-- Trading Features -->
+                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                        <i class="fas fa-chart-line mr-2 text-green-600"></i>Trading Features
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🎯 Simulator</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Create test orders, adjust market prices, and use Auto Market Maker</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📈 Live Trading</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Place market and limit orders with custom messages</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📊 Order Book</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">View real-time buy/sell orders by product</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📋 History</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Track all transactions and order executions</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Debug Tools -->
+                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                        <i class="fas fa-bug mr-2 text-orange-600"></i>Debug Tools
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🚨 Error Injection</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Simulate balance errors, unauthorized products, disconnections</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🏭 Production Tests</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Validate production algorithms and premium bonuses</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🔧 Utilities</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Ping server, resync data, view connected sessions</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📡 Monitoring</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Real-time connection status and system health</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Keyboard Shortcuts -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+                                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                    <i class="fas fa-keyboard mr-2 text-purple-600"></i>⌨️ Keyboard Shortcuts
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h5 class="font-medium text-gray-900 dark:text-white mb-3">Navigation</h5>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Debug Tab</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + Alt + D</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Simulator Tab</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + Alt + S</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Trading Tab</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + Alt + T</kbd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-medium text-gray-900 dark:text-white mb-3">Trading Actions</h5>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Quick Buy FOSFO</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + B</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Quick Sell FOSFO</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + S</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Refresh Orders</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + R</kbd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Products Guide -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+                                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                    <i class="fas fa-leaf mr-2 text-green-600"></i>🥑 Available Products
+                                </h4>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">FOSFO</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Basic Product</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">PITA</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Intermediate</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">PALTA-OIL</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Refined Product</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">GUACA</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Premium Product</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">SEBO</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Byproduct</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">H-GUACA</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">High-Grade</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tips & Best Practices -->
+                            <div class="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-4">
+                                    <i class="fas fa-lightbulb mr-2"></i>💡 Tips & Best Practices
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h5 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">⚠️ Important Notes</h5>
+                                        <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                            <li>• Always verify your balance before large orders</li>
+                                            <li>• Use the simulator to test strategies safely</li>
+                                            <li>• Monitor the ticker for arbitrage opportunities</li>
+                                            <li>• Auto Market Maker creates orders automatically</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">🎯 Best Practices</h5>
+                                        <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                            <li>• Use descriptive messages in orders</li>
+                                            <li>• Check order book before placing limits</li>
+                                            <li>• Regular ping to verify connectivity</li>
+                                            <li>• Monitor production algorithms for bonuses</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -672,6 +881,7 @@
             document.getElementById('ticker-content').style.display = 'none';
             document.getElementById('orderbook-content').style.display = 'none';
             document.getElementById('transactions-content').style.display = 'none';
+            document.getElementById('docs-content').style.display = 'none';
             
             // Remove active class from all tabs
             document.querySelectorAll('.main-tab').forEach(t => {
