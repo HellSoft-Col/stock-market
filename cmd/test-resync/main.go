@@ -29,7 +29,11 @@ func main() {
 		fmt.Printf("Failed to connect: %v\n", err)
 		os.Exit(1)
 	}
-	defer wsClient.Close()
+	defer func() {
+		if err := wsClient.Close(); err != nil {
+			fmt.Printf("Failed to close connection: %v\n", err)
+		}
+	}()
 
 	fmt.Printf("Connected to WebSocket server\n")
 
@@ -62,7 +66,10 @@ func main() {
 
 	// Listen for EVENT_DELTA response
 	fmt.Printf("🔄 Waiting for EVENT_DELTA response...\n")
-	wsClient.SetReadDeadline(time.Now().Add(15 * time.Second))
+	if err := wsClient.SetReadDeadline(time.Now().Add(15 * time.Second)); err != nil {
+		fmt.Printf("Failed to set read deadline: %v\n", err)
+		return
+	}
 
 	var response map[string]any
 	if err := wsClient.ReadMessage(&response); err != nil {
@@ -76,7 +83,8 @@ func main() {
 	prettyResponse, _ := json.MarshalIndent(response, "", "  ")
 	fmt.Printf("%s\n", string(prettyResponse))
 
-	if responseType == "EVENT_DELTA" {
+	switch responseType {
+	case "EVENT_DELTA":
 		if events, ok := response["events"].([]interface{}); ok {
 			fmt.Printf("\n✅ RESYNC SUCCESSFUL!\n")
 			fmt.Printf("📊 Received %d events\n", len(events))
@@ -91,7 +99,7 @@ func main() {
 				fmt.Printf("No events found since last sync\n")
 			}
 		}
-	} else if responseType == "ERROR" {
+	case "ERROR":
 		fmt.Printf("❌ RESYNC FAILED!\n")
 		if reason, ok := response["reason"].(string); ok {
 			fmt.Printf("Reason: %s\n", reason)

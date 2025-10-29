@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -84,7 +85,11 @@ func (r *TeamRepository) GetAll(ctx context.Context) ([]*domain.Team, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teams: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var teams []*domain.Team
 	for cursor.Next(ctx) {
@@ -141,6 +146,25 @@ func (r *TeamRepository) UpdateBalance(ctx context.Context, teamName string, bal
 	return nil
 }
 
+func (r *TeamRepository) UpdateBalanceBy(ctx context.Context, teamName string, deltaBalance float64) error {
+	update := bson.M{
+		"$inc": bson.M{
+			"currentBalance": deltaBalance,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"teamName": teamName}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update balance by delta: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return domain.ErrTeamNotFound
+	}
+
+	return nil
+}
+
 func (r *TeamRepository) GetTeamsWithInventory(ctx context.Context, product string, minQuantity int) ([]*domain.Team, error) {
 	filter := bson.M{
 		fmt.Sprintf("inventory.%s", product): bson.M{"$gte": minQuantity},
@@ -150,7 +174,11 @@ func (r *TeamRepository) GetTeamsWithInventory(ctx context.Context, product stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teams with inventory: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var teams []*domain.Team
 	for cursor.Next(ctx) {

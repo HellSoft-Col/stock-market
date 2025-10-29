@@ -38,7 +38,10 @@ func NewClientHandler(conn net.Conn, config *config.Config, server *TCPServer, r
 func (c *ClientHandler) Handle() {
 	// Set read timeout
 	if c.config.Server.ReadTimeout > 0 {
-		c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout))
+		if err := c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout)); err != nil {
+			log.Error().Err(err).Msg("Failed to set read deadline")
+			return
+		}
 	}
 
 	for c.scanner.Scan() {
@@ -49,7 +52,10 @@ func (c *ClientHandler) Handle() {
 
 		// Reset read timeout for each message
 		if c.config.Server.ReadTimeout > 0 {
-			c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout))
+			if err := c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout)); err != nil {
+				log.Error().Err(err).Msg("Failed to set read deadline")
+				break
+			}
 		}
 
 		if err := c.handleMessage(line); err != nil {
@@ -95,7 +101,9 @@ func (c *ClientHandler) handleMessage(rawMessage string) error {
 func (c *ClientHandler) SendMessage(message any) error {
 	// Set write timeout
 	if c.config.Server.WriteTimeout > 0 {
-		c.conn.SetWriteDeadline(time.Now().Add(c.config.Server.WriteTimeout))
+		if err := c.conn.SetWriteDeadline(time.Now().Add(c.config.Server.WriteTimeout)); err != nil {
+			return fmt.Errorf("failed to set write deadline: %w", err)
+		}
 	}
 
 	if err := c.encoder.Encode(message); err != nil {

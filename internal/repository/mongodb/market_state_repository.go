@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -96,7 +97,11 @@ func (r *MarketStateRepository) GetAll(ctx context.Context) ([]*domain.MarketSta
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all market states: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var states []*domain.MarketState
 	for cursor.Next(ctx) {

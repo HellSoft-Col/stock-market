@@ -36,11 +36,17 @@ func main() {
 	}
 
 	var numClients int
-	var durationSeconds int = 30
+	durationSeconds := 30
 
-	fmt.Sscanf(os.Args[1], "%d", &numClients)
+	if _, err := fmt.Sscanf(os.Args[1], "%d", &numClients); err != nil {
+		fmt.Printf("Invalid number of clients: %v\n", err)
+		os.Exit(1)
+	}
 	if len(os.Args) > 2 {
-		fmt.Sscanf(os.Args[2], "%d", &durationSeconds)
+		if _, err := fmt.Sscanf(os.Args[2], "%d", &durationSeconds); err != nil {
+			fmt.Printf("Invalid duration: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	fmt.Printf("🧪 Starting stress test with %d clients for %d seconds\n", numClients, durationSeconds)
@@ -74,7 +80,6 @@ func main() {
 	}()
 
 	// Collect and analyze results
-	var totalResults []TestResult
 	successCount := 0
 	totalOrders := 0
 	totalFills := 0
@@ -82,7 +87,6 @@ func main() {
 	fmt.Printf("📊 Collecting results...\n")
 
 	for result := range results {
-		totalResults = append(totalResults, result)
 
 		if result.Success {
 			successCount++
@@ -128,7 +132,9 @@ func runClient(ctx context.Context, clientID int) TestResult {
 		result.Duration = time.Since(start)
 		return result
 	}
-	defer wsClient.Close()
+	defer func() {
+		_ = wsClient.Close() // Error is expected in stress test
+	}()
 
 	// Login with random token
 	token := testTokens[clientID%len(testTokens)]
@@ -165,7 +171,7 @@ func runClient(ctx context.Context, clientID int) TestResult {
 			orderCount++
 
 			// Try to read any response (non-blocking)
-			wsClient.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+			_ = wsClient.SetReadDeadline(time.Now().Add(10 * time.Millisecond)) // Ignore deadline errors in stress test
 			var response map[string]any
 			if err := wsClient.ReadMessage(&response); err == nil {
 				if responseType, ok := response["type"].(string); ok && responseType == "FILL" {

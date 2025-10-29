@@ -107,7 +107,11 @@ func main() {
 	if err := db.Connect(ctx); err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
-	defer db.Close(ctx)
+	defer func() {
+		if err := db.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close database connection")
+		}
+	}()
 
 	log.Info().Msg("Connected to database successfully")
 

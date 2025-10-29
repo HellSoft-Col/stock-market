@@ -20,7 +20,11 @@ func main() {
 		fmt.Printf("Failed to connect: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("Failed to close connection: %v\n", err)
+		}
+	}()
 
 	fmt.Println("Connected to WebSocket server")
 

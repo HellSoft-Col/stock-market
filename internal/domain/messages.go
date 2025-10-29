@@ -119,6 +119,12 @@ type InventoryUpdateMessage struct {
 	ServerTime string         `json:"serverTime"`
 }
 
+type BalanceUpdateMessage struct {
+	Type       string  `json:"type"`
+	Balance    float64 `json:"balance"`
+	ServerTime string  `json:"serverTime"`
+}
+
 type OrderBookUpdateMessage struct {
 	Type       string          `json:"type"`
 	Product    string          `json:"product"`
@@ -165,6 +171,45 @@ type ServerStatsMessage struct {
 	Type       string                 `json:"type"`
 	Stats      map[string]interface{} `json:"stats"`
 	ServerTime string                 `json:"serverTime"`
+}
+
+type PerformanceReportMessage struct {
+	Type           string         `json:"type"`
+	TeamName       string         `json:"teamName"`
+	StartBalance   float64        `json:"startBalance"`
+	FinalBalance   float64        `json:"finalBalance"`
+	ProfitLoss     float64        `json:"profitLoss"`
+	ROI            float64        `json:"roi"` // Return on Investment %
+	TotalTrades    int            `json:"totalTrades"`
+	TotalVolume    float64        `json:"totalVolume"`
+	AvgTradeSize   float64        `json:"avgTradeSize"`
+	BuyTrades      int            `json:"buyTrades"`
+	SellTrades     int            `json:"sellTrades"`
+	Products       map[string]int `json:"products"` // Product -> trade count
+	FinalInventory map[string]int `json:"finalInventory"`
+	Rank           int            `json:"rank,omitempty"`
+	TotalTeams     int            `json:"totalTeams,omitempty"`
+	ServerTime     string         `json:"serverTime"`
+}
+
+type GlobalPerformanceReportMessage struct {
+	Type         string                      `json:"type"`
+	Duration     string                      `json:"duration"`
+	TotalTrades  int                         `json:"totalTrades"`
+	TotalVolume  float64                     `json:"totalVolume"`
+	TopTraders   []*PerformanceReportMessage `json:"topTraders"`
+	ProductStats map[string]ProductStats     `json:"productStats"`
+	ServerTime   string                      `json:"serverTime"`
+}
+
+type ProductStats struct {
+	Product     string  `json:"product"`
+	TotalTrades int     `json:"totalTrades"`
+	TotalVolume float64 `json:"totalVolume"`
+	AvgPrice    float64 `json:"avgPrice"`
+	MinPrice    float64 `json:"minPrice"`
+	MaxPrice    float64 `json:"maxPrice"`
+	LastPrice   float64 `json:"lastPrice"`
 }
 
 // Base message for parsing

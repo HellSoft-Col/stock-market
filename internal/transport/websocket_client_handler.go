@@ -36,7 +36,9 @@ func (c *WebSocketClientHandler) Handle() {
 
 	c.conn.SetPongHandler(func(string) error {
 		if c.config.Server.ReadTimeout > 0 {
-			c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout))
+			if err := c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout)); err != nil {
+				log.Error().Err(err).Msg("Failed to set read deadline in pong handler")
+			}
 		}
 		return nil
 	})
@@ -64,7 +66,10 @@ func (c *WebSocketClientHandler) Handle() {
 		}
 
 		if c.config.Server.ReadTimeout > 0 {
-			c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout))
+			if err := c.conn.SetReadDeadline(time.Now().Add(c.config.Server.ReadTimeout)); err != nil {
+				log.Error().Err(err).Msg("Failed to set read deadline")
+				break
+			}
 		}
 
 		if err := c.handleMessage(line); err != nil {
@@ -133,4 +138,9 @@ func (c *WebSocketClientHandler) RegisterWithServer(teamName string) {
 
 func (c *WebSocketClientHandler) Close() error {
 	return c.conn.Close()
+}
+
+func (c *WebSocketClientHandler) Cleanup() {
+	// This should be called when the client disconnects
+	// to clean up session tracking
 }

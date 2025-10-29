@@ -51,7 +51,9 @@ func (db *Database) Connect(ctx context.Context) error {
 
 	// Ping the database
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-		client.Disconnect(ctx)
+		if disconnectErr := client.Disconnect(ctx); disconnectErr != nil {
+			log.Error().Err(disconnectErr).Msg("Failed to disconnect after ping failure")
+		}
 		return fmt.Errorf("failed to ping MongoDB: %w", err)
 	}
 

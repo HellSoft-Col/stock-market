@@ -88,9 +88,10 @@ func main() {
 	orderService := service.NewOrderService(orderRepo, marketEngine, broadcaster)
 	resyncService := service.NewResyncService(fillRepo)
 	productionService := service.NewProductionService(teamRepo, inventoryService, broadcaster)
+	performanceService := service.NewPerformanceService(teamRepo, fillRepo, broadcaster)
 
 	// Create message router
-	router := transport.NewMessageRouter(authService, orderService, broadcaster, marketEngine, resyncService, productionService, rateLimiter, orderRepo, orderBookRepo)
+	router := transport.NewMessageRouter(authService, orderService, broadcaster, marketEngine, resyncService, productionService, performanceService, rateLimiter, orderRepo, orderBookRepo)
 
 	// Create ticker service
 	tickerService := market.NewTickerService(cfg, marketStateRepo, orderBookRepo, broadcaster)

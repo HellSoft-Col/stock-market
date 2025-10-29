@@ -264,6 +264,9 @@ func (m *MarketEngine) executeTrade(result *MatchResult) error {
 		log.Warn().Err(err).Msg("Failed to update market state")
 	}
 
+	// Broadcast market state update
+	m.broadcastMarketStateUpdate(buyOrder.Product)
+
 	log.Info().
 		Str("fillID", result.FillID).
 		Str("buyer", buyOrder.TeamName).
@@ -277,6 +280,12 @@ func (m *MarketEngine) executeTrade(result *MatchResult) error {
 
 	// Broadcast FILL messages to both parties
 	m.broadcastFill(result, buyOrder, sellOrder)
+
+	// Broadcast balance and inventory updates
+	m.broadcastBalanceUpdate(buyOrder.TeamName)
+	m.broadcastBalanceUpdate(sellOrder.TeamName)
+	m.broadcastInventoryUpdate(buyOrder.TeamName)
+	m.broadcastInventoryUpdate(sellOrder.TeamName)
 
 	return nil
 }
@@ -359,6 +368,19 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 			}
 		}
 
+		// Update team balances
+		totalCost := result.TradePrice * float64(fillQty)
+
+		// Buyer loses balance
+		if err := m.teamRepo.UpdateBalanceBy(context.Background(), buyOrder.TeamName, -totalCost); err != nil {
+			return nil, fmt.Errorf("failed to update buyer balance: %w", err)
+		}
+
+		// Seller gains balance
+		if err := m.teamRepo.UpdateBalanceBy(context.Background(), sellOrder.TeamName, totalCost); err != nil {
+			return nil, fmt.Errorf("failed to update seller balance: %w", err)
+		}
+
 		return fill, nil
 	})
 	return err
@@ -429,6 +451,129 @@ func (m *MarketEngine) broadcastFill(result *MatchResult, buyOrder, sellOrder *d
 			Str("fillID", result.FillID).
 			Msg("FILL sent to seller")
 	}
+}
+
+func (m *MarketEngine) broadcastMarketStateUpdate(product string) {
+	if m.broadcaster == nil {
+		return
+	}
+
+	// Get current market state
+	marketState, err := m.marketRepo.GetByProduct(context.Background(), product)
+	if err != nil {
+		log.Warn().Str("product", product).Err(err).Msg("Failed to get market state for broadcast")
+		return
+	}
+
+	// Get best bid and ask from order book
+	bestBid := m.orderBook.GetBestBid(product)
+	bestAsk := m.orderBook.GetBestAsk(product)
+
+	// Update market state with current order book data
+	var bestBidPrice, bestAskPrice, midPrice *float64
+	if bestBid != nil && bestBid.Price != nil {
+		bestBidPrice = bestBid.Price
+	}
+	if bestAsk != nil && bestAsk.Price != nil {
+		bestAskPrice = bestAsk.Price
+	}
+	if bestBidPrice != nil && bestAskPrice != nil {
+		mid := (*bestBidPrice + *bestAskPrice) / 2.0
+		midPrice = &mid
+	}
+
+	// Create ticker message
+	tickerMsg := &domain.TickerMessage{
+		Type:       "TICKER",
+		Product:    product,
+		BestBid:    bestBidPrice,
+		BestAsk:    bestAskPrice,
+		Mid:        midPrice,
+		Volume24h:  marketState.Volume24h,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Broadcast to all clients
+	if err := m.broadcaster.BroadcastToAll(tickerMsg); err != nil {
+		log.Warn().Str("product", product).Err(err).Msg("Failed to broadcast ticker update")
+	}
+
+	// Update market state repository with new best prices
+	if err := m.marketRepo.UpdateBestPrices(context.Background(), product, bestBidPrice, bestAskPrice); err != nil {
+		log.Warn().Str("product", product).Err(err).Msg("Failed to update best prices in market state")
+	}
+
+	log.Debug().
+		Str("product", product).
+		Interface("bestBid", bestBidPrice).
+		Interface("bestAsk", bestAskPrice).
+		Interface("mid", midPrice).
+		Msg("Market state broadcasted")
+}
+
+func (m *MarketEngine) broadcastBalanceUpdate(teamName string) {
+	if m.broadcaster == nil || m.teamRepo == nil {
+		return
+	}
+
+	// Get current team balance
+	team, err := m.teamRepo.GetByTeamName(context.Background(), teamName)
+	if err != nil {
+		log.Warn().Str("teamName", teamName).Err(err).Msg("Failed to get team for balance broadcast")
+		return
+	}
+
+	// Create balance update message
+	balanceMsg := &domain.BalanceUpdateMessage{
+		Type:       "BALANCE_UPDATE",
+		Balance:    team.CurrentBalance,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Send to specific team
+	if err := m.broadcaster.SendToClient(teamName, balanceMsg); err != nil {
+		log.Warn().Str("teamName", teamName).Err(err).Msg("Failed to broadcast balance update")
+	}
+
+	log.Debug().
+		Str("teamName", teamName).
+		Float64("balance", team.CurrentBalance).
+		Msg("Balance update broadcasted")
+}
+
+func (m *MarketEngine) broadcastInventoryUpdate(teamName string) {
+	if m.broadcaster == nil || m.teamRepo == nil {
+		return
+	}
+
+	// Get current team inventory
+	team, err := m.teamRepo.GetByTeamName(context.Background(), teamName)
+	if err != nil {
+		log.Warn().Str("teamName", teamName).Err(err).Msg("Failed to get team for inventory broadcast")
+		return
+	}
+
+	inventory := team.Inventory
+	if inventory == nil {
+		inventory = make(map[string]int)
+	}
+
+	// Create inventory update message
+	inventoryMsg := &domain.InventoryUpdateMessage{
+		Type:       "INVENTORY_UPDATE",
+		Inventory:  inventory,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Send to specific team
+	if err := m.broadcaster.SendToClient(teamName, inventoryMsg); err != nil {
+		log.Warn().Str("teamName", teamName).Err(err).Msg("Failed to broadcast inventory update")
+	}
+
+	log.Debug().
+		Str("teamName", teamName).
+		Interface("inventory", inventory).
+		Msg("Inventory update broadcasted")
 }
 
 var _ domain.MarketService = (*MarketEngine)(nil)

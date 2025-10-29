@@ -49,6 +49,28 @@ func (m *Matcher) ProcessOrder(order *domain.Order) (*MatchResult, error) {
 }
 
 func (m *Matcher) processBuyOrder(buyOrder *domain.Order) (*MatchResult, error) {
+	// Validate buyer has sufficient balance before processing
+	if m.teamRepo != nil {
+		canBuy, err := m.canBuy(buyOrder)
+		if err != nil {
+			log.Warn().
+				Str("buyTeam", buyOrder.TeamName).
+				Str("product", buyOrder.Product).
+				Err(err).
+				Msg("Failed to check buyer balance")
+			return nil, fmt.Errorf("balance validation failed: %w", err)
+		}
+		if !canBuy {
+			log.Info().
+				Str("buyTeam", buyOrder.TeamName).
+				Str("product", buyOrder.Product).
+				Float64("price", *buyOrder.Price).
+				Int("qty", buyOrder.Quantity).
+				Msg("Buyer has insufficient balance")
+			return nil, fmt.Errorf("insufficient balance for buy order")
+		}
+	}
+
 	// First, try immediate matching with existing SELL orders
 	sellOrders := m.orderBook.GetSellOrders(buyOrder.Product)
 
@@ -200,7 +222,53 @@ func (m *Matcher) broadcastOfferToEligibleSellers(buyOrder *domain.Order) {
 	}()
 }
 
+func (m *Matcher) canBuy(buyOrder *domain.Order) (bool, error) {
+	team, err := m.teamRepo.GetByTeamName(context.Background(), buyOrder.TeamName)
+	if err != nil {
+		return false, fmt.Errorf("failed to get team: %w", err)
+	}
+
+	// Calculate required cost for this order
+	var requiredCost float64
+	if buyOrder.Price != nil {
+		// LIMIT order: use limit price
+		requiredCost = *buyOrder.Price * float64(buyOrder.Quantity)
+	} else {
+		// MARKET order: estimate using current market price or default
+		marketState, _ := m.getMarketPrice(buyOrder.Product)
+		var estimatedPrice float64
+		if marketState != nil && marketState.Mid != nil {
+			estimatedPrice = *marketState.Mid
+		} else {
+			estimatedPrice = 15.0 // Conservative default price for market orders
+		}
+		requiredCost = estimatedPrice * float64(buyOrder.Quantity)
+	}
+
+	return team.CurrentBalance >= requiredCost, nil
+}
+
 func (m *Matcher) processSellOrder(sellOrder *domain.Order) (*MatchResult, error) {
+	// Validate seller has sufficient inventory before processing
+	if m.inventoryService != nil {
+		canSell, err := m.inventoryService.CanSell(context.Background(), sellOrder.TeamName, sellOrder.Product, sellOrder.Quantity)
+		if err != nil {
+			log.Warn().
+				Str("sellTeam", sellOrder.TeamName).
+				Str("product", sellOrder.Product).
+				Err(err).
+				Msg("Failed to check seller inventory")
+			return nil, fmt.Errorf("inventory validation failed: %w", err)
+		}
+		if !canSell {
+			log.Info().
+				Str("sellTeam", sellOrder.TeamName).
+				Str("product", sellOrder.Product).
+				Int("qty", sellOrder.Quantity).
+				Msg("Seller has insufficient inventory")
+			return nil, fmt.Errorf("insufficient inventory for sell order")
+		}
+	}
 	// Get all BUY orders for this product, sorted by price DESC (highest first)
 	buyOrders := m.orderBook.GetBuyOrders(sellOrder.Product)
 

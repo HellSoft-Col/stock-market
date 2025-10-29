@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -50,7 +51,11 @@ func (r *FillRepository) GetByTeamSince(ctx context.Context, teamName string, si
 	if err != nil {
 		return nil, fmt.Errorf("failed to get fills by team since: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var fills []*domain.Fill
 	for cursor.Next(ctx) {
@@ -87,7 +92,11 @@ func (r *FillRepository) GetRecentSellersByProduct(ctx context.Context, product 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent sellers: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var sellers []string
 	for cursor.Next(ctx) {
@@ -113,7 +122,11 @@ func (r *FillRepository) GetAll(ctx context.Context) ([]*domain.Fill, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all fills: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var fills []*domain.Fill
 	for cursor.Next(ctx) {

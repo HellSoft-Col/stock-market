@@ -62,7 +62,9 @@ func (s *TCPServer) acceptConnections() {
 
 		// Set accept deadline to check for shutdown
 		if deadline, ok := s.listener.(*net.TCPListener); ok {
-			deadline.SetDeadline(time.Now().Add(1 * time.Second))
+			if err := deadline.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
+				log.Error().Err(err).Msg("Failed to set accept deadline")
+			}
 		}
 
 		conn, err := s.listener.Accept()
@@ -84,7 +86,9 @@ func (s *TCPServer) acceptConnections() {
 				Int("currentConnections", clientCount).
 				Int("maxConnections", s.config.Server.MaxConnections).
 				Msg("Connection limit reached, rejecting client")
-			conn.Close()
+			if err := conn.Close(); err != nil {
+				log.Error().Err(err).Msg("Failed to close rejected connection")
+			}
 			continue
 		}
 
@@ -96,7 +100,11 @@ func (s *TCPServer) acceptConnections() {
 
 func (s *TCPServer) handleClient(conn net.Conn) {
 	defer s.wg.Done()
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close client connection")
+		}
+	}()
 
 	clientAddr := conn.RemoteAddr().String()
 	log.Info().
@@ -194,7 +202,9 @@ func (s *TCPServer) Stop() error {
 	close(s.shutdown)
 
 	if s.listener != nil {
-		s.listener.Close()
+		if err := s.listener.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close listener")
+		}
 	}
 
 	// Wait for all goroutines to finish

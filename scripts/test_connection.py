@@ -28,10 +28,10 @@ async def test_connection(server_url="ws://localhost:8080", token="TK-TEST"):
         websocket = await websockets.connect(server_url)
         print("✓ Connected successfully")
         
-        # Test authentication
+        # Test authentication (try token at top level)
         auth_message = {
-            "type": "AUTH",
-            "data": {"token": token}
+            "type": "LOGIN",
+            "token": token
         }
         await websocket.send(json.dumps(auth_message))
         print("✓ Authentication message sent")
@@ -41,7 +41,7 @@ async def test_connection(server_url="ws://localhost:8080", token="TK-TEST"):
         auth_response = json.loads(response)
         print(f"✓ Received response: {auth_response}")
         
-        if auth_response.get("type") == "AUTH_SUCCESS":
+        if auth_response.get("type") == "LOGIN_OK":
             print("✓ Authentication successful!")
             
             # Test a simple ping

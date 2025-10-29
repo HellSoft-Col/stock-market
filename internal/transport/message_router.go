@@ -13,15 +13,16 @@ import (
 )
 
 type MessageRouter struct {
-	authService       domain.AuthService
-	orderService      domain.OrderService
-	broadcaster       domain.Broadcaster
-	marketService     domain.MarketService
-	resyncService     domain.ResyncService
-	productionService domain.ProductionService
-	rateLimiter       *service.RateLimiter
-	orderRepo         domain.OrderRepository
-	orderBook         domain.OrderBookRepository
+	authService        domain.AuthService
+	orderService       domain.OrderService
+	broadcaster        domain.Broadcaster
+	marketService      domain.MarketService
+	resyncService      domain.ResyncService
+	productionService  domain.ProductionService
+	performanceService domain.PerformanceService
+	rateLimiter        *service.RateLimiter
+	orderRepo          domain.OrderRepository
+	orderBook          domain.OrderBookRepository
 }
 
 func NewMessageRouter(
@@ -31,20 +32,22 @@ func NewMessageRouter(
 	marketService domain.MarketService,
 	resyncService domain.ResyncService,
 	productionService domain.ProductionService,
+	performanceService domain.PerformanceService,
 	rateLimiter *service.RateLimiter,
 	orderRepo domain.OrderRepository,
 	orderBook domain.OrderBookRepository,
 ) *MessageRouter {
 	return &MessageRouter{
-		authService:       authService,
-		orderService:      orderService,
-		broadcaster:       broadcaster,
-		marketService:     marketService,
-		resyncService:     resyncService,
-		productionService: productionService,
-		rateLimiter:       rateLimiter,
-		orderRepo:         orderRepo,
-		orderBook:         orderBook,
+		authService:        authService,
+		orderService:       orderService,
+		broadcaster:        broadcaster,
+		marketService:      marketService,
+		resyncService:      resyncService,
+		productionService:  productionService,
+		performanceService: performanceService,
+		rateLimiter:        rateLimiter,
+		orderRepo:          orderRepo,
+		orderBook:          orderBook,
 	}
 }
 
@@ -78,6 +81,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleRequestOrderBook(ctx, rawMessage, client)
 	case "REQUEST_CONNECTED_SESSIONS":
 		return r.handleRequestConnectedSessions(ctx, client)
+	case "REQUEST_PERFORMANCE_REPORT":
+		return r.handleRequestPerformanceReport(ctx, rawMessage, client)
 	case "PING":
 		return r.handlePing(ctx, client)
 	default:
@@ -101,6 +106,13 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 	team, err := r.authService.ValidateToken(ctx, loginMsg.Token)
 	if err != nil {
 		return r.sendError(client, domain.ErrAuthFailed, "Invalid token", "")
+	}
+
+	// Create session for this client
+	userAgent := "" // TODO: Extract from HTTP headers if available
+	authService, ok := r.authService.(*service.AuthService)
+	if ok {
+		authService.CreateSession(team.TeamName, loginMsg.Token, client.GetRemoteAddr(), userAgent)
 	}
 
 	// Set client team name and register
@@ -462,6 +474,62 @@ func (r *MessageRouter) handleRequestConnectedSessions(ctx context.Context, clie
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
+	// Get detailed session information from auth service
+	authService, ok := r.authService.(*service.AuthService)
+	if !ok {
+		// Fallback to simple broadcaster info
+		return r.handleRequestConnectedSessionsFallback(ctx, client)
+	}
+
+	activeSessions := authService.GetActiveSessions()
+
+	sessions := make([]*domain.SessionInfo, 0)
+	totalConnections := 0
+
+	for _, teamSessions := range activeSessions {
+		for _, session := range teamSessions {
+			sessionInfo := &domain.SessionInfo{
+				TeamName:      session.TeamName,
+				RemoteAddr:    session.RemoteAddr,
+				UserAgent:     session.UserAgent,
+				ClientType:    session.ClientType,
+				ConnectedAt:   session.ConnectedAt.Format(time.RFC3339),
+				LastActivity:  session.LastActivity.Format(time.RFC3339),
+				Authenticated: true,
+			}
+			sessions = append(sessions, sessionInfo)
+			totalConnections++
+		}
+	}
+
+	response := &domain.ConnectedSessionsMessage{
+		Type:       "CONNECTED_SESSIONS",
+		Sessions:   sessions,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Also send server stats
+	statsResponse := &domain.ServerStatsMessage{
+		Type: "SERVER_STATS",
+		Stats: map[string]interface{}{
+			"totalConnections": totalConnections,
+			"uniqueTeams":      len(activeSessions),
+			"totalOrders":      0,         // We could track this
+			"totalFills":       0,         // We could track this
+			"uptime":           "Unknown", // We could track this
+		},
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Send both messages
+	if err := client.SendMessage(response); err != nil {
+		return err
+	}
+
+	return client.SendMessage(statsResponse)
+}
+
+func (r *MessageRouter) handleRequestConnectedSessionsFallback(ctx context.Context, client MessageClient) error {
 	connectedClients := r.broadcaster.GetConnectedClients()
 
 	// Group clients by team name and count multiple connections
@@ -495,24 +563,63 @@ func (r *MessageRouter) handleRequestConnectedSessions(ctx context.Context, clie
 		ServerTime: time.Now().Format(time.RFC3339),
 	}
 
-	// Also send server stats
-	statsResponse := &domain.ServerStatsMessage{
-		Type: "SERVER_STATS",
-		Stats: map[string]interface{}{
-			"totalConnections": len(connectedClients),
-			"totalOrders":      0,         // We could track this
-			"totalFills":       0,         // We could track this
-			"uptime":           "Unknown", // We could track this
-		},
-		ServerTime: time.Now().Format(time.RFC3339),
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleRequestPerformanceReport(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client.GetTeamName() == "" {
+		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
-	// Send both messages
-	if err := client.SendMessage(response); err != nil {
-		return err
+	var request struct {
+		Type      string `json:"type"`
+		Scope     string `json:"scope"`     // "team", "global"
+		TeamName  string `json:"teamName"`  // For team reports, optional if requesting own team
+		StartTime string `json:"startTime"` // RFC3339 format, optional
 	}
 
-	return client.SendMessage(statsResponse)
+	if err := json.Unmarshal([]byte(rawMessage), &request); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid REQUEST_PERFORMANCE_REPORT message format", "")
+	}
+
+	// Parse start time or default to 24 hours ago
+	var since time.Time
+	if request.StartTime != "" {
+		var err error
+		since, err = time.Parse(time.RFC3339, request.StartTime)
+		if err != nil {
+			return r.sendError(client, domain.ErrInvalidMessage, "Invalid startTime format", "")
+		}
+	} else {
+		since = time.Now().Add(-24 * time.Hour)
+	}
+
+	switch request.Scope {
+	case "global":
+		if err := r.performanceService.BroadcastGlobalReport(ctx, since); err != nil {
+			log.Error().Err(err).Msg("Failed to broadcast global performance report")
+			return r.sendError(client, domain.ErrServiceUnavailable, "Failed to generate global report", "")
+		}
+		return nil
+
+	case "team":
+		teamName := request.TeamName
+		if teamName == "" {
+			teamName = client.GetTeamName()
+		}
+
+		if err := r.performanceService.SendTeamReport(ctx, teamName, since); err != nil {
+			log.Error().
+				Str("teamName", teamName).
+				Err(err).
+				Msg("Failed to send team performance report")
+			return r.sendError(client, domain.ErrServiceUnavailable, "Failed to generate team report", "")
+		}
+		return nil
+
+	default:
+		return r.sendError(client, domain.ErrInvalidMessage, "Scope must be 'team' or 'global'", "")
+	}
 }
 
 func (r *MessageRouter) sendError(client MessageClient, code, reason, clOrdID string) error {

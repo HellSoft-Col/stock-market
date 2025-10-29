@@ -22,7 +22,10 @@ func main() {
 	quantity := 1
 
 	if len(os.Args) > 3 {
-		fmt.Sscanf(os.Args[3], "%d", &quantity)
+		if _, err := fmt.Sscanf(os.Args[3], "%d", &quantity); err != nil {
+			fmt.Printf("Invalid quantity: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	// Connect to WebSocket server
@@ -31,7 +34,11 @@ func main() {
 		fmt.Printf("Failed to connect: %v\n", err)
 		os.Exit(1)
 	}
-	defer wsClient.Close()
+	defer func() {
+		if err := wsClient.Close(); err != nil {
+			fmt.Printf("Failed to close connection: %v\n", err)
+		}
+	}()
 
 	fmt.Printf("Connected to WebSocket server\n")
 
@@ -61,7 +68,10 @@ func main() {
 
 	// Listen for response
 	fmt.Printf("🔄 Waiting for response...\n")
-	wsClient.SetReadDeadline(time.Now().Add(10 * time.Second))
+	if err := wsClient.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		fmt.Printf("Failed to set read deadline: %v\n", err)
+		return
+	}
 
 	var response map[string]any
 	if err := wsClient.ReadMessage(&response); err != nil {

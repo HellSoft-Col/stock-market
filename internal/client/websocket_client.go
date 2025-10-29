@@ -72,7 +72,9 @@ func (c *WebSocketClient) Login(token string) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to send login: %w", err)
 	}
 
-	c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err := c.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return nil, fmt.Errorf("failed to set read deadline: %w", err)
+	}
 
 	var response map[string]any
 	if err := c.ReadMessage(&response); err != nil {

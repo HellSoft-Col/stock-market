@@ -26,7 +26,10 @@ func main() {
 	quantity := 10
 
 	if len(os.Args) > 4 {
-		fmt.Sscanf(os.Args[4], "%d", &quantity)
+		if _, err := fmt.Sscanf(os.Args[4], "%d", &quantity); err != nil {
+			fmt.Printf("Invalid quantity: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	// Connect to WebSocket server
@@ -36,7 +39,11 @@ func main() {
 		fmt.Printf("Failed to connect: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("Failed to close connection: %v\n", err)
+		}
+	}()
 
 	fmt.Printf("Connected to WebSocket server\n")
 
@@ -53,7 +60,10 @@ func main() {
 	fmt.Printf("Sent LOGIN\n")
 
 	// Read LOGIN response
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		fmt.Printf("Failed to set read deadline: %v\n", err)
+		return
+	}
 	var loginResponse map[string]any
 	if err := conn.ReadJSON(&loginResponse); err != nil {
 		fmt.Printf("Failed to read LOGIN response: %v\n", err)
@@ -91,7 +101,10 @@ func main() {
 
 	// Listen for responses (FILL messages or errors)
 	fmt.Printf("🔄 Waiting for responses...\n")
-	conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		fmt.Printf("Failed to set read deadline: %v\n", err)
+		return
+	}
 
 	responseCount := 0
 	for responseCount < 5 { // Limit responses
@@ -118,7 +131,10 @@ func main() {
 		responseCount++
 
 		// Reset deadline for next message
-		conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		if err := conn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			fmt.Printf("Failed to set read deadline: %v\n", err)
+			break
+		}
 	}
 
 	if responseCount == 0 {

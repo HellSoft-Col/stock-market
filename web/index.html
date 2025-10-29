@@ -309,6 +309,20 @@
                                     </button>
                                 </div>
                             </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Performance</h4>
+                                <div class="grid grid-cols-1 gap-1">
+                                    <button onclick="requestTeamPerformanceReport()" id="team-perf-btn" disabled
+                                            class="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        My Performance
+                                    </button>
+                                    <button onclick="requestGlobalPerformanceReport()" id="global-perf-btn" disabled
+                                            class="bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Global Report
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1075,21 +1089,62 @@
         
         function connect() {
             console.log('Connecting...');
-            // Implement WebSocket connection logic here
             updateStatus('connecting', 'Connecting...');
             
-            // Simulate connection for demo
-            setTimeout(() => {
-                isConnected = true;
-                updateStatus('connected', 'Connected');
-                document.getElementById('connect-btn').innerHTML = '<i class="fas fa-unlink mr-2"></i>Disconnect';
-                document.getElementById('login-btn').disabled = false;
-                enableButtons();
-            }, 1000);
+            // Create WebSocket connection
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function(event) {
+                    console.log('WebSocket connected');
+                    isConnected = true;
+                    updateStatus('connected', 'Connected');
+                    document.getElementById('connect-btn').innerHTML = '<i class="fas fa-unlink mr-2"></i>Disconnect';
+                    document.getElementById('login-btn').disabled = false;
+                    enableButtons();
+                };
+                
+                socket.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleServerMessage(message);
+                    } catch (e) {
+                        console.error('Failed to parse message:', event.data, e);
+                    }
+                };
+                
+                socket.onclose = function(event) {
+                    console.log('WebSocket disconnected');
+                    isConnected = false;
+                    isAuthenticated = false;
+                    updateStatus('disconnected', 'Disconnected');
+                    document.getElementById('connect-btn').innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
+                    document.getElementById('login-btn').disabled = true;
+                    document.getElementById('team-info').style.display = 'none';
+                    disableButtons();
+                    socket = null;
+                };
+                
+                socket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateStatus('disconnected', 'Connection Error');
+                };
+                
+            } catch (error) {
+                console.error('Failed to create WebSocket connection:', error);
+                updateStatus('disconnected', 'Connection Failed');
+            }
         }
         
         function disconnect() {
             console.log('Disconnecting...');
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
             isConnected = false;
             isAuthenticated = false;
             updateStatus('disconnected', 'Disconnected');
@@ -1106,16 +1161,20 @@
                 return;
             }
             
-            console.log('Logging in with token:', token);
-            // Implement authentication logic here
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert('Please connect to the server first');
+                return;
+            }
             
-            // Simulate login for demo
-            setTimeout(() => {
-                isAuthenticated = true;
-                updateStatus('authenticated', 'Authenticated');
-                showTeamInfo(token);
-                enableButtons();
-            }, 500);
+            console.log('Logging in with token:', token);
+            
+            // Send authentication message
+            const authMessage = {
+                type: "LOGIN",
+                token: token
+            };
+            
+            sendMessage(authMessage);
         }
         
         function updateStatus(status, text) {
@@ -1126,30 +1185,52 @@
             statusText.textContent = text;
         }
         
-        function showTeamInfo(token) {
+        function showTeamInfo(teamName) {
             const teamInfo = document.getElementById('team-info');
             const teamDetails = document.getElementById('team-details');
             
+            const balance = currentTeam ? currentTeam.currentBalance : 0;
+            const species = currentTeam ? currentTeam.species : 'Unknown';
+            
             teamDetails.innerHTML = `
-                <p><strong>Team Token:</strong> ${token}</p>
+                <p><strong>Team:</strong> ${teamName}</p>
+                <p><strong>Species:</strong> ${species}</p>
+                <p><strong>Balance:</strong> $${balance.toFixed(2)}</p>
                 <p><strong>Status:</strong> Active</p>
-                <p><strong>Balance:</strong> $10,000.00</p>
             `;
             
             teamInfo.style.display = 'block';
-            updateInventory();
+            updateInventory(currentTeam ? currentTeam.inventory : null);
         }
         
-        function updateInventory() {
+        function updateInventory(inventory = null) {
             const inventoryGrid = document.getElementById('inventory-grid');
-            const sampleInventory = [
-                { product: 'FOSFO', quantity: 50 },
-                { product: 'PITA', quantity: 30 },
-                { product: 'GUACA', quantity: 25 },
-                { product: 'SEBO', quantity: 40 }
-            ];
             
-            inventoryGrid.innerHTML = sampleInventory.map(item => `
+            if (!inventory) {
+                // Default empty state
+                inventoryGrid.innerHTML = `
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">No data</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const inventoryItems = Object.entries(inventory).map(([product, quantity]) => ({
+                product,
+                quantity
+            }));
+            
+            if (inventoryItems.length === 0) {
+                inventoryGrid.innerHTML = `
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">No inventory</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            inventoryGrid.innerHTML = inventoryItems.map(item => `
                 <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
                     <div class="text-xs font-medium text-gray-900 dark:text-white">${item.product}</div>
                     <div class="text-lg font-bold text-primary-600">${item.quantity}</div>
@@ -1157,12 +1238,127 @@
             `).join('');
         }
         
+        function updateInventoryDisplay(inventory) {
+            updateInventory(inventory);
+        }
+        
+        function updateBalanceDisplay(balance) {
+            document.getElementById('dashboard-balance').textContent = `$${balance.toFixed(2)}`;
+        }
+        
+        function updateDashboard(team) {
+            if (team.currentBalance !== undefined) {
+                updateBalanceDisplay(team.currentBalance);
+            }
+            if (team.inventory) {
+                updateInventoryDisplay(team.inventory);
+            }
+        }
+        
+        function updateDashboardAfterTrade(fillMessage) {
+            // This would ideally update from server data, but we can make basic updates
+            const fillsElement = document.getElementById('dashboard-fills');
+            const currentFills = parseInt(fillsElement.textContent) || 0;
+            fillsElement.textContent = (currentFills + 1).toString();
+        }
+        
+        function addTransactionToList(fillMessage) {
+            const transactionsList = document.getElementById('transactions-list');
+            
+            // Create transaction entry
+            const transactionElement = document.createElement('div');
+            transactionElement.className = 'p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 mb-2';
+            transactionElement.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                            ${fillMessage.side} ${fillMessage.fillQty} ${fillMessage.product}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            Price: $${fillMessage.fillPrice.toFixed(2)} | Total: $${(fillMessage.fillPrice * fillMessage.fillQty).toFixed(2)}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            Counterparty: ${fillMessage.counterparty}
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        ${new Date(fillMessage.serverTime).toLocaleTimeString()}
+                    </div>
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = transactionsList.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            // Add to top of list
+            transactionsList.insertBefore(transactionElement, transactionsList.firstChild);
+        }
+        
+        function addMessageToLog(message) {
+            const messageList = document.getElementById('message-list');
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'p-2 bg-gray-100 dark:bg-gray-600 rounded text-xs mb-1';
+            messageElement.innerHTML = `
+                <span class="text-gray-500 dark:text-gray-400">[${new Date().toLocaleTimeString()}]</span>
+                <span class="text-gray-900 dark:text-white">${message}</span>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = messageList.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            messageList.insertBefore(messageElement, messageList.firstChild);
+            
+            // Keep only last 100 messages
+            while (messageList.children.length > 100) {
+                messageList.removeChild(messageList.lastChild);
+            }
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Simple notification - could be enhanced with a proper notification system
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // Show in market activity
+            const marketActivity = document.getElementById('market-activity');
+            const notificationElement = document.createElement('div');
+            notificationElement.className = `p-3 rounded-lg mb-2 ${
+                type === 'success' ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' :
+                type === 'error' ? 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200' :
+                'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200'
+            }`;
+            notificationElement.innerHTML = `
+                <div class="text-sm">${message}</div>
+                <div class="text-xs opacity-75">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(notificationElement, marketActivity.firstChild);
+            
+            // Keep only last 10 notifications
+            while (marketActivity.children.length > 10) {
+                marketActivity.removeChild(marketActivity.lastChild);
+            }
+        }
+        
         function enableButtons() {
             const buttons = [
                 'create-order-btn', 'auto-mm-btn', 'clear-all-btn', 'place-order-btn',
                 'refresh-orders-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
                 'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
-                'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn'
+                'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
+                'team-perf-btn', 'global-perf-btn'
             ];
             
             buttons.forEach(id => {
@@ -1176,7 +1372,8 @@
                 'create-order-btn', 'auto-mm-btn', 'clear-all-btn', 'place-order-btn',
                 'refresh-orders-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
                 'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
-                'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn'
+                'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
+                'team-perf-btn', 'global-perf-btn'
             ];
             
             buttons.forEach(id => {
@@ -1185,13 +1382,437 @@
             });
         }
         
+        // Message handling
+        function sendMessage(message) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(message));
+                console.log('Sent message:', message);
+            } else {
+                console.error('WebSocket not connected');
+                alert('Not connected to server');
+            }
+        }
+        
+        function handleServerMessage(message) {
+            console.log('Received message:', message);
+            
+            switch (message.type) {
+                case 'LOGIN_OK':
+                    handleAuthSuccess(message);
+                    break;
+                case 'PONG':
+                    addMessageToLog('Pong received');
+                    break;
+                case 'ERROR':
+                    if (message.code && message.code.includes('AUTH')) {
+                        handleAuthFailure(message);
+                    } else {
+                        handleError(message);
+                    }
+                    break;
+                case 'FILL':
+                    handleFillMessage(message);
+                    break;
+                case 'ORDER_ACK':
+                    handleOrderAck(message);
+                    break;
+                case 'TICKER':
+                    handleTickerUpdate(message);
+                    break;
+                case 'MARKET_STATE':
+                    handleMarketStateUpdate(message);
+                    break;
+                case 'CONNECTED_SESSIONS':
+                    handleSessionsResponse(message);
+                    break;
+                case 'INVENTORY_UPDATE':
+                    handleInventoryUpdate(message);
+                    break;
+                case 'BALANCE_UPDATE':
+                    handleBalanceUpdate(message);
+                    break;
+                case 'PERFORMANCE_REPORT':
+                    handlePerformanceReport(message);
+                    break;
+                case 'GLOBAL_PERFORMANCE_REPORT':
+                    handleGlobalPerformanceReport(message);
+                    break;
+                case 'ERROR':
+                    handleError(message);
+                    break;
+                default:
+                    console.log('Unknown message type:', message.type);
+            }
+        }
+        
+        function handleAuthSuccess(message) {
+            isAuthenticated = true;
+            currentTeam = {
+                teamName: message.team,
+                species: message.species,
+                currentBalance: message.currentBalance,
+                inventory: message.inventory,
+                authorizedProducts: message.authorizedProducts
+            };
+            updateStatus('authenticated', 'Authenticated');
+            showTeamInfo(message.team);
+            enableButtons();
+            
+            // Update dashboard with team data
+            updateDashboard(currentTeam);
+        }
+        
+        function handleAuthFailure(message) {
+            alert('Authentication failed: ' + (message.reason || 'Invalid token'));
+        }
+        
+        function handleFillMessage(message) {
+            // Add transaction to the transactions list
+            addTransactionToList(message);
+            
+            // Update dashboard stats
+            updateDashboardAfterTrade(message);
+            
+            // Show notification
+            showNotification(`Trade executed: ${message.side} ${message.fillQty} ${message.product} @ $${message.fillPrice.toFixed(2)}`, 'success');
+        }
+        
+        function handleOrderAck(message) {
+            addMessageToLog(`Order ${message.clOrdID} acknowledged: ${message.status}`);
+        }
+        
+        function handleTickerUpdate(message) {
+            updateTickerDisplay(message);
+        }
+        
+        function handleMarketStateUpdate(message) {
+            updateMarketStateDisplay(message);
+        }
+        
+        function updateTickerDisplay(ticker) {
+            const tickerList = document.getElementById('ticker-list');
+            
+            // Find existing ticker for this product or create new one
+            let tickerElement = document.querySelector(`[data-product="${ticker.product}"]`);
+            
+            if (!tickerElement) {
+                tickerElement = document.createElement('div');
+                tickerElement.className = 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4';
+                tickerElement.setAttribute('data-product', ticker.product);
+                
+                // Remove "no data" message if it exists
+                const noDataElement = tickerList.querySelector('.bg-yellow-50');
+                if (noDataElement) {
+                    noDataElement.remove();
+                }
+                
+                tickerList.appendChild(tickerElement);
+            }
+            
+            const bidText = ticker.bestBid ? `$${ticker.bestBid.toFixed(2)}` : 'N/A';
+            const askText = ticker.bestAsk ? `$${ticker.bestAsk.toFixed(2)}` : 'N/A';
+            const midText = ticker.mid ? `$${ticker.mid.toFixed(2)}` : 'N/A';
+            const spreadText = (ticker.bestBid && ticker.bestAsk) ? 
+                `$${(ticker.bestAsk - ticker.bestBid).toFixed(2)}` : 'N/A';
+            
+            tickerElement.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white">${ticker.product}</h4>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${new Date(ticker.serverTime).toLocaleTimeString()}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Bid:</span>
+                        <span class="font-medium text-green-600 dark:text-green-400 ml-1">${bidText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Ask:</span>
+                        <span class="font-medium text-red-600 dark:text-red-400 ml-1">${askText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Mid:</span>
+                        <span class="font-medium text-blue-600 dark:text-blue-400 ml-1">${midText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Spread:</span>
+                        <span class="font-medium text-gray-900 dark:text-white ml-1">${spreadText}</span>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    24h Volume: ${ticker.volume24h}
+                </div>
+            `;
+        }
+        
+        function updateMarketStateDisplay(marketState) {
+            // Update the market activity with real-time market information
+            const marketActivity = document.getElementById('market-activity');
+            
+            const stateElement = document.createElement('div');
+            stateElement.className = 'p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-2';
+            stateElement.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            Market Update: ${marketState.product}
+                        </div>
+                        <div class="text-xs text-blue-700 dark:text-blue-300">
+                            ${marketState.bestBid ? `Bid: $${marketState.bestBid.toFixed(2)}` : 'No Bid'} | 
+                            ${marketState.bestAsk ? `Ask: $${marketState.bestAsk.toFixed(2)}` : 'No Ask'}
+                            ${marketState.lastTradePrice ? ` | Last: $${marketState.lastTradePrice.toFixed(2)}` : ''}
+                        </div>
+                    </div>
+                    <div class="text-xs text-blue-600 dark:text-blue-400">
+                        ${new Date(marketState.updatedAt).toLocaleTimeString()}
+                    </div>
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(stateElement, marketActivity.firstChild);
+            
+            // Keep only last 10 market updates
+            while (marketActivity.children.length > 10) {
+                marketActivity.removeChild(marketActivity.lastChild);
+            }
+        }
+        
+        function handleSessionsResponse(message) {
+            displaySessions(message.sessions);
+        }
+        
+        function handleInventoryUpdate(message) {
+            updateInventoryDisplay(message.inventory);
+        }
+        
+        function handleBalanceUpdate(message) {
+            updateBalanceDisplay(message.balance);
+        }
+        
+        function handleError(message) {
+            console.error('Server error:', message);
+            alert('Server error: ' + message.reason);
+            addMessageToLog(`ERROR: ${message.reason}`);
+        }
+        
+        function handlePerformanceReport(message) {
+            displayPerformanceReport(message);
+        }
+        
+        function handleGlobalPerformanceReport(message) {
+            displayGlobalPerformanceReport(message);
+        }
+        
+        function displayPerformanceReport(report) {
+            const marketActivity = document.getElementById('market-activity');
+            
+            const reportElement = document.createElement('div');
+            reportElement.className = 'p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-2';
+            reportElement.innerHTML = `
+                <h4 class="font-semibold text-green-800 dark:text-green-200 mb-3">
+                    <i class="fas fa-chart-bar mr-2"></i>Performance Report - ${report.teamName}
+                </h4>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <div class="text-green-900 dark:text-green-100">
+                            <strong>P&L:</strong> $${report.profitLoss.toFixed(2)} (${report.roi.toFixed(1)}% ROI)
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Balance:</strong> $${report.startBalance.toFixed(2)} → $${report.finalBalance.toFixed(2)}
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Total Trades:</strong> ${report.totalTrades}
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Volume:</strong> $${report.totalVolume.toFixed(2)}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Buy/Sell:</strong> ${report.buyTrades}/${report.sellTrades}
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Avg Trade:</strong> $${report.avgTradeSize.toFixed(2)}
+                        </div>
+                        ${report.rank ? `<div class="text-green-700 dark:text-green-300">
+                            <strong>Rank:</strong> ${report.rank}/${report.totalTeams}
+                        </div>` : ''}
+                    </div>
+                </div>
+                <div class="text-xs text-green-600 dark:text-green-400 mt-2">
+                    Generated: ${new Date(report.serverTime).toLocaleTimeString()}
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(reportElement, marketActivity.firstChild);
+        }
+        
+        function displayGlobalPerformanceReport(report) {
+            const marketActivity = document.getElementById('market-activity');
+            
+            const reportElement = document.createElement('div');
+            reportElement.className = 'p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg mb-2';
+            reportElement.innerHTML = `
+                <h4 class="font-semibold text-purple-800 dark:text-purple-200 mb-3">
+                    <i class="fas fa-globe mr-2"></i>Global Performance Report
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <div class="text-purple-900 dark:text-purple-100">
+                            <strong>Duration:</strong> ${report.duration}
+                        </div>
+                        <div class="text-purple-700 dark:text-purple-300">
+                            <strong>Total Trades:</strong> ${report.totalTrades}
+                        </div>
+                        <div class="text-purple-700 dark:text-purple-300">
+                            <strong>Total Volume:</strong> $${report.totalVolume.toFixed(2)}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-purple-700 dark:text-purple-300">
+                            <strong>Top Traders:</strong>
+                        </div>
+                        <div class="mt-1 space-y-1">
+                            ${report.topTraders.slice(0, 3).map((trader, index) => `
+                                <div class="text-xs text-purple-600 dark:text-purple-400">
+                                    ${index + 1}. ${trader.teamName}: ${trader.roi.toFixed(1)}% ROI
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                    Generated: ${new Date(report.serverTime).toLocaleTimeString()}
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(reportElement, marketActivity.firstChild);
+        }
+        
+        function requestTeamPerformanceReport() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_PERFORMANCE_REPORT",
+                scope: "team"
+            };
+            
+            sendMessage(message);
+            addMessageToLog('Requested team performance report');
+        }
+        
+        function requestGlobalPerformanceReport() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_PERFORMANCE_REPORT",
+                scope: "global"
+            };
+            
+            sendMessage(message);
+            addMessageToLog('Requested global performance report');
+        }
+
         // Trading functions (placeholder implementations)
         function createMarketOrder() {
-            console.log('Creating market order...');
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const side = document.getElementById('sim-side').value;
+            const product = document.getElementById('sim-product').value;
+            const qty = parseInt(document.getElementById('sim-qty').value);
+            const price = parseFloat(document.getElementById('sim-price').value);
+            
+            if (!product || !qty || qty <= 0 || !price || price <= 0) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            // Generate unique order ID
+            const timestamp = Date.now();
+            const clOrdID = `SIM-${currentTeam.teamName}-${timestamp}`;
+            
+            const orderMessage = {
+                type: "ORDER",
+                clOrdID: clOrdID,
+                side: side,
+                mode: "LIMIT",
+                product: product,
+                qty: qty,
+                limitPrice: price,
+                message: "Simulator order",
+                debugMode: "AUTO_ACCEPT"
+            };
+            
+            sendMessage(orderMessage);
+            addMessageToLog(`Simulator order sent: ${side} ${qty} ${product} @ $${price.toFixed(2)}`);
         }
         
         function placeOrder() {
-            console.log('Placing order...');
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const side = document.getElementById('side').value;
+            const mode = document.getElementById('mode').value;
+            const product = document.getElementById('product').value;
+            const qty = parseInt(document.getElementById('qty').value);
+            const price = parseFloat(document.getElementById('price').value);
+            const message = document.getElementById('message').value.trim();
+            
+            if (!product || !qty || qty <= 0) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            if (mode === 'LIMIT' && (!price || price <= 0)) {
+                alert('LIMIT orders require a positive price');
+                return;
+            }
+            
+            // Generate unique order ID
+            const timestamp = Date.now();
+            const clOrdID = `WEB-${currentTeam.teamName}-${timestamp}`;
+            
+            const orderMessage = {
+                type: "ORDER",
+                clOrdID: clOrdID,
+                side: side,
+                mode: mode,
+                product: product,
+                qty: qty,
+                limitPrice: mode === 'LIMIT' ? price : null,
+                message: message || ''
+            };
+            
+            sendMessage(orderMessage);
+            addMessageToLog(`Order sent: ${side} ${qty} ${product} @ ${mode === 'LIMIT' ? '$' + price.toFixed(2) : 'MARKET'}`);
         }
         
         function quickTrade(side, product, quantity) {
@@ -1240,7 +1861,17 @@
         }
         
         function sendPing() {
-            console.log('Sending ping...');
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert('Not connected to server');
+                return;
+            }
+            
+            const pingMessage = {
+                type: "PING"
+            };
+            
+            sendMessage(pingMessage);
+            addMessageToLog('Ping sent');
         }
         
         function requestResync() {
@@ -1248,11 +1879,71 @@
         }
         
         function requestAllOrders() {
-            console.log('Requesting all orders...');
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_ALL_ORDERS"
+            };
+            
+            sendMessage(message);
+            addMessageToLog('Requested all orders');
         }
         
         function requestConnectedSessions() {
             console.log('Requesting connected sessions...');
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_CONNECTED_SESSIONS"
+            };
+            sendMessage(message);
+        }
+        
+        function handleSessionsResponse(message) {
+            displaySessions(message.sessions);
+        }
+        
+        function displaySessions(sessions) {
+            // Show sessions in a modal or in the market activity area
+            const marketActivity = document.getElementById('market-activity');
+            
+            const sessionsElement = document.createElement('div');
+            sessionsElement.className = 'p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-2';
+            sessionsElement.innerHTML = `
+                <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-3">
+                    <i class="fas fa-users mr-2"></i>Connected Sessions (${sessions.length})
+                </h4>
+                <div class="space-y-2">
+                    ${sessions.map(session => `
+                        <div class="flex justify-between items-center text-sm">
+                            <div>
+                                <span class="font-medium text-blue-900 dark:text-blue-100">${session.teamName}</span>
+                                <span class="text-blue-600 dark:text-blue-300">(${session.clientType})</span>
+                            </div>
+                            <div class="text-blue-600 dark:text-blue-400">
+                                ${session.authenticated ? '✓ Auth' : '- Not Auth'}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                    Updated: ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(sessionsElement, marketActivity.firstChild);
         }
         
         function updateOrderBook() {

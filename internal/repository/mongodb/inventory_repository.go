@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yourusername/avocado-exchange-server/internal/domain"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -40,7 +41,11 @@ func (r *InventoryRepository) GetTeamInventory(ctx context.Context, teamName str
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	inventory := make(map[string]int)
 	for cursor.Next(ctx) {
@@ -70,7 +75,11 @@ func (r *InventoryRepository) GetTeamTransactions(ctx context.Context, teamName 
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var transactions []*domain.InventoryTransaction
 	if err := cursor.All(ctx, &transactions); err != nil {

@@ -26,7 +26,11 @@ func main() {
 		fmt.Printf("Failed to connect: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("Failed to close connection: %v\n", err)
+		}
+	}()
 
 	fmt.Printf("Connected to WebSocket server, testing LOGIN with: %s\n", apiKey)
 
@@ -45,7 +49,10 @@ func main() {
 	fmt.Printf("Sent LOGIN message\n")
 
 	// Read response with timeout
-	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		fmt.Printf("Failed to set read deadline: %v\n", err)
+		return
+	}
 
 	var response map[string]any
 	if err := conn.ReadJSON(&response); err != nil {
@@ -58,20 +65,25 @@ func main() {
 	fmt.Printf("Received response:\n%s\n", string(prettyResponse))
 
 	// Check if login was successful
-	if responseType, ok := response["type"].(string); ok {
-		if responseType == "LOGIN_OK" {
-			fmt.Printf("\n✅ LOGIN SUCCESSFUL!\n")
-			if team, ok := response["team"].(string); ok {
-				fmt.Printf("Team: %s\n", team)
-			}
-			if species, ok := response["species"].(string); ok {
-				fmt.Printf("Species: %s\n", species)
-			}
-		} else if responseType == "ERROR" {
-			fmt.Printf("\n❌ LOGIN FAILED!\n")
-			if reason, ok := response["reason"].(string); ok {
-				fmt.Printf("Reason: %s\n", reason)
-			}
+	responseType, ok := response["type"].(string)
+	if !ok {
+		fmt.Printf("\n⚠️ Invalid response format\n")
+		return
+	}
+
+	switch responseType {
+	case "LOGIN_OK":
+		fmt.Printf("\n✅ LOGIN SUCCESSFUL!\n")
+		if team, ok := response["team"].(string); ok {
+			fmt.Printf("Team: %s\n", team)
+		}
+		if species, ok := response["species"].(string); ok {
+			fmt.Printf("Species: %s\n", species)
+		}
+	case "ERROR":
+		fmt.Printf("\n❌ LOGIN FAILED!\n")
+		if reason, ok := response["reason"].(string); ok {
+			fmt.Printf("Reason: %s\n", reason)
 		}
 	}
 }

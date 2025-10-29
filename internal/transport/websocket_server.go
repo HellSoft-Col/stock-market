@@ -108,7 +108,11 @@ func (s *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Request
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				log.Error().Err(err).Msg("Failed to close WebSocket connection")
+			}
+		}()
 
 		client.Handle()
 

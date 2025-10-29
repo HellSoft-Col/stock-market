@@ -8,13 +8,13 @@ import (
 )
 
 type Broadcaster struct {
-	clients   map[string]domain.ClientConnection
+	clients   map[string][]domain.ClientConnection // teamName -> list of connections
 	clientsMu sync.RWMutex
 }
 
 func NewBroadcaster() *Broadcaster {
 	return &Broadcaster{
-		clients: make(map[string]domain.ClientConnection),
+		clients: make(map[string][]domain.ClientConnection),
 	}
 }
 
@@ -22,11 +22,18 @@ func (b *Broadcaster) RegisterClient(teamName string, conn domain.ClientConnecti
 	b.clientsMu.Lock()
 	defer b.clientsMu.Unlock()
 
-	b.clients[teamName] = conn
+	// Add connection to the team's connection list
+	b.clients[teamName] = append(b.clients[teamName], conn)
+
+	totalConnections := 0
+	for _, connections := range b.clients {
+		totalConnections += len(connections)
+	}
 
 	log.Debug().
 		Str("teamName", teamName).
-		Int("totalClients", len(b.clients)).
+		Int("teamConnections", len(b.clients[teamName])).
+		Int("totalConnections", totalConnections).
 		Msg("Client registered with broadcaster")
 }
 
@@ -36,77 +43,135 @@ func (b *Broadcaster) UnregisterClient(teamName string) {
 
 	delete(b.clients, teamName)
 
+	totalConnections := 0
+	for _, connections := range b.clients {
+		totalConnections += len(connections)
+	}
+
 	log.Debug().
 		Str("teamName", teamName).
-		Int("totalClients", len(b.clients)).
-		Msg("Client unregistered from broadcaster")
+		Int("totalConnections", totalConnections).
+		Msg("All clients unregistered for team")
+}
+
+func (b *Broadcaster) UnregisterSpecificClient(teamName string, conn domain.ClientConnection) {
+	b.clientsMu.Lock()
+	defer b.clientsMu.Unlock()
+
+	connections := b.clients[teamName]
+	for i, client := range connections {
+		if client == conn {
+			// Remove this specific connection
+			b.clients[teamName] = append(connections[:i], connections[i+1:]...)
+			break
+		}
+	}
+
+	// If no connections left for this team, remove the team entry
+	if len(b.clients[teamName]) == 0 {
+		delete(b.clients, teamName)
+	}
+
+	totalConnections := 0
+	for _, connections := range b.clients {
+		totalConnections += len(connections)
+	}
+
+	log.Debug().
+		Str("teamName", teamName).
+		Int("teamConnections", len(b.clients[teamName])).
+		Int("totalConnections", totalConnections).
+		Msg("Specific client unregistered")
 }
 
 func (b *Broadcaster) SendToClient(teamName string, msg any) error {
 	b.clientsMu.RLock()
-	client, exists := b.clients[teamName]
+	connections, exists := b.clients[teamName]
 	b.clientsMu.RUnlock()
 
-	if !exists {
+	if !exists || len(connections) == 0 {
 		log.Warn().
 			Str("teamName", teamName).
-			Msg("Attempted to send message to unregistered client")
+			Msg("Attempted to send message to unregistered team")
 		return nil // Don't error for missing clients
 	}
 
-	if err := client.SendMessage(msg); err != nil {
-		log.Warn().
-			Str("teamName", teamName).
-			Err(err).
-			Msg("Failed to send message to client")
-
-		// Remove dead client
-		b.UnregisterClient(teamName)
-		return err
-	}
-
-	log.Debug().
-		Str("teamName", teamName).
-		Msg("Message sent to client")
-
-	return nil
-}
-
-func (b *Broadcaster) BroadcastToAll(msg any) error {
-	b.clientsMu.RLock()
-	clients := make(map[string]domain.ClientConnection)
-	for teamName, client := range b.clients {
-		clients[teamName] = client
-	}
-	b.clientsMu.RUnlock()
-
 	var lastErr error
-	deadClients := make([]string, 0)
+	deadConnections := make([]domain.ClientConnection, 0)
 
-	for teamName, client := range clients {
+	// Send to all connections for this team
+	for _, client := range connections {
 		if err := client.SendMessage(msg); err != nil {
 			log.Warn().
 				Str("teamName", teamName).
 				Err(err).
-				Msg("Failed to broadcast message to client")
+				Msg("Failed to send message to one client connection")
 			lastErr = err
-			deadClients = append(deadClients, teamName)
+			deadConnections = append(deadConnections, client)
 		}
 	}
 
-	// Remove dead clients
-	for _, teamName := range deadClients {
-		b.UnregisterClient(teamName)
+	// Remove dead connections
+	for _, deadConn := range deadConnections {
+		b.UnregisterSpecificClient(teamName, deadConn)
 	}
 
-	if len(deadClients) > 0 {
+	log.Debug().
+		Str("teamName", teamName).
+		Int("connections", len(connections)).
+		Int("failed", len(deadConnections)).
+		Msg("Message sent to team clients")
+
+	return lastErr
+}
+
+func (b *Broadcaster) BroadcastToAll(msg any) error {
+	b.clientsMu.RLock()
+	allConnections := make(map[string][]domain.ClientConnection)
+	for teamName, connections := range b.clients {
+		// Copy the slice to avoid race conditions
+		teamConnections := make([]domain.ClientConnection, len(connections))
+		copy(teamConnections, connections)
+		allConnections[teamName] = teamConnections
+	}
+	b.clientsMu.RUnlock()
+
+	var lastErr error
+	deadConnections := make(map[string][]domain.ClientConnection)
+	totalSent := 0
+	totalFailed := 0
+
+	for teamName, connections := range allConnections {
+		for _, client := range connections {
+			if err := client.SendMessage(msg); err != nil {
+				log.Warn().
+					Str("teamName", teamName).
+					Err(err).
+					Msg("Failed to broadcast message to client")
+				lastErr = err
+				deadConnections[teamName] = append(deadConnections[teamName], client)
+				totalFailed++
+			} else {
+				totalSent++
+			}
+		}
+	}
+
+	// Remove dead connections
+	for teamName, deadConns := range deadConnections {
+		for _, deadConn := range deadConns {
+			b.UnregisterSpecificClient(teamName, deadConn)
+		}
+	}
+
+	if totalFailed > 0 {
 		log.Info().
-			Int("deadClients", len(deadClients)).
-			Int("totalClients", len(clients)).
+			Int("sent", totalSent).
+			Int("failed", totalFailed).
 			Msg("Broadcast completed with some failures")
 	} else {
 		log.Debug().
-			Int("totalClients", len(clients)).
+			Int("sent", totalSent).
 			Msg("Broadcast completed successfully")
 	}
 
@@ -117,9 +182,12 @@ func (b *Broadcaster) GetConnectedClients() []string {
 	b.clientsMu.RLock()
 	defer b.clientsMu.RUnlock()
 
-	teams := make([]string, 0, len(b.clients))
-	for teamName := range b.clients {
-		teams = append(teams, teamName)
+	var teams []string
+	for teamName, connections := range b.clients {
+		// Add team name for each connection (to show multiple connections)
+		for range connections {
+			teams = append(teams, teamName)
+		}
 	}
 
 	return teams

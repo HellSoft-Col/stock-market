@@ -32,6 +32,8 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 import statistics
 
+# Import websockets with fallback
+websockets = None
 try:
     import websockets
 except ImportError:
@@ -107,8 +109,8 @@ class TradingClient:
             
             # Authenticate
             auth_message = {
-                "type": "AUTH",
-                "data": {"token": self.token}
+                "type": "LOGIN",
+                "token": self.token
             }
             await self.websocket.send(json.dumps(auth_message))
             
@@ -116,7 +118,7 @@ class TradingClient:
             response = await asyncio.wait_for(self.websocket.recv(), timeout=5.0)
             auth_response = json.loads(response)
             
-            if auth_response.get("type") == "AUTH_SUCCESS":
+            if auth_response.get("type") == "LOGIN_OK":
                 self.state.is_connected = True
                 self.logger.info(f"Successfully authenticated with token {self.token}")
                 return True

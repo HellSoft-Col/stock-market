@@ -15,6 +15,7 @@ type TeamRepository interface {
 	UpdateLastLogin(ctx context.Context, teamName string) error
 	UpdateInventory(ctx context.Context, teamName string, inventory map[string]int) error
 	UpdateBalance(ctx context.Context, teamName string, balance float64) error
+	UpdateBalanceBy(ctx context.Context, teamName string, deltaBalance float64) error
 	Create(ctx context.Context, team *Team) error
 	GetAll(ctx context.Context) ([]*Team, error)
 	GetTeamsWithInventory(ctx context.Context, product string, minQuantity int) ([]*Team, error)
@@ -92,6 +93,13 @@ type InventoryService interface {
 
 type ResyncService interface {
 	GenerateEventDelta(ctx context.Context, teamName string, since time.Time) (*EventDeltaMessage, error)
+}
+
+type PerformanceService interface {
+	GenerateTeamReport(ctx context.Context, teamName string, since time.Time) (*PerformanceReportMessage, error)
+	GenerateGlobalReport(ctx context.Context, since time.Time) (*GlobalPerformanceReportMessage, error)
+	BroadcastGlobalReport(ctx context.Context, since time.Time) error
+	SendTeamReport(ctx context.Context, teamName string, since time.Time) error
 }
 
 // Transport interfaces

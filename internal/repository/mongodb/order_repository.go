@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -108,7 +109,11 @@ func (r *OrderRepository) GetPendingByProductAndSide(ctx context.Context, produc
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending orders: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var orders []*domain.Order
 	for cursor.Next(ctx) {
@@ -135,7 +140,11 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]*domain.Order
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending orders: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
 
 	var orders []*domain.Order
 	for cursor.Next(ctx) {
