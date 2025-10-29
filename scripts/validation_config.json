@@ -1,0 +1,114 @@
+{
+  "simulation": {
+    "duration_minutes": 15,
+    "server_url": "ws://localhost:8080",
+    "log_level": "DEBUG"
+  },
+  "tokens": [
+    "TK-TEAM01",
+    "TK-TEAM02", 
+    "TK-TEAM03",
+    "TK-TEAM04",
+    "TK-TEAM05",
+    "TK-TEAM06",
+    "TK-TEAM07",
+    "TK-TEAM08"
+  ],
+  "phases": {
+    "burst_production": {
+      "duration_minutes": 3,
+      "production_frequency": {
+        "min_seconds": 2,
+        "max_seconds": 8
+      },
+      "production_quantity": {
+        "min": 15,
+        "max": 45
+      }
+    },
+    "mixed_trading": {
+      "duration_minutes": 8,
+      "action_weights": {
+        "buy": 35,
+        "sell": 35,
+        "production": 15,
+        "wait": 15
+      },
+      "order_frequency": {
+        "min_seconds": 0.2,
+        "max_seconds": 2.0
+      }
+    },
+    "competitive_trading": {
+      "duration_minutes": 4,
+      "aggressive_pricing": true,
+      "order_frequency": {
+        "min_seconds": 0.5,
+        "max_seconds": 3.0
+      }
+    }
+  },
+  "products": {
+    "FOSFO": {
+      "price_range": [8.0, 15.0],
+      "production_weight": 50,
+      "trading_weight": 40
+    },
+    "PITA": {
+      "price_range": [12.0, 22.0],
+      "production_weight": 30,
+      "trading_weight": 35
+    },
+    "PALTA-OIL": {
+      "price_range": [20.0, 35.0],
+      "production_weight": 15,
+      "trading_weight": 20
+    },
+    "GUACA": {
+      "price_range": [28.0, 45.0],
+      "production_weight": 3,
+      "trading_weight": 3
+    },
+    "SEBO": {
+      "price_range": [5.0, 12.0],
+      "production_weight": 1,
+      "trading_weight": 1
+    },
+    "H-GUACA": {
+      "price_range": [40.0, 60.0],
+      "production_weight": 1,
+      "trading_weight": 1
+    }
+  },
+  "testing": {
+    "validate_order_priority": true,
+    "stress_test_concurrent_orders": true,
+    "test_production_algorithms": true,
+    "monitor_response_times": true,
+    "detect_race_conditions": true,
+    "competitive_same_price_orders": true,
+    "burst_order_submission": true,
+    "connection_stability_test": true
+  },
+  "validation_scenarios": [
+    {
+      "name": "race_condition_test",
+      "description": "Multiple clients submit identical orders simultaneously",
+      "enabled": true,
+      "clients_count": 5,
+      "simultaneous_orders": true
+    },
+    {
+      "name": "production_validation",
+      "description": "Validate production algorithms and inventory updates",
+      "enabled": true,
+      "focus_products": ["FOSFO", "PITA", "PALTA-OIL"]
+    },
+    {
+      "name": "order_book_integrity",
+      "description": "Ensure order book remains consistent under load",
+      "enabled": true,
+      "high_frequency_orders": true
+    }
+  ]
+}

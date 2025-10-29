@@ -1,0 +1,81 @@
+{
+  "simulation": {
+    "duration_minutes": 15,
+    "server_url": "ws://localhost:8080",
+    "log_level": "INFO"
+  },
+  "tokens": [
+    "TK-1001",
+    "TK-1002", 
+    "TK-1003",
+    "TK-1004",
+    "TK-1005"
+  ],
+  "phases": {
+    "burst_production": {
+      "duration_minutes": 2,
+      "production_frequency": {
+        "min_seconds": 5,
+        "max_seconds": 15
+      },
+      "production_quantity": {
+        "min": 10,
+        "max": 30
+      }
+    },
+    "mixed_trading": {
+      "duration_minutes": 10,
+      "action_weights": {
+        "buy": 30,
+        "sell": 30,
+        "production": 20,
+        "wait": 20
+      },
+      "order_frequency": {
+        "min_seconds": 0.5,
+        "max_seconds": 3.0
+      }
+    },
+    "competitive_trading": {
+      "duration_minutes": 3,
+      "aggressive_pricing": true,
+      "order_frequency": {
+        "min_seconds": 2,
+        "max_seconds": 8
+      }
+    }
+  },
+  "products": {
+    "FOSFO": {
+      "price_range": [8.0, 15.0],
+      "production_weight": 40
+    },
+    "PITA": {
+      "price_range": [12.0, 22.0],
+      "production_weight": 30
+    },
+    "PALTA-OIL": {
+      "price_range": [20.0, 35.0],
+      "production_weight": 20
+    },
+    "GUACA": {
+      "price_range": [28.0, 45.0],
+      "production_weight": 5
+    },
+    "SEBO": {
+      "price_range": [5.0, 12.0],
+      "production_weight": 3
+    },
+    "H-GUACA": {
+      "price_range": [40.0, 60.0],
+      "production_weight": 2
+    }
+  },
+  "testing": {
+    "validate_order_priority": true,
+    "stress_test_concurrent_orders": true,
+    "test_production_algorithms": true,
+    "monitor_response_times": true,
+    "detect_race_conditions": true
+  }
+}
