@@ -164,21 +164,8 @@ jobs:
              "volumes": []
         EOF
         
-        # Add Log Analytics conditionally
-        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
-          echo "✅ Adding Log Analytics configuration"
-          cat >> deployment.json << EOF
-            ,
-            "diagnostics": {
-              "logAnalytics": {
-                "workspaceId": "$LOG_ANALYTICS_WORKSPACE_ID",
-                "workspaceKey": "$LOG_ANALYTICS_WORKSPACE_KEY"
-              }
-            }
-        EOF
-        else
-          echo "Skipping Log Analytics (workspace not available)"
-        fi
+        # Skip Log Analytics configuration to avoid portal warnings
+        echo "Skipping Log Analytics (can be enabled via Azure CLI if needed)"
         
         # Close the JSON
         cat >> deployment.json << EOF
@@ -255,8 +242,8 @@ jobs:
         echo "Username: ${{ github.actor }}"
         echo "Using GHCR_PAT for registry authentication"
         echo "WebSocket support enabled (HTTP)"
-        echo "Logging: Azure Log Analytics enabled"
-        echo "Static files: /web/index.html included"
+        echo "Static files: Trading UI included"
+        echo "Logging: Azure Container logs available"
         
         # Display the deployment config for debugging
         echo "Deployment configuration:"
@@ -277,7 +264,7 @@ jobs:
          echo "WebSocket Application Deployment:"
          echo "================================="
          echo "- HTTP WebSocket support enabled"
-         echo "- Log Analytics: Enabled"
+         echo "- Trading UI: Available at root path"
          echo "- Direct application access on port 8080"
          echo "- Cloudflare-ready for free HTTPS"
          echo ""

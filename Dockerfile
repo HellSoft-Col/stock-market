@@ -31,6 +31,9 @@ COPY --from=builder /app/exchange-server /exchange-server
 COPY --from=builder /app/config.yaml /config.yaml
 COPY --from=builder /app/config.production.yaml /config.production.yaml
 
+# Copy web directory for static files
+COPY --from=builder /app/web /web
+
 # Use ARG for configurable port
 ARG PORT=80
 ENV PORT=${PORT}
