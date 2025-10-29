@@ -21,11 +21,11 @@
         
         .debug-container {
             display: grid;
-            grid-template-columns: 320px 1fr 320px;
+            grid-template-columns: minmax(400px, 1fr) 2fr minmax(400px, 1fr);
             grid-template-rows: 70px 1fr;
             height: 100vh;
-            gap: 8px;
-            padding: 8px;
+            gap: 12px;
+            padding: 12px;
         }
         
         .header {
@@ -45,18 +45,17 @@
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 12px;
-            padding: 16px;
+            padding: 20px;
             color: white;
             box-shadow: 0 4px 16px rgba(31, 38, 135, 0.37);
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            min-height: 0; /* Important for flexbox scrolling */
         }
         
-        .main-content {
-            display: grid;
-            grid-template-rows: 200px 1fr 200px;
-            gap: 8px;
+        .center-panel {
+            /* No restrictive grid rules - let flexbox handle it naturally */
         }
         
         .status-bar {
@@ -79,33 +78,45 @@
         
         .tabs {
             display: flex;
-            gap: 2px;
-            margin-bottom: 12px;
+            gap: 3px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
         }
         
         .tab {
-            padding: 8px 12px;
+            padding: 10px 14px;
             background: rgba(255, 255, 255, 0.1);
             border: none;
-            border-radius: 6px 6px 0 0;
+            border-radius: 8px 8px 0 0;
             color: white;
             cursor: pointer;
-            font-size: 12px;
-            transition: background 0.3s;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.3s, transform 0.2s;
+            min-width: 70px;
+            text-align: center;
+        }
+        
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
         }
         
         .tab.active {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         
         .tab-content {
-            display: none;
+            display: none !important;
             flex: 1;
             overflow-y: auto;
+            min-height: 0; /* Important for flexbox scrolling */
         }
         
         .tab-content.active {
-            display: flex;
+            display: flex !important;
             flex-direction: column;
         }
         
@@ -353,10 +364,11 @@
         }
 
         .feature-section {
-            margin-bottom: 16px;
-            padding: 12px;
-            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 16px;
+            border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .feature-title {
@@ -554,6 +566,49 @@
             0% { opacity: 1; transform: translateY(-50%) scale(1); }
             50% { opacity: 0.6; transform: translateY(-50%) scale(1.2); }
             100% { opacity: 1; transform: translateY(-50%) scale(1); }
+        }
+
+        /* Responsive design improvements */
+        @media (max-width: 1400px) {
+            .debug-container {
+                grid-template-columns: minmax(350px, 1fr) 1.5fr minmax(350px, 1fr);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .debug-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 70px auto auto auto;
+            }
+            
+            .panel {
+                max-height: 500px;
+            }
+        }
+
+        /* Improve form layouts */
+        .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+        }
+        
+        .form-row input, .form-row select {
+            flex: 1;
+            margin-bottom: 12px;
+        }
+
+        /* Enhanced input and button focus states */
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.5);
+        }
+
+        button:hover:not(:disabled) {
+            background: rgba(52, 152, 219, 0.6);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
@@ -885,7 +940,7 @@
         </div>
         
         <!-- Center Panel: Live Dashboard -->
-        <div class="panel main-content">
+        <div class="panel center-panel">
             <div class="tabs">
                 <button class="tab active" onclick="switchMainTab('dashboard')">📊 Dashboard</button>
                 <button class="tab" onclick="switchMainTab('ticker')">📈 Ticker</button>
@@ -1126,16 +1181,37 @@
         
         // Tab Management
         function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            console.log('Switching to tab:', tabName); // Debug logging
             
+            // Find the panel containing this tab
+            const panel = event.target.closest('.panel');
+            if (!panel) {
+                console.error('No panel found for tab');
+                return;
+            }
+            
+            // Only affect tabs within this panel
+            panel.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            panel.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Activate clicked tab
             event.target.classList.add('active');
-            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Activate corresponding tab content
+            const targetTab = document.getElementById(`${tabName}-tab`);
+            if (targetTab) {
+                targetTab.classList.add('active');
+                console.log('Successfully activated tab:', tabName);
+            } else {
+                console.error('Target tab not found:', `${tabName}-tab`);
+            }
         }
         
         function switchMainTab(tabName) {
-            document.querySelectorAll('#main-content .tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('#main-content .tab-content').forEach(content => content.classList.remove('active'));
+            // Find the center panel
+            const centerPanel = document.querySelector('.center-panel');
+            centerPanel.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            centerPanel.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
             event.target.classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
@@ -1793,6 +1869,14 @@
         function initializeEnhancements() {
             addFormTooltips();
             updateButtonStates();
+            
+            // Test docs tab visibility
+            const docsTab = document.getElementById('docs-tab');
+            if (docsTab) {
+                console.log('Docs tab found, content length:', docsTab.innerHTML.length);
+            } else {
+                console.error('Docs tab not found!');
+            }
             
             // Add helpful hints to the interface
             setTimeout(() => {
