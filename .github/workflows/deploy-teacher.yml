@@ -1,75 +1,121 @@
-name: Deploy Teacher Trading Server
+name: Deploy to Azure
 
 on:
   workflow_run:
     workflows: ["Build Container with Buildah"]
-    types:
-      - completed
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   deploy:
-    name: Deploy Cost-Optimized Trading Server
+    name: Deploy to Azure
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
+    - uses: actions/checkout@v5
 
-    - name: Log in to Azure
+    - name: Set image name
+      id: image_name
+      run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+    - name: Set image tag
+      id: image
+      run: |
+        TAG=${{ github.sha }}
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          TAG="latest"
+        fi
+        echo "image=${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:$TAG" >> $GITHUB_OUTPUT
+
+    - name: Login to Azure
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Get image tag
-      id: image
+    - name: Generate deployment config
       run: |
-        IMAGE_TAG=${{ github.sha }}
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          IMAGE_TAG="latest"
-        fi
-        echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-    - name: Generate teacher-optimized configuration
-      id: config
-      run: |
-        # Create deployment YAML optimized for teacher budget
         cat > deployment.yaml << EOF
         apiVersion: '2021-10-01'
         location: ${{ vars.AZURE_LOCATION || 'eastus' }}
         name: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
         properties:
           containers:
-          - name: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
+          # Main application container
+          - name: trading-app
             properties:
               image: ${{ steps.image.outputs.image }}
               ports:
               - protocol: TCP
-                port: ${{ vars.CONTAINER_PORT || 80 }}
+                port: 8080
               environmentVariables:
               - name: 'MONGODB_URI'
                 secureValue: '${{ secrets.MONGODB_URI }}'
               - name: 'CONFIG_FILE'
                 value: '${{ vars.CONFIG_FILE || '/config.production.yaml' }}'
               - name: 'PORT'
-                value: '${{ vars.CONTAINER_PORT || '80' }}'
+                value: '8080'
               - name: 'LOG_LEVEL'
                 value: '${{ vars.LOG_LEVEL || 'info' }}'
-              - name: 'ENVIRONMENT'
-                value: '${{ vars.ENVIRONMENT || 'teacher-course' }}'
-              - name: 'MAX_CONNECTIONS'
-                value: '${{ vars.MAX_CONNECTIONS || '30' }}'
               resources:
                 requests:
                   memoryInGB: ${{ vars.MEMORY_GB || 1 }}
                   cpu: ${{ vars.CPU_CORES || 0.5 }}
+          # Nginx + Let's Encrypt container
+          - name: nginx-ssl
+            properties:
+              image: nginxproxy/nginx-proxy:alpine
+              ports:
+              - protocol: TCP
+                port: 80
+              - protocol: TCP
+                port: 443
+              environmentVariables:
+              - name: 'DEFAULT_HOST'
+                value: '${{ vars.DOMAIN_NAME }}'
+              - name: 'VIRTUAL_HOST'
+                value: '${{ vars.DOMAIN_NAME }}'
+              - name: 'VIRTUAL_PORT'
+                value: '8080'
+              - name: 'LETSENCRYPT_HOST'
+                value: '${{ vars.DOMAIN_NAME }}'
+              - name: 'LETSENCRYPT_EMAIL'
+                value: '${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}'
+              volumeMounts:
+              - name: nginx-certs
+                mountPath: /etc/nginx/certs
+              - name: nginx-vhost
+                mountPath: /etc/nginx/vhost.d
+              - name: nginx-html
+                mountPath: /usr/share/nginx/html
+              resources:
+                requests:
+                  memoryInGB: 0.5
+                  cpu: 0.25
+          # Let's Encrypt companion
+          - name: letsencrypt
+            properties:
+              image: nginxproxy/acme-companion:latest
+              environmentVariables:
+              - name: 'DEFAULT_EMAIL'
+                value: '${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}'
+              volumeMounts:
+              - name: nginx-certs
+                mountPath: /etc/nginx/certs
+              - name: nginx-vhost
+                mountPath: /etc/nginx/vhost.d
+              - name: nginx-html
+                mountPath: /usr/share/nginx/html
+              - name: acme-state
+                mountPath: /etc/acme.sh
+              resources:
+                requests:
+                  memoryInGB: 0.25
+                  cpu: 0.1
           imageRegistryCredentials:
           - server: ${{ env.REGISTRY }}
             username: ${{ github.actor }}
@@ -78,173 +124,107 @@ jobs:
             type: Public
             ports:
             - protocol: TCP
-              port: ${{ vars.CONTAINER_PORT || 80 }}
-            dnsNameLabel: ${{ vars.DNS_LABEL || vars.AZURE_CONTAINER_NAME || 'trading-course' }}
+              port: 80
+            - protocol: TCP
+              port: 443
+            dnsNameLabel: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
           osType: Linux
           restartPolicy: Always
-        tags:
-          Environment: '${{ vars.ENVIRONMENT || 'teacher-course' }}'
-          Project: 'stock-exchange-teaching'
-          CostOptimized: 'true'
-          Duration: '3-weeks'
-          ManagedBy: 'github-actions'
-          Teacher: '${{ github.actor }}'
+          volumes:
+          - name: nginx-certs
+            emptyDir: {}
+          - name: nginx-vhost
+            emptyDir: {}
+          - name: nginx-html
+            emptyDir: {}
+          - name: acme-state
+            emptyDir: {}
         type: Microsoft.ContainerInstance/containerGroups
         EOF
-        
-        echo "✅ Generated teacher cost-optimized deployment configuration"
-        echo "💰 Configuration: ${{ vars.CPU_CORES || 0.5 }} vCPU, ${{ vars.MEMORY_GB || 1 }} GB RAM"
 
-    - name: Deploy trading server for students
+    - name: Deploy container
       run: |
-        echo "🎓 Deploying cost-optimized trading server for students..."
-        echo "💰 Cost: ~$12-15 for 3 weeks with ${{ vars.CPU_CORES || 0.5 }} vCPU, ${{ vars.MEMORY_GB || 1 }} GB RAM"
+        echo "Deploying with SSL support..."
         
-        # Delete existing container group if it exists
         az container delete \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
           --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }} \
-          --yes || echo "No existing container to delete"
-
-        # Wait for cleanup
-        sleep 15
-
-        # Deploy using YAML file
+          --yes || true
+        
+        sleep 10
+        
         az container create \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
           --file deployment.yaml
 
-        echo "✅ Teacher's trading server deployment initiated"
-
-    - name: Wait for deployment and health check
+    - name: Health check
       run: |
-        echo "⏳ Waiting for trading server to be ready for students..."
+        sleep 60
         
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
         
-        # Wait up to 6 minutes for container to be running
-        for i in {1..36}; do
+        for i in {1..5}; do
           STATE=$(az container show \
             --resource-group "$RESOURCE_GROUP" \
             --name "$CONTAINER_NAME" \
             --query 'instanceView.state' \
-            --output tsv 2>/dev/null || echo "NotFound")
-          
-          echo "Trading server state: $STATE (attempt $i/36)"
+            --output tsv)
           
           if [ "$STATE" = "Running" ]; then
-            echo "✅ Trading server is running and ready for students!"
+            echo "✅ Container is running"
             break
-          elif [ "$STATE" = "Failed" ] || [ "$STATE" = "Terminated" ]; then
-            echo "❌ Trading server failed. Checking logs..."
-            az container logs \
-              --resource-group "$RESOURCE_GROUP" \
-              --name "$CONTAINER_NAME" || true
+          elif [ "$STATE" = "Failed" ]; then
+            echo "❌ Container failed"
+            az container logs --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME"
             exit 1
           fi
           
-          sleep 10
+          echo "Waiting... ($i/5)"
+          sleep 20
         done
 
-    - name: Get deployment information
-      id: deployment
+    - name: Get deployment info
       run: |
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
         
-        # Get container details
-        CONTAINER_INFO=$(az container show \
+        INFO=$(az container show \
           --resource-group "$RESOURCE_GROUP" \
           --name "$CONTAINER_NAME" \
-          --query '{fqdn: ipAddress.fqdn, ip: ipAddress.ip, state: instanceView.state, restartCount: instanceView.restartCount}' \
+          --query '{fqdn: ipAddress.fqdn, ip: ipAddress.ip, state: instanceView.state}' \
           --output json)
         
-        FQDN=$(echo "$CONTAINER_INFO" | jq -r '.fqdn // "N/A"')
-        IP=$(echo "$CONTAINER_INFO" | jq -r '.ip // "N/A"')
-        STATE=$(echo "$CONTAINER_INFO" | jq -r '.state // "Unknown"')
-        RESTART_COUNT=$(echo "$CONTAINER_INFO" | jq -r '.restartCount // 0')
+        echo "Container Info:"
+        echo "$INFO" | jq
         
-        echo "fqdn=$FQDN" >> $GITHUB_OUTPUT
-        echo "ip=$IP" >> $GITHUB_OUTPUT
-        echo "state=$STATE" >> $GITHUB_OUTPUT
-        echo "restart_count=$RESTART_COUNT" >> $GITHUB_OUTPUT
+        IP=$(echo "$INFO" | jq -r '.ip')
+        echo "Set DNS A record: ${{ vars.DOMAIN_NAME || 'your-domain.com' }} -> $IP"
 
-    - name: Test trading server
-      run: |
-        FQDN="${{ steps.deployment.outputs.fqdn }}"
-        PORT="${{ vars.CONTAINER_PORT || 80 }}"
-        
-        if [ "$FQDN" != "N/A" ]; then
-          URL="http://$FQDN:$PORT"
-          echo "🧪 Testing trading server at: $URL"
-          
-          # Health check for the trading platform
-          curl --max-time 30 --retry 3 --retry-delay 10 \
-            --fail --silent --show-error "$URL" > /dev/null && \
-            echo "✅ Trading server health check passed - ready for students!" || \
-            echo "⚠️ Health check failed (server might still be starting up)"
-        fi
-
-    - name: Generate teacher summary
-      run: |
-        echo "## 🎓 Trading Server Deployed for Students!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📋 Server Information" >> $GITHUB_STEP_SUMMARY
-        echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-        echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-        echo "| **Student URL** | [http://${{ steps.deployment.outputs.fqdn }}](http://${{ steps.deployment.outputs.fqdn }}) |" >> $GITHUB_STEP_SUMMARY
-        echo "| **Server Status** | ${{ steps.deployment.outputs.state }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| **Resources** | ${{ vars.CPU_CORES || 0.5 }} vCPU, ${{ vars.MEMORY_GB || 1 }} GB RAM |" >> $GITHUB_STEP_SUMMARY
-        echo "| **Max Students** | ~${{ vars.MAX_CONNECTIONS || 30 }} concurrent |" >> $GITHUB_STEP_SUMMARY
-        echo "| **Restart Count** | ${{ steps.deployment.outputs.restart_count }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| **Environment** | ${{ vars.ENVIRONMENT || 'teacher-course' }} |" >> $GITHUB_STEP_SUMMARY
-        
-        if [ "${{ steps.deployment.outputs.ip }}" != "N/A" ]; then
-          echo "| **IP Address** | \`${{ steps.deployment.outputs.ip }}\` |" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 👨‍🎓 Share with Students" >> $GITHUB_STEP_SUMMARY
-        echo "**Trading Platform URL:**" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        echo "http://${{ steps.deployment.outputs.fqdn }}" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 💰 Cost Information" >> $GITHUB_STEP_SUMMARY
-        echo "- **Daily cost**: ~$0.60" >> $GITHUB_STEP_SUMMARY
-        echo "- **Weekly cost**: ~$4-5" >> $GITHUB_STEP_SUMMARY
-        echo "- **3-week total**: ~$12-15" >> $GITHUB_STEP_SUMMARY
-        echo "- **Per student**: ~$0.40-0.50 each" >> $GITHUB_STEP_SUMMARY
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🔧 Teacher Management Commands" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "# Monitor student activity (real-time logs)" >> $GITHUB_STEP_SUMMARY
-        echo "az container logs --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }} --follow" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "# Restart server if needed during class" >> $GITHUB_STEP_SUMMARY
-        echo "az container restart --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "# Check server status" >> $GITHUB_STEP_SUMMARY
-        echo "az container show --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-  cost-notification:
-    name: Cost Tracking Notification
+  rollback:
+    name: Rollback on failure
     runs-on: ubuntu-latest
     needs: deploy
-    if: success()
+    if: failure()
     
     steps:
-    - name: Cost tracking summary
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Rollback to previous image
       run: |
-        echo "## 💰 Cost Tracking Update" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Your cost-optimized trading server is now running:" >> $GITHUB_STEP_SUMMARY
-        echo "- **Configuration**: ${{ vars.CPU_CORES || 0.5 }} vCPU, ${{ vars.MEMORY_GB || 1 }} GB RAM" >> $GITHUB_STEP_SUMMARY
-        echo "- **Estimated daily cost**: ~$0.60" >> $GITHUB_STEP_SUMMARY
-        echo "- **Estimated 3-week cost**: ~$12-15 total" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "📊 Monitor costs in Azure Portal: **Cost Management + Billing**" >> $GITHUB_STEP_SUMMARY
+        echo "Deployment failed, attempting rollback..."
+        
+        az container create \
+          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+          --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}-rollback \
+          --image ${{ env.REGISTRY }}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):latest \
+          --cpu ${{ vars.CPU_CORES || 0.5 }} \
+          --memory ${{ vars.MEMORY_GB || 1 }} \
+          --ip-address Public \
+          --ports 80 443 \
+          --environment-variables \
+            MONGODB_URI="${{ secrets.MONGODB_URI }}" \
+            PORT="8080" || echo "Rollback failed"

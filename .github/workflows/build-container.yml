@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
@@ -25,6 +24,11 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v5
+
+    - name: Set lowercase image name
+      id: image_name
+      run: |
+        echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
     - name: Install Buildah
       run: |
@@ -43,7 +47,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -99,32 +103,37 @@ jobs:
         buildah config --label org.opencontainers.image.revision=${{ github.sha }} $FINAL_CONTAINER
         
         # Commit the image
-        IMAGE_ID=$(buildah commit $FINAL_CONTAINER ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }})
+        IMAGE_ID=$(buildah commit $FINAL_CONTAINER ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }})
         echo "Built image: $IMAGE_ID"
         echo "digest=$IMAGE_ID" >> $GITHUB_OUTPUT
         
         # Tag with metadata
-        for tag in ${{ steps.meta.outputs.tags }}; do
-          buildah tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} $tag
+        echo '${{ steps.meta.outputs.tags }}' | while read -r tag; do
+          if [ -n "$tag" ]; then
+            echo "Tagging: $tag"
+            buildah tag ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }} "$tag"
+          fi
         done
 
     - name: Test container
       run: |
         # Test that the container can start (dry run)
-        podman run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --help || true
+        podman run --rm ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }} --help || true
 
     - name: Push to registry
       if: github.event_name != 'pull_request'
       id: push
       run: |
-        for tag in ${{ steps.meta.outputs.tags }}; do
-          echo "Pushing $tag"
-          buildah push $tag
+        echo '${{ steps.meta.outputs.tags }}' | while read -r tag; do
+          if [ -n "$tag" ]; then
+            echo "Pushing: $tag"
+            buildah push "$tag"
+          fi
         done
 
     - name: Output image
       id: image
-      run: echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+      run: echo "image=${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }}" >> $GITHUB_OUTPUT
 
   verify:
     name: Verify Build
