@@ -81,8 +81,8 @@ jobs:
         # Build the application
         buildah run $CONTAINER -- sh -c 'CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s -extldflags \"-static\"" -o exchange-server ./cmd/server'
         
-        # Create final image from distroless
-        FINAL_CONTAINER=$(buildah from gcr.io/distroless/static-debian12:nonroot)
+        # Create final image from distroless (root user for port 80 binding)
+        FINAL_CONTAINER=$(buildah from gcr.io/distroless/static-debian12)
         
         # Set working directory first
         buildah config --workingdir /app $FINAL_CONTAINER
@@ -131,7 +131,9 @@ jobs:
         # The Go application expects -config flag, not CONFIG_FILE env var
         # Let's override the default command to use the config flag
         CONTAINER_ID=$(podman run -d \
+          -p 8080:80 \
           -e PORT=80 \
+          -e ENV=production \
           ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }} \
           ./exchange-server -config=./config.yaml)
         

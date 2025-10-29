@@ -28,7 +28,6 @@ func NewDatabase(cfg *config.MongoDBConfig) *Database {
 
 func (db *Database) Connect(ctx context.Context) error {
 	log.Info().
-		Str("uri", db.config.URI).
 		Str("database", db.config.Database).
 		Msg("Connecting to MongoDB")
 
