@@ -128,7 +128,7 @@ jobs:
         # The Go application expects -config flag, not CONFIG_FILE env var
         # Let's override the default command to use the config flag
         CONTAINER_ID=$(podman run -d \
-          -e PORT=8080 \
+          -e PORT=80 \
           ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }} \
           /exchange-server -config=/config.yaml)
         

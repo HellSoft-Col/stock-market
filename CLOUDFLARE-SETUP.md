@@ -78,7 +78,7 @@ Create a page rule for WebSocket support:
 ### WebSocket Issues
 - Verify page rule for `/ws*` path
 - Check that Cloudflare supports WebSockets (it does on free plan)
-- Test direct container access first: `http://[container-fqdn]:8080`
+- Test direct container access first: `http://[container-fqdn]:80`
 
 ### DNS Issues
 - Verify A record points to correct container IP
