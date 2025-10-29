@@ -41,6 +41,8 @@ Proxy status: Proxied (orange cloud icon) ✅
 TTL: Auto
 ```
 
+**Important**: Your container now runs on port 80 (standard HTTP), making it fully compatible with Cloudflare's proxy service.
+
 ### 4. Configure SSL/TLS Settings
 
 In Cloudflare Dashboard → SSL/TLS:
@@ -90,7 +92,7 @@ User Browser
     ↓ HTTPS/WSS
 Cloudflare (Free SSL)
     ↓ HTTP/WS  
-Azure Container Instance (Port 8080)
+Azure Container Instance (Port 80)
     ↓
 Your Trading Application
 ```

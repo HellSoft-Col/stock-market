@@ -34,15 +34,14 @@ COPY --from=builder /app/config.production.yaml /config.production.yaml
 # Copy web directory for static files
 COPY --from=builder /app/web /web
 
-# Use ARG for configurable port
-ARG PORT=80
-ENV PORT=${PORT}
+# Use standard HTTP port for Cloudflare compatibility
+ENV PORT=80
 
 # Environment variable for config selection
 ENV CONFIG_FILE=/config.yaml
 
-# Expose the configurable port
-EXPOSE ${PORT}
+# Expose standard HTTP port (Cloudflare compatible)
+EXPOSE 80
 
 # Command to run with configurable config file
 CMD ["/exchange-server"]

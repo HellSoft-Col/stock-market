@@ -115,7 +115,7 @@ jobs:
                    "ports": [
                      {
                        "protocol": "TCP",
-                       "port": 8080
+                       "port": 80
                      }
                    ],
                    "environmentVariables": [
@@ -125,7 +125,7 @@ jobs:
                      },
                      {
                        "name": "PORT",
-                       "value": "8080"
+                       "value": "80"
                      },
                      {
                        "name": "LOG_LEVEL",
@@ -154,7 +154,7 @@ jobs:
                "ports": [
                  {
                    "protocol": "TCP",
-                   "port": 8080
+                   "port": 80
                  }
                ],
               "dnsNameLabel": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
@@ -265,13 +265,13 @@ jobs:
          echo "================================="
          echo "- HTTP WebSocket support enabled"
          echo "- Trading UI: Available at root path"
-         echo "- Direct application access on port 8080"
+         echo "- Direct application access on port 80 (Cloudflare compatible)"
          echo "- Cloudflare-ready for free HTTPS"
          echo ""
          echo "Access Information:"
          echo "=================="
-         echo "Direct access: http://[CONTAINER_FQDN]:8080/"
-         echo "WebSocket: ws://[CONTAINER_FQDN]:8080/ws"
+         echo "Direct access: http://[CONTAINER_FQDN]/"
+         echo "WebSocket: ws://[CONTAINER_FQDN]/ws"
          echo ""
          echo "For HTTPS with Cloudflare (FREE):"
          echo "1. Add domain to Cloudflare"
@@ -345,7 +345,7 @@ jobs:
         echo "   wss://trading.hellsoft.tech/ws"
         echo ""
         echo "Direct access (for testing):"
-        echo "   http://$FQDN:8080/"
+        echo "   http://$FQDN/"
 
     - name: Extended health check
       id: health_check
@@ -380,38 +380,13 @@ jobs:
         FQDN=$(echo "$INFO" | jq -r '.fqdn')
         
          if [ "$FQDN" != "null" ] && [ -n "$FQDN" ]; then
-           # Test HTTPS endpoint (with self-signed cert initially)
-           echo "Testing HTTPS endpoint: https://$FQDN (allowing self-signed cert)"
-           if curl --insecure --fail --max-time 30 --retry 3 --retry-delay 10 "https://$FQDN" > /dev/null 2>&1; then
-             echo "✅ HTTPS health check passed"
+           # Test HTTP endpoint on port 80
+           echo "Testing HTTP endpoint: http://$FQDN"
+           if curl --fail --max-time 30 --retry 3 --retry-delay 10 "http://$FQDN" > /dev/null 2>&1; then
+             echo "✅ HTTP health check passed"
            else
-             echo "HTTPS health check failed, checking HTTP fallback"
-             # Test HTTP redirect
-             if curl --fail --max-time 10 "http://$FQDN" 2>&1 | grep -q "301\|302"; then
-               echo "✅ HTTP redirect to HTTPS working"
-             else
-               echo "HTTP redirect not working yet"
-             fi
-           fi
-           
-           # Check SSL certificate status
-           echo "Checking SSL certificate status..."
-           if timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -dates 2>/dev/null; then
-             echo "✅ SSL certificate found and accessible"
-             
-             # Get certificate details
-             echo "Certificate details:"
-             CERT_INFO=$(timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>/dev/null)
-             echo "$CERT_INFO"
-             
-             # Check if Let's Encrypt or self-signed
-             if echo "$CERT_INFO" | grep -q "Let's Encrypt"; then
-               echo "🎯 Let's Encrypt certificate detected"
-             else
-               echo "🔧 Self-signed certificate (Let's Encrypt will replace after DNS setup)"
-             fi
-           else
-             echo "SSL certificate not accessible yet (nginx may still be starting)"
+             echo "❌ HTTP health check failed"
+             echo "Note: This is expected until Cloudflare proxy is configured"
            fi
          fi
         
@@ -532,34 +507,18 @@ jobs:
         fi
         
          echo ""
-         echo "🔍 Container Logs (nginx-proxy):"
-         az container logs \
-           --resource-group "$RESOURCE_GROUP" \
-           --name "$CONTAINER_NAME" \
-           --container-name nginx-proxy \
-           --tail 20 || echo "  ❌ nginx-proxy container not found"
-         
-         echo ""
-         echo "🔍 Container Logs (certbot):"
-         az container logs \
-           --resource-group "$RESOURCE_GROUP" \
-           --name "$CONTAINER_NAME" \
-           --container-name certbot \
-           --tail 20 || echo "  ❌ certbot container not found"
-         
-         echo ""
-         echo "🔍 Container Logs (trading-app):"
+         echo "Container Logs (trading-app):"
          az container logs \
            --resource-group "$RESOURCE_GROUP" \
            --name "$CONTAINER_NAME" \
            --container-name trading-app \
-           --tail 10 || echo "  ❌ trading-app container logs not available"
+           --tail 20 || echo "  ❌ trading-app container logs not available"
         
          echo ""
          echo "Current Deployment Status:"
-         echo "  HTTP (port 80): Redirects to HTTPS"
-         echo "  HTTPS (port 443): Available at https://$FQDN"
-         echo "  Direct HTTP (port 8080): Available at http://$FQDN:8080"
+         echo "  HTTP (port 80): Available at http://$FQDN"
+         echo "  Cloudflare HTTPS: Will be available at https://trading.hellsoft.tech"
+         echo "  WebSocket: Available at ws://$FQDN/ws"
          if [ "$DOMAIN" != "your-domain.com" ] && [ -n "${{ vars.DOMAIN_NAME }}" ]; then
            echo "  Custom Domain HTTPS: https://$DOMAIN (after DNS setup)"
          fi
