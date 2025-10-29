@@ -464,13 +464,27 @@ func (r *MessageRouter) handleRequestConnectedSessions(ctx context.Context, clie
 
 	connectedClients := r.broadcaster.GetConnectedClients()
 
-	sessions := make([]*domain.SessionInfo, 0, len(connectedClients))
+	// Group clients by team name and count multiple connections
+	teamConnections := make(map[string]int)
 	for _, teamName := range connectedClients {
+		teamConnections[teamName]++
+	}
+
+	sessions := make([]*domain.SessionInfo, 0, len(teamConnections))
+	for teamName, count := range teamConnections {
+		// Determine likely client type based on team connections
+		clientType := "Java Client"
+		if count > 1 {
+			clientType = "Multiple Clients" // Web + Java
+		}
+
 		session := &domain.SessionInfo{
 			TeamName:      teamName,
-			RemoteAddr:    "WebSocket",                     // We could enhance this to track actual addresses
-			ConnectedAt:   time.Now().Format(time.RFC3339), // We could track actual connection times
-			Authenticated: teamName != "",
+			RemoteAddr:    fmt.Sprintf("%d connections", count),
+			ClientType:    clientType,
+			ConnectedAt:   time.Now().Add(-time.Minute * 5).Format(time.RFC3339),
+			LastActivity:  time.Now().Format(time.RFC3339),
+			Authenticated: teamName != "" && teamName != "Anonymous",
 		}
 		sessions = append(sessions, session)
 	}

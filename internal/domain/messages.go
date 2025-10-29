@@ -149,6 +149,7 @@ type SessionInfo struct {
 	TeamName      string `json:"teamName"`
 	RemoteAddr    string `json:"remoteAddr"`
 	UserAgent     string `json:"userAgent,omitempty"`
+	ClientType    string `json:"clientType"`
 	ConnectedAt   string `json:"connectedAt"`
 	LastActivity  string `json:"lastActivity,omitempty"`
 	Authenticated bool   `json:"authenticated"`

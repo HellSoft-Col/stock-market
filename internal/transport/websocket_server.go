@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"github.com/yourusername/avocado-exchange-server/internal/config"
+	"github.com/yourusername/avocado-exchange-server/internal/domain"
 )
 
 var upgrader = websocket.Upgrader{
@@ -21,21 +23,23 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebSocketServer struct {
-	config    *config.Config
-	server    *http.Server
-	clients   map[string]*WebSocketClientHandler
-	clientsMu sync.RWMutex
-	shutdown  chan struct{}
-	wg        sync.WaitGroup
-	router    *MessageRouter
+	config      *config.Config
+	server      *http.Server
+	clients     map[string]*WebSocketClientHandler   // addr -> client
+	teamClients map[string][]*WebSocketClientHandler // teamName -> clients
+	clientsMu   sync.RWMutex
+	shutdown    chan struct{}
+	wg          sync.WaitGroup
+	router      *MessageRouter
 }
 
 func NewWebSocketServer(cfg *config.Config, router *MessageRouter) *WebSocketServer {
 	return &WebSocketServer{
-		config:   cfg,
-		clients:  make(map[string]*WebSocketClientHandler),
-		shutdown: make(chan struct{}),
-		router:   router,
+		config:      cfg,
+		clients:     make(map[string]*WebSocketClientHandler),
+		teamClients: make(map[string][]*WebSocketClientHandler),
+		shutdown:    make(chan struct{}),
+		router:      router,
 	}
 }
 
@@ -189,6 +193,39 @@ func (s *WebSocketServer) GetConnectedClients() []string {
 	}
 
 	return teams
+}
+
+func (s *WebSocketServer) GetDetailedSessions() []*domain.SessionInfo {
+	s.clientsMu.RLock()
+	defer s.clientsMu.RUnlock()
+
+	sessions := make([]*domain.SessionInfo, 0, len(s.clients))
+	for addr, client := range s.clients {
+		teamName := client.teamName
+		if teamName == "" {
+			teamName = "Anonymous"
+		}
+
+		// Simple heuristic: if addr contains pattern suggesting web browser
+		clientType := "Java Client"
+		if strings.Contains(addr, ":") {
+			// This is a simplification - web browsers typically have different connection patterns
+			clientType = "Web Browser"
+		}
+
+		session := &domain.SessionInfo{
+			TeamName:      teamName,
+			RemoteAddr:    addr,
+			UserAgent:     "", // Will enhance later
+			ClientType:    clientType,
+			ConnectedAt:   time.Now().Add(-time.Hour).Format(time.RFC3339), // Placeholder
+			LastActivity:  time.Now().Format(time.RFC3339),
+			Authenticated: client.teamName != "",
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions
 }
 
 func (s *WebSocketServer) Stop() error {

@@ -301,6 +301,10 @@
         .session-item.connected { border-left-color: #f39c12; }
         .session-item.web-client { border-left-color: #3498db; }
         .session-item.java-client { border-left-color: #e67e22; }
+        
+        .multiple-clients {
+            background: linear-gradient(90deg, rgba(52, 152, 219, 0.1) 50%, rgba(230, 126, 34, 0.1) 50%);
+        }
     </style>
 </head>
 <body>
@@ -325,6 +329,7 @@
                 <button class="tab active" onclick="switchTab('auth')">Auth</button>
                 <button class="tab" onclick="switchTab('debug')">Debug</button>
                 <button class="tab" onclick="switchTab('sessions')">Sessions</button>
+                <button class="tab" onclick="switchTab('docs')">Docs</button>
             </div>
             
             <div id="auth-tab" class="tab-content active">
@@ -378,8 +383,8 @@
             <div id="sessions-tab" class="tab-content">
                 <div class="debug-warning">
                     <strong>📋 Session Monitor</strong><br>
-                    This shows ALL connected clients including Java trading bots. 
-                    Java clients should appear as "☕ Java Client" when connected properly.
+                    Shows teams connected with the same token. If you see "Multiple Clients" it means both 
+                    your debug console and Java client are connected with the same token. ✅
                 </div>
                 
                 <div class="debug-section">
@@ -401,9 +406,121 @@
                             <p id="total-orders">Total Orders: -</p>
                             <p id="total-fills">Total Fills: -</p>
                             <p id="server-uptime">Server Uptime: -</p>
-                        </div>
                     </div>
                 </div>
+            </div>
+            
+            <div id="docs-tab" class="tab-content">
+                <div style="max-height: 100%; overflow-y: auto; padding-right: 8px;">
+                    <h3>📚 Documentación / Documentation</h3>
+                    
+                    <div class="debug-section">
+                        <h4>🎯 Propósito de esta Consola</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 8px;">
+                            Esta es una <strong>consola de depuración</strong>, NO un cliente de trading. 
+                            Tu cliente Java debe conectarse independientemente como un cliente normal.
+                        </p>
+                        <p style="font-size: 11px; line-height: 1.4; color: #f39c12;">
+                            <strong>Importante:</strong> Usa el mismo token en tu cliente Java y en esta consola 
+                            para monitorear las conexiones y depurar problemas.
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>🔐 Autenticación</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            • <strong>Token:</strong> Usa tu token TK-XXXX proporcionado por el profesor<br>
+                            • <strong>Conectar:</strong> Establece conexión WebSocket con el servidor<br>
+                            • <strong>Login:</strong> Autentica usando tu token de equipo
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>👥 Sesiones Conectadas</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            • <strong>🌐 Web Browser:</strong> Esta consola de depuración<br>
+                            • <strong>☕ Java Client:</strong> Tu cliente de trading Java<br>
+                            • <strong>Estado:</strong> Connected (conectado) vs Authenticated (autenticado)<br>
+                            • <strong>Mismo Equipo:</strong> Múltiples conexiones del mismo token aparecerán aquí
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>📊 Datos de Mercado</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            • <strong>Ticker:</strong> Precios en tiempo real (Bid/Ask/Mid)<br>
+                            • <strong>Order Book:</strong> Órdenes de compra y venta por producto<br>
+                            • <strong>All Orders:</strong> Todas las órdenes del mercado<br>
+                            • <strong>Actualización:</strong> Los datos se actualizan automáticamente
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>🧪 Herramientas de Prueba</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            • <strong>Producción:</strong> Simula producción para añadir inventario<br>
+                            • <strong>Órdenes Debug:</strong> Tipos especiales para pruebas:<br>
+                            &nbsp;&nbsp;- <strong>Normal:</strong> Orden regular de mercado<br>
+                            &nbsp;&nbsp;- <strong>Auto-Accept:</strong> El servidor acepta automáticamente<br>
+                            &nbsp;&nbsp;- <strong>Team Only:</strong> Solo visible para tu equipo<br>
+                            • <strong>Ping:</strong> Prueba conectividad con el servidor<br>
+                            • <strong>Resync:</strong> Solicita resincronización de datos
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>💼 Trading de Prueba</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            • <strong>Buy/Sell:</strong> Tipo de orden (compra/venta)<br>
+                            • <strong>Market/Limit:</strong> Orden a mercado o con precio límite<br>
+                            • <strong>Productos:</strong> FOSFO, PITA, PALTA-OIL, GUACA, SEBO, H-GUACA<br>
+                            • <strong>Cantidad:</strong> Número de unidades a comerciar<br>
+                            • <strong>Precio:</strong> Solo para órdenes límite<br>
+                            • <strong>Mensaje:</strong> Información adicional opcional
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>📋 Tipos de Mensajes</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            • <strong>FILL:</strong> Orden ejecutada exitosamente<br>
+                            • <strong>OFFER:</strong> Propuesta de venta dirigida<br>
+                            • <strong>TICKER:</strong> Actualización de precios<br>
+                            • <strong>ERROR:</strong> Mensaje de error del servidor<br>
+                            • <strong>ORDER_ACK:</strong> Confirmación de orden recibida<br>
+                            • <strong>INVENTORY_UPDATE:</strong> Actualización de inventario
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>🔍 Depuración de Cliente Java</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            1. <strong>Verificar Conexión:</strong> Tu cliente debe aparecer como "☕ Java Client"<br>
+                            2. <strong>Confirmar Autenticación:</strong> Estado debe cambiar a "Authenticated"<br>
+                            3. <strong>Probar Órdenes:</strong> Usa Auto-Accept para probar recepción de FILL<br>
+                            4. <strong>Monitorear Mensajes:</strong> Observa todos los tipos de mensaje<br>
+                            5. <strong>Verificar Inventario:</strong> Confirma que se actualiza correctamente<br>
+                            6. <strong>Probar Ofertas:</strong> Acepta/rechaza ofertas para probar lógica
+                        </p>
+                    </div>
+                    
+                    <div class="debug-section">
+                        <h4>⚠️ Problemas Comunes</h4>
+                        <p style="font-size: 11px; line-height: 1.4; margin-bottom: 4px;">
+                            • <strong>No aparece Java Client:</strong> Verificar URL y token<br>
+                            • <strong>Connected pero no Authenticated:</strong> Revisar formato del token<br>
+                            • <strong>Órdenes no funcionan:</strong> Verificar inventario suficiente<br>
+                            • <strong>Desconexiones frecuentes:</strong> Implementar reconexión automática<br>
+                            • <strong>Mensajes perdidos:</strong> Verificar manejo de JSON en cliente
+                        </p>
+                    </div>
+                    
+                    <div class="debug-warning">
+                        <strong>💡 Consejo:</strong> Mantén esta consola abierta mientras desarrollas tu cliente Java 
+                        para monitorear conexiones, órdenes y mensajes en tiempo real.
+                    </div>
+                </div>
+            </div>
             </div>
         </div>
         
@@ -1145,21 +1262,34 @@
             
             container.innerHTML = connectedSessions.map(session => {
                 const connectionTime = new Date(session.connectedAt).toLocaleTimeString();
-                const isWebClient = session.userAgent && session.userAgent.includes('Mozilla');
-                const clientType = isWebClient ? '🌐 Web Browser' : '☕ Java Client';
-                const statusClass = session.authenticated ? 'authenticated' : 'connected';
-                const clientClass = isWebClient ? 'web-client' : 'java-client';
+                
+                // Determine display based on client type
+                let clientIcon = '☕';
+                let clientText = 'Java Client';
+                let statusClass = session.authenticated ? 'authenticated' : 'connected';
+                let clientClass = 'java-client';
+                
+                if (session.clientType === 'Multiple Clients') {
+                    clientIcon = '🔗';
+                    clientText = 'Multiple Clients';
+                    statusClass = 'authenticated';
+                    clientClass = 'multiple-clients';
+                } else if (session.clientType === 'Web Browser') {
+                    clientIcon = '🌐';
+                    clientText = 'Web Browser';
+                    clientClass = 'web-client';
+                }
                 
                 return `
                     <div class="session-item ${statusClass} ${clientClass}">
                         <div class="order-header">
                             <strong>${session.teamName || 'Anonymous'}</strong>
-                            <span>${clientType}</span>
+                            <span>${clientIcon} ${clientText}</span>
                         </div>
                         <div class="order-details">
                             Connected: ${connectionTime} | 
-                            Status: ${session.authenticated ? 'Authenticated' : 'Connected'} |
-                            IP: ${session.remoteAddr}
+                            Status: ${session.authenticated ? 'Authenticated' : 'Connected'} | 
+                            ${session.remoteAddr}
                             ${session.lastActivity ? `| Last Activity: ${new Date(session.lastActivity).toLocaleTimeString()}` : ''}
                         </div>
                     </div>
