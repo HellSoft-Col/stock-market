@@ -55,13 +55,35 @@
             --avocado-green: #059669;
             --avocado-dark: #047857;
             --bg-gradient: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%);
+            
+            /* Light theme (default) */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-color: #111827;
+            --text-muted: #6b7280;
+            --border-light: #e5e7eb;
+        }
+        
+        /* Dark theme variables */
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%);
+            --bg-primary: #1f2937;
+            --bg-secondary: #374151;
+            --bg-tertiary: #4b5563;
+            --text-color: #f9fafb;
+            --text-muted: #d1d5db;
+            --border-light: #4b5563;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
         }
         
         html, body {
             font-family: 'Inter', sans-serif !important;
-            background: var(--bg-gradient);
+            background: var(--bg-gradient) !important;
             min-height: 100vh;
-            color: var(--text-primary);
+            color: var(--text-color) !important;
+            transition: background 0.3s ease, color 0.3s ease;
         }
         
         .is-family-monospace {
@@ -91,13 +113,15 @@
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
         
-        /* Enhanced Bulma components */
+        /* Enhanced Bulma components - Theme-aware styling */
         .box {
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            background: white;
-            border: 1px solid #e1e8ed;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+            background: var(--bg-primary) !important;
+            background-color: var(--bg-primary) !important;
+            border: 1px solid var(--border-light) !important;
+            color: var(--text-color) !important;
         }
         
         .box:hover {
@@ -106,9 +130,25 @@
         }
         
         .card {
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+            background: var(--bg-primary) !important;
+            background-color: var(--bg-primary) !important;
+            border: 1px solid var(--border-light) !important;
+            color: var(--text-color) !important;
+        }
+        
+        .card-content {
+            background: var(--bg-primary) !important;
+            background-color: var(--bg-primary) !important;
+            color: var(--text-color) !important;
+        }
+        
+        .card-header {
+            background: var(--bg-primary) !important;
+            background-color: var(--bg-primary) !important;
+            color: var(--text-color) !important;
         }
         
         .card:hover {
@@ -260,11 +300,30 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
-        /* Input customizations */
+        /* Input customizations - Theme-aware styling */
         .input, .textarea, .select select {
-            border-radius: 8px;
-            border: 2px solid #e1e8ed;
-            transition: all 0.3s ease;
+            border-radius: 8px !important;
+            border: 2px solid var(--border-light) !important;
+            transition: all 0.3s ease !important;
+            background: var(--bg-primary) !important;
+            background-color: var(--bg-primary) !important;
+            color: var(--text-color) !important;
+        }
+        
+        .select::after {
+            border-color: var(--primary-color) !important;
+        }
+        
+        /* Form elements theme support */
+        input, textarea, select, option {
+            background: var(--bg-primary) !important;
+            background-color: var(--bg-primary) !important;
+            color: var(--text-color) !important;
+        }
+        
+        option {
+            background: var(--bg-primary) !important;
+            color: var(--text-color) !important;
         }
         
         .input:focus, .textarea:focus, .select select:focus {
@@ -290,6 +349,8 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #636e72;
         }
+        
+
         
 
 
@@ -320,7 +381,7 @@
         
         /* Order book and trading specific styles */
         .order-item {
-            background: white;
+            background: var(--bg-primary) !important;
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 8px;
@@ -328,6 +389,8 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.875rem;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-light);
         }
         
         .order-item.buy { border-left-color: var(--success-color); }
@@ -350,7 +413,7 @@
         
         /* Ticker items */
         .ticker-item {
-            background: white;
+            background: var(--bg-primary) !important;
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 8px;
@@ -358,6 +421,8 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.875rem;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-light);
         }
         
         .price-bid { color: var(--success-color); font-weight: 600; }
@@ -383,20 +448,31 @@
             color: #2d3436;
         }
         
-        /* Order book styles */
+        /* Order book styles - Fixed overflow and layout */
         .order-book-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px;
             margin-top: 16px;
+            height: 400px; /* Fixed height to prevent overflow */
+            overflow: hidden;
         }
         
         .order-book-side {
-            background: white;
+            background: white !important;
             border-radius: 8px;
             padding: 16px;
-            border: 1px solid #e1e8ed;
+            border: 1px solid #e5e7eb;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .order-book-side > div:last-child {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 300px;
         }
         
         .order-book-side h5 {
@@ -416,8 +492,11 @@
             padding: 8px;
             margin: 4px 0;
             border-radius: 4px;
-            background: #f8f9fa;
+            background: #f8f9fa !important;
             font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary) !important;
+            min-height: 32px;
+            align-items: center;
         }
 
         /* Utility classes */
@@ -429,13 +508,86 @@
         }
 
         .inventory-item {
-            background: white;
+            background: white !important;
             border-radius: 8px;
             padding: 16px;
             text-align: center;
-            border: 1px solid #e1e8ed;
+            border: 1px solid #e5e7eb;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: var(--text-primary) !important;
         }
+        
+        /* Notification styling with theme support */
+        .notification {
+            background: var(--bg-secondary) !important;
+            color: var(--text-color) !important;
+            border: 1px solid var(--border-light) !important;
+        }
+        
+        .notification.is-info {
+            background: #eff6ff !important;
+            color: #1e40af !important;
+            border-color: var(--info-color) !important;
+        }
+        
+        .notification.is-success {
+            background: #f0fdf4 !important;
+            color: #166534 !important;
+            border-color: var(--success-color) !important;
+        }
+        
+        .notification.is-warning {
+            background: #fffbeb !important;
+            color: #92400e !important;
+            border-color: var(--warning-color) !important;
+        }
+        
+            .notification.is-danger {
+                background: #fef2f2 !important;
+                color: #991b1b !important;
+                border-color: var(--danger-color) !important;
+            }
+            
+            /* Force label and text consistency */
+            .label {
+                color: var(--text-primary) !important;
+                font-weight: 600;
+            }
+            
+            .help {
+                color: var(--text-secondary) !important;
+            }
+            
+            .title, .subtitle {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Tabs styling consistency */
+            .tabs {
+                background: transparent !important;
+            }
+            
+            .tabs ul {
+                background: transparent !important;
+                border-bottom: 2px solid #e5e7eb !important;
+            }
+            
+            .tabs li a {
+                color: var(--text-secondary) !important;
+                background: transparent !important;
+                border-bottom: 2px solid transparent !important;
+            }
+            
+            .tabs li.is-active a {
+                color: var(--primary-color) !important;
+                border-bottom-color: var(--primary-color) !important;
+                background: transparent !important;
+            }
+            
+            .tabs li a:hover {
+                color: var(--primary-color) !important;
+                background: rgba(37, 99, 235, 0.05) !important;
+            }
 
         /* Alert notifications */
         .alert {
@@ -517,6 +669,29 @@
         }
         
         /* Responsive design */
+        /* Content tab layout fixes */
+        .content-tab {
+            height: calc(100vh - 250px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .content-tab .box {
+            margin-bottom: 0;
+        }
+        
+        /* Main content area height management */
+        .column.is-6 {
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 200px);
+        }
+        
+        .column.is-6 .tabs {
+            flex-shrink: 0;
+        }
+        
+        /* Responsive design */
         @media (max-width: 768px) {
             .columns {
                 margin: 0;
@@ -544,6 +719,15 @@
             
             .modal-card {
                 margin: 1rem;
+            }
+            
+            .content-tab {
+                height: auto;
+            }
+            
+            .order-book-grid {
+                grid-template-columns: 1fr;
+                height: auto;
             }
         }
     </style>
@@ -586,12 +770,19 @@
                                     <span class="tag is-info is-light" id="connection-time"></span>
                                 </div>
                                 <div class="control">
+                                    <button class="button is-small is-outlined" onclick="toggleTheme()" id="theme-toggle" title="Cambiar tema">
+                                        <span class="icon">
+                                            <i class="fas fa-moon" id="theme-icon"></i>
+                                        </span>
+                                    </button>
+                                </div>
+                                <div class="control">
                                     <button class="button is-small is-outlined" onclick="showKeyboardShortcuts()" title="Atajos de teclado">
                                         <span class="icon">
                                             <i class="fas fa-keyboard"></i>
                                         </span>
                                     </button>
-                                    </div>
+                                </div>
                                 </div>
                             </div>
                             
@@ -609,10 +800,183 @@
                                             <i class="fas fa-info-circle"></i> No hay sesiones conectadas
                                         </div>
                                     </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documentation Content -->
+                    <div id="docs-content" class="content-tab" style="display: none;">
+                        <div class="box">
+                            <h3 class="title is-4">
+                                <span class="icon-text">
+                                    <span class="icon"><i class="fas fa-book"></i></span>
+                                    <span>📚 Documentación de la Plataforma</span>
+                                </span>
+                            </h3>
+                            
+                            <div class="content">
+                                <!-- Quick Start Section -->
+                                <div class="card" style="margin-bottom: 1rem;">
+                                    <div class="card-content">
+                                        <h4 class="title is-5">🚀 Inicio Rápido</h4>
+                                        <div class="content">
+                                            <ol>
+                                                <li><strong>Conectar:</strong> Haga clic en "Conectar" en la pestaña de Autenticación</li>
+                                                <li><strong>Autenticar:</strong> Ingrese su token del equipo (formato: TK-XXXX) y haga clic en "Login"</li>
+                                                <li><strong>Verificar:</strong> Confirme que su inventario y balance aparezcan correctamente</li>
+                                                <li><strong>Comerciar:</strong> Use las pestañas de Trading o Simulador para realizar órdenes</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Trading Section -->
+                                <div class="card" style="margin-bottom: 1rem;">
+                                    <div class="card-content">
+                                        <h4 class="title is-5">💼 Secciones de Trading</h4>
+                                        <div class="content">
+                                            <div class="columns">
+                                                <div class="column">
+                                                    <div class="notification is-info is-light">
+                                                        <h5 class="title is-6">🎯 Simulador</h5>
+                                                        <p><strong>Propósito:</strong> Crear órdenes de mercado para pruebas</p>
+                                                        <p><strong>Características:</strong></p>
+                                                        <ul>
+                                                            <li>Órdenes límite con precio fijo</li>
+                                                            <li>Ajuste de precios de mercado</li>
+                                                            <li>Auto Market Maker</li>
+                                                            <li>Limpieza masiva de órdenes</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="column">
+                                                    <div class="notification is-success is-light">
+                                                        <h5 class="title is-6">📈 Trading</h5>
+                                                        <p><strong>Propósito:</strong> Trading real con todas las opciones</p>
+                                                        <p><strong>Características:</strong></p>
+                                                        <ul>
+                                                            <li>Órdenes de mercado y límite</li>
+                                                            <li>Mensajes personalizados</li>
+                                                            <li>Modos de debug avanzados</li>
+                                                            <li>Trading rápido con botones</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Debug Section -->
+                                <div class="card" style="margin-bottom: 1rem;">
+                                    <div class="card-content">
+                                        <h4 class="title is-5">🔧 Herramientas de Debug</h4>
+                                        <div class="content">
+                                            <div class="columns">
+                                                <div class="column">
+                                                    <h6 class="title is-6">🚨 Inyección de Errores</h6>
+                                                    <ul>
+                                                        <li><strong>Saldo Insuficiente:</strong> Simula error de fondos</li>
+                                                        <li><strong>Producto No Autorizado:</strong> Simula restricción de producto</li>
+                                                        <li><strong>Desconectar:</strong> Fuerza desconexión del cliente</li>
+                                                        <li><strong>Expirar Oferta:</strong> Simula expiración de oferta</li>
+                                                    </ul>
+                                                </div>
+                                                <div class="column">
+                                                    <h6 class="title is-6">🏭 Pruebas de Producción</h6>
+                                                    <ul>
+                                                        <li><strong>Algoritmo:</strong> Valida cálculos de producción</li>
+                                                        <li><strong>Inventario:</strong> Actualiza automáticamente</li>
+                                                        <li><strong>Premium:</strong> Detecta bonus de calidad</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Dashboard Section -->
+                                <div class="card" style="margin-bottom: 1rem;">
+                                    <div class="card-content">
+                                        <h4 class="title is-5">📊 Dashboard y Monitoreo</h4>
+                                        <div class="content">
+                                            <div class="columns">
+                                                <div class="column">
+                                                    <h6 class="title is-6">📈 Ticker</h6>
+                                                    <p>Precios en tiempo real de todos los productos con bid/ask/mid prices</p>
+                                                </div>
+                                                <div class="column">
+                                                    <h6 class="title is-6">📋 Libro de Órdenes</h6>
+                                                    <p>Vista completa de órdenes de compra y venta por producto</p>
+                                                </div>
+                                                <div class="column">
+                                                    <h6 class="title is-6">📝 Transacciones</h6>
+                                                    <p>Historial completo con filtros por tipo de operación</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Keyboard Shortcuts -->
+                                <div class="card" style="margin-bottom: 1rem;">
+                                    <div class="card-content">
+                                        <h4 class="title is-5">⌨️ Atajos de Teclado</h4>
+                                        <div class="content">
+                                            <div class="columns">
+                                                <div class="column">
+                                                    <h6 class="title is-6">🔧 Debug</h6>
+                                                    <ul>
+                                                        <li><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>D</kbd>: Pestaña Debug</li>
+                                                        <li><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd>: Pestaña Simulador</li>
+                                                        <li><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>T</kbd>: Pestaña Trading</li>
+                                                    </ul>
+                                                </div>
+                                                <div class="column">
+                                                    <h6 class="title is-6">💼 Trading</h6>
+                                                    <ul>
+                                                        <li><kbd>Ctrl</kbd> + <kbd>B</kbd>: Compra rápida FOSFO</li>
+                                                        <li><kbd>Ctrl</kbd> + <kbd>S</kbd>: Venta rápida FOSFO</li>
+                                                        <li><kbd>Ctrl</kbd> + <kbd>R</kbd>: Actualizar órdenes</li>
+                                                        <li><kbd>Enter</kbd>: Ejecutar acción en formularios</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tips Section -->
+                                <div class="card">
+                                    <div class="card-content">
+                                        <h4 class="title is-5">💡 Consejos y Trucos</h4>
+                                        <div class="content">
+                                            <div class="notification is-warning is-light">
+                                                <h6 class="title is-6">⚠️ Importante</h6>
+                                                <ul>
+                                                    <li>Siempre verifique su balance antes de realizar órdenes grandes</li>
+                                                    <li>Use el simulador para probar estrategias sin riesgo</li>
+                                                    <li>Monitoree el ticker para identificar oportunidades de arbitraje</li>
+                                                    <li>El Auto Market Maker crea órdenes automáticamente - úselo con cuidado</li>
+                                                </ul>
+                                            </div>
+                                            
+                                            <div class="notification is-info is-light">
+                                                <h6 class="title is-6">🎯 Mejores Prácticas</h6>
+                                                <ul>
+                                                    <li>Use nombres descriptivos en mensajes de órdenes</li>
+                                                    <li>Filtre transacciones por tipo para análisis específicos</li>
+                                                    <li>Revise el libro de órdenes antes de placing órdenes límite</li>
+                                                    <li>Use ping regularmente para verificar conectividad</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-        </div>
+                    </div>
+                </div>
     </nav>
 
     <!-- Hero Section -->
@@ -654,13 +1018,13 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a onclick="switchSidebarTab('simulator')">
+                                    <a onclick="switchSidebarTab('simulator')" title="Simulador de Mercado - Crear órdenes de prueba y ajustar precios">
                                         <span class="icon is-small"><i class="fas fa-rocket"></i></span>
                                         <span>Simulador</span>
                                     </a>
                                 </li>
                                 <li>
-                                    <a onclick="switchSidebarTab('debug')">
+                                    <a onclick="switchSidebarTab('debug')" title="Herramientas de Debug - Inyección de errores y pruebas avanzadas">
                                         <span class="icon is-small"><i class="fas fa-bug"></i></span>
                                         <span>Debug</span>
                                     </a>
@@ -759,6 +1123,9 @@
                         
                         <!-- Simulator Tab Content -->
                         <div id="simulator-content" class="tab-content" style="display: none;">
+                            <div class="notification is-info is-light" style="margin-bottom: 1rem;">
+                                <strong>🎯 Simulador de Mercado:</strong> Cree órdenes de prueba, ajuste precios y use herramientas automáticas para simular condiciones de mercado.
+                            </div>
                             <div class="card">
                                 <div class="card-content">
                                     <h3 class="title is-5">
@@ -868,6 +1235,9 @@
                         
                         <!-- Debug Tab Content -->
                         <div id="debug-content" class="tab-content" style="display: none;">
+                            <div class="notification is-warning is-light" style="margin-bottom: 1rem;">
+                                <strong>🔧 Herramientas de Debug:</strong> Inyecte errores, pruebe producción, envíe ofertas y monitoree sesiones para desarrollo y testing.
+                            </div>
                             <div class="card">
                                 <div class="card-content">
                                     <h3 class="title is-5">
@@ -1121,6 +1491,12 @@
                                     <span>Transacciones</span>
                                 </a>
                             </li>
+                            <li>
+                                <a onclick="switchMainTab('docs')">
+                                    <span class="icon is-small"><i class="fas fa-book"></i></span>
+                                    <span>Documentación</span>
+                                </a>
+                            </li>
                         </ul>
                     </div>
                     
@@ -1229,8 +1605,8 @@
                     
                     <!-- Order Book Content -->
                     <div id="orderbook-content" class="content-tab" style="display: none;">
-                        <div class="box">
-                            <div class="level">
+                        <div class="box" style="height: calc(100vh - 300px); overflow: hidden; display: flex; flex-direction: column;">
+                            <div class="level" style="flex-shrink: 0;">
                                 <div class="level-left">
                                     <div class="level-item">
                                         <h3 class="title is-4">
@@ -1240,6 +1616,72 @@
                                             </span>
                                         </h3>
                                     </div>
+                                </div>
+                                <div class="level-right">
+                                    <div class="level-item">
+                                        <div class="field">
+                                            <div class="control has-icons-left">
+                                                <div class="select">
+                                                    <select id="product-selector" onchange="updateOrderBook()">
+                                                        <option value="">Seleccionar Producto</option>
+                                                        <option value="FOSFO">FOSFO</option>
+                                                        <option value="PITA">PITA</option>
+                                                        <option value="PALTA-OIL">PALTA-OIL</option>
+                                                        <option value="GUACA">GUACA</option>
+                                                        <option value="SEBO">SEBO</option>
+                                                        <option value="H-GUACA">H-GUACA</option>
+                                                    </select>
+                                                </div>
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-leaf"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="order-book-grid" style="flex: 1; min-height: 0;">
+                                <div class="order-book-side buy">
+                                    <h4 class="title is-5 has-text-success" style="flex-shrink: 0;">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-arrow-up"></i></span>
+                                            <span>Órdenes de Compra</span>
+                                        </span>
+                                    </h4>
+                                    <div id="buy-orders">
+                                        <div class="notification is-success is-light">Selecciona un producto</div>
+                                    </div>
+                                </div>
+                                <div class="order-book-side sell">
+                                    <h4 class="title is-5 has-text-danger" style="flex-shrink: 0;">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-arrow-down"></i></span>
+                                            <span>Órdenes de Venta</span>
+                                        </span>
+                                    </h4>
+                                    <div id="sell-orders">
+                                        <div class="notification is-danger is-light">Selecciona un producto</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- All Orders List -->
+                            <div style="flex-shrink: 0; margin-top: 1rem; max-height: 200px; overflow-y: auto;">
+                                <h4 class="title is-6">
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-list-alt"></i></span>
+                                        <span>Todas las Órdenes</span>
+                                    </span>
+                                </h4>
+                                <div id="all-orders-list">
+                                    <div class="notification is-info is-light">
+                                        <i class="fas fa-info-circle"></i> No hay órdenes disponibles
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                                 </div>
                                 <div class="level-right">
                                     <div class="level-item">
@@ -1400,6 +1842,9 @@
                         
                         <!-- Trading Tab -->
                         <div id="trading-content" class="tab-content">
+                            <div class="notification is-success is-light" style="margin-bottom: 1rem;">
+                                <strong>📈 Trading Real:</strong> Cree órdenes de mercado y límite con opciones avanzadas, mensajes personalizados y trading rápido.
+                            </div>
                             <div class="card">
                                 <div class="card-content">
                                     <h3 class="title is-5">
@@ -2549,6 +2994,7 @@
         
         // Auto-connect on page load
         window.onload = function() {
+            initializeTheme();
             initializeEnhancements();
             // Clean up old orders periodically
             setInterval(() => {
@@ -3370,6 +3816,41 @@
             document.getElementById('err-product-btn').disabled = false;
             document.getElementById('err-disconnect-btn').disabled = false;
             document.getElementById('err-expire-btn').disabled = false;
+        }
+        
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const themeIcon = document.getElementById('theme-icon');
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('preferred-theme', newTheme);
+            
+            // Update icon
+            if (newTheme === 'dark') {
+                themeIcon.className = 'fas fa-sun';
+                showAlert('Tema oscuro activado', 'info');
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                showAlert('Tema claro activado', 'info');
+            }
+        }
+        
+        // Initialize theme on page load
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('preferred-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+            const themeIcon = document.getElementById('theme-icon');
+            
+            document.documentElement.setAttribute('data-theme', theme);
+            if (theme === 'dark') {
+                themeIcon.className = 'fas fa-sun';
+            } else {
+                themeIcon.className = 'fas fa-moon';
+            }
         }
         
         // Keyboard shortcuts modal
