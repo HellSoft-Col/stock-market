@@ -691,14 +691,38 @@
             flex-shrink: 0;
         }
         
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .columns {
+        /* Improved responsive design */
+        @media (max-width: 1200px) {
+            .columns.is-gapless {
                 margin: 0;
+                display: block;
+            }
+            
+            .column.is-narrow {
+                min-width: auto !important;
+                max-width: none !important;
+                width: 100% !important;
+                margin-bottom: 1rem;
+            }
+            
+            .column[style*="padding-left"] {
+                padding-left: 0 !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .section {
+                padding: 0.5rem !important;
+            }
+            
+            .columns {
+                margin: 0 !important;
+                display: block !important;
             }
             
             .column {
-                padding: 0.5rem;
+                padding: 0.5rem !important;
+                width: 100% !important;
             }
             
             .stat-card {
@@ -722,12 +746,24 @@
             }
             
             .content-tab {
-                height: auto;
+                height: auto !important;
             }
             
             .order-book-grid {
-                grid-template-columns: 1fr;
-                height: auto;
+                grid-template-columns: 1fr !important;
+                height: auto !important;
+            }
+            
+            .box {
+                margin-bottom: 1rem;
+            }
+            
+            .title.is-4 {
+                font-size: 1.2rem !important;
+            }
+            
+            .title.is-5 {
+                font-size: 1.1rem !important;
             }
         }
     </style>
@@ -800,6 +836,216 @@
                                             <i class="fas fa-info-circle"></i> No hay sesiones conectadas
                                         </div>
                                     </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Trading Content -->
+                    <div id="trading-content" class="content-tab" style="display: none;">
+                        <div class="columns">
+                            <!-- Trading Form -->
+                            <div class="column is-half">
+                                <div class="box">
+                                    <div class="notification is-success is-light" style="margin-bottom: 1rem;">
+                                        <strong>📈 Trading Real:</strong> Crear órdenes de mercado y límite con opciones avanzadas.
+                                    </div>
+                                    
+                                    <h3 class="title is-5">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-plus-circle"></i></span>
+                                            <span>Nueva Orden</span>
+                                        </span>
+                                    </h3>
+                                    
+                                    <div class="columns">
+                                        <div class="column">
+                                            <div class="field">
+                                                <label class="label">Tipo</label>
+                                                <div class="control has-icons-left">
+                                                    <div class="select is-fullwidth">
+                                                        <select id="side">
+                                                            <option value="BUY">🟢 Comprar</option>
+                                                            <option value="SELL">🔴 Vender</option>
+                                                        </select>
+                                                    </div>
+                                                    <span class="icon is-small is-left">
+                                                        <i class="fas fa-exchange-alt"></i>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="column">
+                                            <div class="field">
+                                                <label class="label">Modo</label>
+                                                <div class="control has-icons-left">
+                                                    <div class="select is-fullwidth">
+                                                        <select id="mode">
+                                                            <option value="MARKET">📈 Mercado</option>
+                                                            <option value="LIMIT">🎯 Límite</option>
+                                                        </select>
+                                                    </div>
+                                                    <span class="icon is-small is-left">
+                                                        <i class="fas fa-cog"></i>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="field">
+                                        <label class="label">Producto</label>
+                                        <div class="control has-icons-left">
+                                            <div class="select is-fullwidth">
+                                                <select id="product">
+                                                    <option value="FOSFO">FOSFO</option>
+                                                    <option value="PITA">PITA</option>
+                                                    <option value="PALTA-OIL">PALTA-OIL</option>
+                                                    <option value="GUACA">GUACA</option>
+                                                    <option value="SEBO">SEBO</option>
+                                                    <option value="H-GUACA">H-GUACA</option>
+                                                </select>
+                                            </div>
+                                            <span class="icon is-small is-left">
+                                                <i class="fas fa-leaf"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="columns">
+                                        <div class="column">
+                                            <div class="field">
+                                                <label class="label">Cantidad</label>
+                                                <div class="control has-icons-left">
+                                                    <input class="input" type="number" id="qty" placeholder="10" min="1">
+                                                    <span class="icon is-small is-left">
+                                                        <i class="fas fa-hashtag"></i>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="column">
+                                            <div class="field">
+                                                <label class="label">Precio</label>
+                                                <div class="control has-icons-left">
+                                                    <input class="input" type="number" id="price" placeholder="15.50" step="0.01">
+                                                    <span class="icon is-small is-left">
+                                                        <i class="fas fa-dollar-sign"></i>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="field">
+                                        <label class="label">Mensaje (opcional)</label>
+                                        <div class="control">
+                                            <textarea class="textarea" id="message" placeholder="Mensaje opcional" rows="2"></textarea>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="field">
+                                        <div class="control">
+                                            <button class="button is-primary is-fullwidth" id="place-order-btn" onclick="placeOrder()" disabled>
+                                                <span class="icon">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </span>
+                                                <span>Realizar Orden</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Quick Trade Buttons -->
+                                    <div class="field">
+                                        <label class="label">Trading Rápido</label>
+                                        <div class="columns">
+                                            <div class="column">
+                                                <button class="button is-success is-small is-fullwidth" onclick="quickTrade('BUY', 'FOSFO', 5)" disabled id="quick-buy-fosfo">
+                                                    <span>Comprar 5 FOSFO</span>
+                                                </button>
+                                            </div>
+                                            <div class="column">
+                                                <button class="button is-danger is-small is-fullwidth" onclick="quickTrade('SELL', 'FOSFO', 5)" disabled id="quick-sell-fosfo">
+                                                    <span>Vender 5 FOSFO</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Orders and Messages -->
+                            <div class="column is-half">
+                                <div class="tabs is-boxed">
+                                    <ul>
+                                        <li class="is-active">
+                                            <a onclick="switchTradingTab('orders')">
+                                                <span class="icon is-small"><i class="fas fa-list"></i></span>
+                                                <span>Mis Órdenes</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a onclick="switchTradingTab('messages')">
+                                                <span class="icon is-small"><i class="fas fa-comments"></i></span>
+                                                <span>Mensajes</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <!-- My Orders Tab -->
+                                <div id="trading-orders-content" class="trading-tab-content">
+                                    <div class="box">
+                                        <div class="buttons">
+                                            <button class="button is-info is-small" onclick="refreshMyOrders()" disabled id="refresh-orders-btn">
+                                                <span class="icon">
+                                                    <i class="fas fa-sync"></i>
+                                                </span>
+                                                <span>Actualizar</span>
+                                            </button>
+                                            <button class="button is-danger is-small" onclick="cancelAllOrders()" disabled id="cancel-all-btn">
+                                                <span class="icon">
+                                                    <i class="fas fa-times"></i>
+                                                </span>
+                                                <span>Cancelar Todas</span>
+                                            </button>
+                                        </div>
+                                        
+                                        <div id="my-orders-list" style="max-height: 400px; overflow-y: auto;">
+                                            <div class="notification is-warning is-light">
+                                                <i class="fas fa-info-circle"></i> No hay órdenes activas
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Messages Tab -->
+                                <div id="trading-messages-content" class="trading-tab-content" style="display: none;">
+                                    <div class="box">
+                                        <div class="level">
+                                            <div class="level-left">
+                                                <div class="level-item">
+                                                    <h5 class="title is-6">Mensajes del Sistema</h5>
+                                                </div>
+                                            </div>
+                                            <div class="level-right">
+                                                <div class="level-item">
+                                                    <button class="button is-small" onclick="clearMessages()">
+                                                        <span class="icon">
+                                                            <i class="fas fa-trash"></i>
+                                                        </span>
+                                                        <span>Limpiar</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="message-list" style="height: 400px; overflow-y: auto; background: var(--bg-secondary); border-radius: 8px; padding: 1rem;">
+                                            <div class="notification is-info is-light">
+                                                <i class="fas fa-info-circle"></i> No hay mensajes del sistema
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -980,7 +1226,7 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero is-avocado is-medium hero-pattern">
+    <section class="hero is-avocado is-small hero-pattern">
         <div class="hero-body">
             <div class="container">
                 <div class="columns is-vcentered">
@@ -1003,11 +1249,11 @@
     </section>
 
     <!-- Main Content -->
-    <section class="section">
+    <section class="section" style="padding: 1rem;">
         <div class="container is-fluid">
-            <div class="columns">
-                <!-- Left Sidebar -->
-                <div class="column is-3">
+            <div class="columns is-gapless">
+                <!-- Left Sidebar - Narrower -->
+                <div class="column is-narrow" style="min-width: 300px; max-width: 350px;"
                     <div class="box">
                         <div class="tabs is-boxed">
                             <ul>
@@ -1463,8 +1709,8 @@
                     </div>
                 </div>
                 
-                <!-- Main Content Area -->
-                <div class="column is-6">
+                <!-- Main Content Area - Full width remaining -->
+                <div class="column" style="padding-left: 1rem;"
                     <div class="tabs is-boxed">
                         <ul>
                             <li class="is-active">
@@ -1489,6 +1735,12 @@
                                 <a onclick="switchMainTab('transactions')">
                                     <span class="icon is-small"><i class="fas fa-history"></i></span>
                                     <span>Transacciones</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a onclick="switchMainTab('trading')">
+                                    <span class="icon is-small"><i class="fas fa-exchange-alt"></i></span>
+                                    <span>Trading</span>
                                 </a>
                             </li>
                             <li>
@@ -1530,18 +1782,10 @@
                             </div>
                         </div>
                         
-                        <!-- Additional Dashboard Stats -->
-                        <div class="columns">
                             <div class="column">
                                 <div class="stat-card">
                                     <div class="stat-value" id="dashboard-volume">--</div>
                                     <div class="stat-label">Volumen 24h</div>
-                                </div>
-                            </div>
-                            <div class="column">
-                                <div class="stat-card">
-                                    <div class="stat-value" id="dashboard-connections">--</div>
-                                    <div class="stat-label">Conexiones</div>
                                 </div>
                             </div>
                             <div class="column">
@@ -1813,280 +2057,6 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- Right Sidebar -->
-                <div class="column is-3">
-                    <div class="box">
-                        <div class="tabs is-boxed">
-                            <ul>
-                                <li class="is-active">
-                                    <a onclick="switchRightTab('trading')">
-                                        <span class="icon is-small"><i class="fas fa-exchange-alt"></i></span>
-                                        <span>Trading</span>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a onclick="switchRightTab('orders')">
-                                        <span class="icon is-small"><i class="fas fa-list"></i></span>
-                                        <span>Órdenes</span>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a onclick="switchRightTab('messages')">
-                                        <span class="icon is-small"><i class="fas fa-comments"></i></span>
-                                        <span>Mensajes</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                        
-                        <!-- Trading Tab -->
-                        <div id="trading-content" class="tab-content">
-                            <div class="notification is-success is-light" style="margin-bottom: 1rem;">
-                                <strong>📈 Trading Real:</strong> Cree órdenes de mercado y límite con opciones avanzadas, mensajes personalizados y trading rápido.
-                            </div>
-                            <div class="card">
-                                <div class="card-content">
-                                    <h3 class="title is-5">
-                                        <span class="icon-text">
-                                            <span class="icon"><i class="fas fa-plus-circle"></i></span>
-                                            <span>Nueva Orden</span>
-                                        </span>
-                                    </h3>
-                                    
-                                    <div class="columns">
-                                        <div class="column">
-                                            <div class="field">
-                                                <label class="label">Tipo</label>
-                                                <div class="control has-icons-left">
-                                                    <div class="select is-fullwidth">
-                                                        <select id="side">
-                                                            <option value="BUY">🟢 Comprar</option>
-                                                            <option value="SELL">🔴 Vender</option>
-                                                        </select>
-                                                    </div>
-                                                    <span class="icon is-small is-left">
-                                                        <i class="fas fa-exchange-alt"></i>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="column">
-                                            <div class="field">
-                                                <label class="label">Modo</label>
-                                                <div class="control has-icons-left">
-                                                    <div class="select is-fullwidth">
-                                                        <select id="mode">
-                                                            <option value="MARKET">📈 Mercado</option>
-                                                            <option value="LIMIT">🎯 Límite</option>
-                                                        </select>
-                                                    </div>
-                                                    <span class="icon is-small is-left">
-                                                        <i class="fas fa-cog"></i>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="field">
-                                        <label class="label">Producto</label>
-                                        <div class="control has-icons-left">
-                                            <div class="select is-fullwidth">
-                                                <select id="product">
-                                                    <option value="FOSFO">FOSFO</option>
-                                                    <option value="PITA">PITA</option>
-                                                    <option value="PALTA-OIL">PALTA-OIL</option>
-                                                    <option value="GUACA">GUACA</option>
-                                                    <option value="SEBO">SEBO</option>
-                                                    <option value="H-GUACA">H-GUACA</option>
-                                                </select>
-                                            </div>
-                                            <span class="icon is-small is-left">
-                                                <i class="fas fa-leaf"></i>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="columns">
-                                        <div class="column">
-                                            <div class="field">
-                                                <label class="label">Cantidad</label>
-                                                <div class="control has-icons-left">
-                                                    <input class="input" type="number" id="qty" placeholder="10" min="1">
-                                                    <span class="icon is-small is-left">
-                                                        <i class="fas fa-hashtag"></i>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="column">
-                                            <div class="field">
-                                                <label class="label">Precio</label>
-                                                <div class="control has-icons-left">
-                                                    <input class="input" type="number" id="price" placeholder="15.50" step="0.01">
-                                                    <span class="icon is-small is-left">
-                                                        <i class="fas fa-dollar-sign"></i>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="field">
-                                        <label class="label">Modo Debug</label>
-                                        <div class="control has-icons-left">
-                                            <div class="select is-fullwidth">
-                                                <select id="debug-mode">
-                                                    <option value="">Orden Normal</option>
-                                                    <option value="AUTO_ACCEPT">Auto-Aceptar (Debug)</option>
-                                                    <option value="TEAM_ONLY">Solo Equipo (Debug)</option>
-                                                </select>
-                                            </div>
-                                            <span class="icon is-small is-left">
-                                                <i class="fas fa-cog"></i>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="field">
-                                        <label class="label">Mensaje (opcional)</label>
-                                        <div class="control">
-                                            <textarea class="textarea" id="message" placeholder="Mensaje opcional" rows="2"></textarea>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="field">
-                                        <div class="control">
-                                            <button class="button is-primary is-fullwidth" id="place-order-btn" onclick="placeOrder()" disabled>
-                                                <span class="icon">
-                                                    <i class="fas fa-paper-plane"></i>
-                                                </span>
-                                                <span>Realizar Orden</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Quick Trade Buttons -->
-                                    <div class="field">
-                                        <label class="label">Trading Rápido</label>
-                                        <div class="columns">
-                                            <div class="column">
-                                                <button class="button is-success is-small is-fullwidth" onclick="quickTrade('BUY', 'FOSFO', 5)" disabled id="quick-buy-fosfo">
-                                                    <span>Comprar 5 FOSFO</span>
-                                                </button>
-                                            </div>
-                                            <div class="column">
-                                                <button class="button is-danger is-small is-fullwidth" onclick="quickTrade('SELL', 'FOSFO', 5)" disabled id="quick-sell-fosfo">
-                                                    <span>Vender 5 FOSFO</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="columns">
-                                            <div class="column">
-                                                <button class="button is-success is-small is-fullwidth" onclick="quickTrade('BUY', 'PITA', 3)" disabled id="quick-buy-pita">
-                                                    <span>Comprar 3 PITA</span>
-                                                </button>
-                                            </div>
-                                            <div class="column">
-                                                <button class="button is-danger is-small is-fullwidth" onclick="quickTrade('SELL', 'PITA', 3)" disabled id="quick-sell-pita">
-                                                    <span>Vender 3 PITA</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Orders Tab -->
-                        <div id="orders-content" class="tab-content" style="display: none;">
-                            <div class="card">
-                                <div class="card-content">
-                                    <h3 class="title is-5">
-                                        <span class="icon-text">
-                                            <span class="icon"><i class="fas fa-list"></i></span>
-                                            <span>Mis Órdenes</span>
-                                        </span>
-                                    </h3>
-                                    
-                                    <div class="buttons">
-                                        <button class="button is-info is-small" onclick="refreshMyOrders()" disabled id="refresh-orders-btn">
-                                            <span class="icon">
-                                                <i class="fas fa-sync"></i>
-                                            </span>
-                                            <span>Actualizar</span>
-                                        </button>
-                                        <button class="button is-danger is-small" onclick="cancelAllOrders()" disabled id="cancel-all-btn">
-                                            <span class="icon">
-                                                <i class="fas fa-times"></i>
-                                            </span>
-                                            <span>Cancelar Todas</span>
-                                        </button>
-                                    </div>
-                                    
-                                    <div id="my-orders-list">
-                                        <div class="notification is-warning is-light">
-                                            <i class="fas fa-info-circle"></i> No hay órdenes activas
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Order Statistics -->
-                                    <div class="box" style="margin-top: 1rem;">
-                                        <h4 class="title is-6">
-                                            <span class="icon-text">
-                                                <span class="icon"><i class="fas fa-chart-bar"></i></span>
-                                                <span>Estadísticas</span>
-                                            </span>
-                                        </h4>
-                                        <div class="content">
-                                            <p><strong>Órdenes Hoy:</strong> <span id="orders-today">--</span></p>
-                                            <p><strong>Ejecuciones Hoy:</strong> <span id="fills-today">--</span></p>
-                                            <p><strong>Tasa de Éxito:</strong> <span id="success-rate">--%</span></p>
-                                            <p><strong>Tiempo Promedio:</strong> <span id="avg-fill-time">--ms</span></p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Messages Tab -->
-                        <div id="messages-content" class="tab-content" style="display: none;">
-                            <div class="card">
-                                <div class="card-content">
-                                    <div class="level">
-                                        <div class="level-left">
-                                            <div class="level-item">
-                                                <h3 class="title is-5">
-                                                    <span class="icon-text">
-                                                        <span class="icon"><i class="fas fa-comments"></i></span>
-                                                        <span>Mensajes del Sistema</span>
-                                                    </span>
-                                                </h3>
-                                            </div>
-                                        </div>
-                                        <div class="level-right">
-                                            <div class="level-item">
-                                                <button class="button is-small" onclick="clearMessages()">
-                                                    <span class="icon">
-                                                        <i class="fas fa-trash"></i>
-                                                    </span>
-                                                    <span>Limpiar</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div id="message-list" class="box is-family-monospace" style="height: 400px; overflow-y: auto; background: #f8f9fa;">
-                                        <div class="notification is-info is-light">
-                                            <i class="fas fa-info-circle"></i> No hay mensajes del sistema
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </section>
@@ -2197,14 +2167,14 @@
             document.getElementById(`${tabName}-content`).style.display = 'block';
         }
         
-        function switchRightTab(tabName) {
-            // Remove active class from all right panel tabs
-            document.querySelectorAll('.column.is-3:last-child .tabs li').forEach(tab => tab.classList.remove('is-active'));
-            document.querySelectorAll('.column.is-3:last-child .tab-content').forEach(content => content.style.display = 'none');
+        function switchTradingTab(tabName) {
+            // Remove active class from all trading tabs
+            document.querySelectorAll('#trading-content .tabs li').forEach(tab => tab.classList.remove('is-active'));
+            document.querySelectorAll('.trading-tab-content').forEach(content => content.style.display = 'none');
             
             // Activate clicked tab and corresponding content
             event.target.closest('li').classList.add('is-active');
-            document.getElementById(`${tabName}-content`).style.display = 'block';
+            document.getElementById(`trading-${tabName}-content`).style.display = 'block';
         }
         
         // Mobile menu toggle
