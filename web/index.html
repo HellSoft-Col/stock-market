@@ -277,12 +277,41 @@
             border-radius: 3px;
             background: rgba(255, 255, 255, 0.05);
         }
+        
+        .debug-warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-size: 10px;
+            color: #ffc107;
+        }
+        
+        .session-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 6px;
+            border-left: 3px solid;
+            font-size: 11px;
+        }
+        
+        .session-item.authenticated { border-left-color: #2ecc71; }
+        .session-item.connected { border-left-color: #f39c12; }
+        .session-item.web-client { border-left-color: #3498db; }
+        .session-item.java-client { border-left-color: #e67e22; }
     </style>
 </head>
 <body>
     <div class="debug-container">
         <div class="header">
-            <h1>🥑 Avocado Exchange - Debug Console</h1>
+            <div>
+                <h1>🥑 Avocado Exchange - Debug Console</h1>
+                <p style="font-size: 12px; opacity: 0.8; margin: 0;">
+                    🛠️ Debug Interface - Java clients should connect as normal trading clients
+                </p>
+            </div>
             <div class="status-bar">
                 <div id="status-indicator" class="status-indicator status-disconnected">Disconnected</div>
                 <span id="connection-time"></span>
@@ -295,9 +324,16 @@
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('auth')">Auth</button>
                 <button class="tab" onclick="switchTab('debug')">Debug</button>
+                <button class="tab" onclick="switchTab('sessions')">Sessions</button>
             </div>
             
             <div id="auth-tab" class="tab-content active">
+                <div class="debug-warning">
+                    <strong>🚨 DEBUG CONSOLE</strong><br>
+                    This is a debugging tool, not a trading client! 
+                    Your Java clients should connect independently and behave as real trading clients.
+                </div>
+                
                 <h3>Authentication</h3>
                 <input type="text" id="token" placeholder="Team token (TK-...)" />
                 <button id="connect-btn" onclick="toggleConnection()">Connect</button>
@@ -311,6 +347,9 @@
             <div id="debug-tab" class="tab-content">
                 <div class="debug-section">
                     <h4>🧪 Production Test</h4>
+                    <p style="font-size: 10px; opacity: 0.7; margin-bottom: 8px;">
+                        ⚠️ DEBUG ONLY - Simulates production for testing
+                    </p>
                     <select id="prod-product">
                         <option value="FOSFO">FOSFO</option>
                         <option value="PITA">PITA</option>
@@ -333,6 +372,37 @@
                     <h4>🔄 Connection Test</h4>
                     <button onclick="sendPing()" disabled id="ping-btn">Send Ping</button>
                     <button onclick="requestResync()" disabled id="resync-btn">Request Resync</button>
+                </div>
+            </div>
+            
+            <div id="sessions-tab" class="tab-content">
+                <div class="debug-warning">
+                    <strong>📋 Session Monitor</strong><br>
+                    This shows ALL connected clients including Java trading bots. 
+                    Java clients should appear as "☕ Java Client" when connected properly.
+                </div>
+                
+                <div class="debug-section">
+                    <h4>👥 Connected Sessions</h4>
+                    <p style="font-size: 10px; opacity: 0.7; margin-bottom: 8px;">
+                        Monitor active client connections (auto-refreshes every 10s)
+                    </p>
+                    <button onclick="requestConnectedSessions()" disabled id="sessions-btn">Refresh Sessions</button>
+                    <div id="sessions-list" style="margin-top: 8px;">
+                        <p>No session data available</p>
+                    </div>
+                </div>
+                
+                <div class="debug-section">
+                    <h4>📈 Server Stats</h4>
+                    <div id="server-stats">
+                        <div class="team-info">
+                            <p id="total-connections">Total Connections: -</p>
+                            <p id="total-orders">Total Orders: -</p>
+                            <p id="total-fills">Total Fills: -</p>
+                            <p id="server-uptime">Server Uptime: -</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -392,6 +462,9 @@
             
             <div id="trading-tab" class="tab-content active">
                 <h3>Place Order</h3>
+                <p style="font-size: 10px; opacity: 0.7; margin-bottom: 8px;">
+                    🎯 DEBUG TRADING - Use for testing market responses
+                </p>
                 <div class="form-row">
                     <select id="side">
                         <option value="BUY">Buy</option>
@@ -452,6 +525,8 @@
         let allOrders = [];
         let orderBook = { buy: [], sell: [] };
         let currentProduct = '';
+        let connectedSessions = [];
+        let serverStats = {};
         
         // UI Elements
         const statusIndicator = document.getElementById('status-indicator');
@@ -638,6 +713,7 @@
                     enableDebugButtons();
                     displayTeamInfo(data);
                     requestAllOrders();
+                    requestConnectedSessions();
                     break;
                     
                 case 'ERROR':
@@ -683,6 +759,16 @@
                     if (data.product === currentProduct) {
                         updateOrderBookDisplay(data);
                     }
+                    break;
+                    
+                case 'CONNECTED_SESSIONS':
+                    connectedSessions = data.sessions;
+                    updateSessionsDisplay();
+                    break;
+                    
+                case 'SERVER_STATS':
+                    serverStats = data.stats;
+                    updateServerStatsDisplay();
                     break;
                     
                 case 'PONG':
@@ -942,6 +1028,7 @@
             document.getElementById('order-book-btn').disabled = false;
             document.getElementById('ping-btn').disabled = false;
             document.getElementById('resync-btn').disabled = false;
+            document.getElementById('sessions-btn').disabled = false;
             document.getElementById('place-order-btn').disabled = false;
         }
         
@@ -951,6 +1038,7 @@
             document.getElementById('order-book-btn').disabled = true;
             document.getElementById('ping-btn').disabled = true;
             document.getElementById('resync-btn').disabled = true;
+            document.getElementById('sessions-btn').disabled = true;
             document.getElementById('place-order-btn').disabled = true;
         }
         
@@ -1041,6 +1129,59 @@
             addMessage('info', `Order response not implemented yet: ${clOrdID} ${accept ? 'accepted' : 'rejected'}`);
         }
         
+        function requestConnectedSessions() {
+            const msg = { type: 'REQUEST_CONNECTED_SESSIONS' };
+            ws.send(JSON.stringify(msg));
+            addMessage('info', 'Requesting connected sessions...');
+        }
+        
+        function updateSessionsDisplay() {
+            const container = document.getElementById('sessions-list');
+            
+            if (connectedSessions.length === 0) {
+                container.innerHTML = '<p>No connected sessions</p>';
+                return;
+            }
+            
+            container.innerHTML = connectedSessions.map(session => {
+                const connectionTime = new Date(session.connectedAt).toLocaleTimeString();
+                const isWebClient = session.userAgent && session.userAgent.includes('Mozilla');
+                const clientType = isWebClient ? '🌐 Web Browser' : '☕ Java Client';
+                const statusClass = session.authenticated ? 'authenticated' : 'connected';
+                const clientClass = isWebClient ? 'web-client' : 'java-client';
+                
+                return `
+                    <div class="session-item ${statusClass} ${clientClass}">
+                        <div class="order-header">
+                            <strong>${session.teamName || 'Anonymous'}</strong>
+                            <span>${clientType}</span>
+                        </div>
+                        <div class="order-details">
+                            Connected: ${connectionTime} | 
+                            Status: ${session.authenticated ? 'Authenticated' : 'Connected'} |
+                            IP: ${session.remoteAddr}
+                            ${session.lastActivity ? `| Last Activity: ${new Date(session.lastActivity).toLocaleTimeString()}` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateServerStatsDisplay() {
+            if (serverStats.totalConnections !== undefined) {
+                document.getElementById('total-connections').textContent = `Total Connections: ${serverStats.totalConnections}`;
+            }
+            if (serverStats.totalOrders !== undefined) {
+                document.getElementById('total-orders').textContent = `Total Orders: ${serverStats.totalOrders}`;
+            }
+            if (serverStats.totalFills !== undefined) {
+                document.getElementById('total-fills').textContent = `Total Fills: ${serverStats.totalFills}`;
+            }
+            if (serverStats.uptime !== undefined) {
+                document.getElementById('server-uptime').textContent = `Server Uptime: ${serverStats.uptime}`;
+            }
+        }
+        
         // Auto-connect on page load
         window.onload = function() {
             // Clean up old orders periodically
@@ -1055,6 +1196,13 @@
                 }
                 updateMyOrdersDisplay();
             }, 60000);
+            
+            // Auto-refresh sessions every 10 seconds if authenticated
+            setInterval(() => {
+                if (authenticated && ws && ws.readyState === WebSocket.OPEN) {
+                    requestConnectedSessions();
+                }
+            }, 10000);
         };
         
         // Handle Enter key in forms

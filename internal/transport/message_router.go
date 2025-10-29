@@ -76,6 +76,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleRequestAllOrders(ctx, client)
 	case "REQUEST_ORDER_BOOK":
 		return r.handleRequestOrderBook(ctx, rawMessage, client)
+	case "REQUEST_CONNECTED_SESSIONS":
+		return r.handleRequestConnectedSessions(ctx, client)
 	case "PING":
 		return r.handlePing(ctx, client)
 	default:
@@ -453,6 +455,50 @@ func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage s
 	}
 
 	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleRequestConnectedSessions(ctx context.Context, client MessageClient) error {
+	if client.GetTeamName() == "" {
+		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	connectedClients := r.broadcaster.GetConnectedClients()
+
+	sessions := make([]*domain.SessionInfo, 0, len(connectedClients))
+	for _, teamName := range connectedClients {
+		session := &domain.SessionInfo{
+			TeamName:      teamName,
+			RemoteAddr:    "WebSocket",                     // We could enhance this to track actual addresses
+			ConnectedAt:   time.Now().Format(time.RFC3339), // We could track actual connection times
+			Authenticated: teamName != "",
+		}
+		sessions = append(sessions, session)
+	}
+
+	response := &domain.ConnectedSessionsMessage{
+		Type:       "CONNECTED_SESSIONS",
+		Sessions:   sessions,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Also send server stats
+	statsResponse := &domain.ServerStatsMessage{
+		Type: "SERVER_STATS",
+		Stats: map[string]interface{}{
+			"totalConnections": len(connectedClients),
+			"totalOrders":      0,         // We could track this
+			"totalFills":       0,         // We could track this
+			"uptime":           "Unknown", // We could track this
+		},
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Send both messages
+	if err := client.SendMessage(response); err != nil {
+		return err
+	}
+
+	return client.SendMessage(statsResponse)
 }
 
 func (r *MessageRouter) sendError(client MessageClient, code, reason, clOrdID string) error {

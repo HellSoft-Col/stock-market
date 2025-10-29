@@ -145,6 +145,27 @@ type AllOrdersMessage struct {
 	ServerTime string          `json:"serverTime"`
 }
 
+type SessionInfo struct {
+	TeamName      string `json:"teamName"`
+	RemoteAddr    string `json:"remoteAddr"`
+	UserAgent     string `json:"userAgent,omitempty"`
+	ConnectedAt   string `json:"connectedAt"`
+	LastActivity  string `json:"lastActivity,omitempty"`
+	Authenticated bool   `json:"authenticated"`
+}
+
+type ConnectedSessionsMessage struct {
+	Type       string         `json:"type"`
+	Sessions   []*SessionInfo `json:"sessions"`
+	ServerTime string         `json:"serverTime"`
+}
+
+type ServerStatsMessage struct {
+	Type       string                 `json:"type"`
+	Stats      map[string]interface{} `json:"stats"`
+	ServerTime string                 `json:"serverTime"`
+}
+
 // Base message for parsing
 type BaseMessage struct {
 	Type string `json:"type"`
