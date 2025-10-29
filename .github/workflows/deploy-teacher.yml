@@ -220,34 +220,25 @@ jobs:
           echo "LOG_ANALYTICS_ENABLED=false" >> $GITHUB_ENV
         fi
 
-    - name: Deploy container for Portal-compatible logging
+    - name: Deploy Container
       run: |
-        echo "Deploying WebSocket application with Portal-compatible configuration..."
-        echo "Image: ${{ steps.image.outputs.image }}"
-        echo "Registry: ${{ env.REGISTRY }}"
-        echo "Username: ${{ github.actor }}"
+        echo "Deploying container..."
         
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         
-        # Delete existing container
-        echo "Removing existing container..."
-        az container delete \
-          --resource-group "$RESOURCE_GROUP" \
-          --name "$CONTAINER_NAME" \
-          --yes || true
-        
+        # Remove existing container
+        az container delete --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME" --yes || true
         sleep 10
         
-        # Create container with CLI for Portal compatibility (no JSON config file)
-        echo "Creating container with Portal-compatible configuration..."
-        
+        # Create container
         DEPLOY_CMD="az container create \
           --resource-group '$RESOURCE_GROUP' \
           --name '$CONTAINER_NAME' \
           --image '${{ steps.image.outputs.image }}' \
           --location '${{ vars.AZURE_LOCATION || 'eastus' }}' \
           --dns-name-label '$CONTAINER_NAME' \
+          --os-type Linux \
           --ports 80 \
           --cpu ${{ vars.CPU_CORES || 0.5 }} \
           --memory ${{ vars.MEMORY_GB || 1 }} \
@@ -260,51 +251,11 @@ jobs:
         
         # Add Log Analytics if available
         if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
-          echo "Adding Log Analytics workspace integration..."
           DEPLOY_CMD="$DEPLOY_CMD --log-analytics-workspace '$LOG_ANALYTICS_WORKSPACE_ID'"
         fi
         
-        echo "Executing deployment command..."
         eval "$DEPLOY_CMD"
-        
-        echo ""
-        echo "✅ Container deployment completed!"
-        
-        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
-          echo "✅ Log Analytics integration enabled"
-          echo "📊 Container logs will be available in Azure Portal"
-        else
-          echo "⚠️  Log Analytics not configured"
-        fi
-        
-        echo ""
-        echo "WebSocket Application Deployment:"
-        echo "================================="
-        echo "- HTTP WebSocket support enabled"
-        echo "- Trading UI: Available at root path"  
-        echo "- Direct application access on port 80 (Cloudflare compatible)"
-        echo "- Portal-compatible logging configuration"
-        echo "- Cloudflare-ready for free HTTPS"
-        echo ""
-        echo "Access Information:"
-        echo "=================="
-        echo "Direct access: http://[CONTAINER_FQDN]/"
-        echo "WebSocket: ws://[CONTAINER_FQDN]/ws"
-        echo ""
-        echo "Cloudflare DNS Automation:"
-        echo "✅ DNS record will be updated automatically"
-        echo "✅ HTTPS will be available via Cloudflare proxy"
-        echo ""
-        echo "After automation completes:"
-        echo "Website: https://trading.hellsoft.tech/"
-        echo "WebSocket: wss://trading.hellsoft.tech/ws"
-        echo ""
-        echo "Azure Portal Logs:"
-        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
-          echo "✅ Available in Container Instances → $CONTAINER_NAME → Logs"
-        else
-          echo "⚠️  Log Analytics workspace required for Portal log viewing"
-        fi
+        echo "✅ Container deployed successfully"
 
     - name: Health check
       run: |
@@ -333,7 +284,7 @@ jobs:
           sleep 20
         done
 
-    - name: Get deployment info
+    - name: Get Container Info
       run: |
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
@@ -344,67 +295,34 @@ jobs:
           --query '{fqdn: ipAddress.fqdn, ip: ipAddress.ip, state: instanceView.state}' \
           --output json)
         
-        echo "Container Info:"
-        echo "$INFO" | jq
-        
         IP=$(echo "$INFO" | jq -r '.ip')
         FQDN=$(echo "$INFO" | jq -r '.fqdn')
         
-        echo ""
-        echo "=== CLOUDFLARE SETUP ==="
-        echo "1. Add this DNS record in Cloudflare:"
-        echo "   Type: A"
-        echo "   Name: trading (or @)"  
-        echo "   Content: $IP"
-        echo "   Proxy: Enabled (orange cloud)"
-        echo ""
-        echo "2. SSL/TLS Settings:"
-        echo "   Mode: Flexible"
-        echo "   Always Use HTTPS: On"
-        echo ""
-        echo "3. After setup, access via:"
-        echo "   https://trading.hellsoft.tech/"
-        echo "   wss://trading.hellsoft.tech/ws"
-        echo ""
-        echo "Direct access (for testing):"
-        echo "   http://$FQDN/"
+        echo "Container IP: $IP"
+        echo "Container FQDN: $FQDN"
+        echo "Direct access: http://$FQDN/"
         
-        # Export container IP for Cloudflare DNS update
+        # Export for next steps
         echo "CONTAINER_IP=$IP" >> $GITHUB_ENV
         echo "CONTAINER_FQDN=$FQDN" >> $GITHUB_ENV
 
-    - name: Debug Container Status
+    - name: Verify Container
       run: |
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
         
-        echo "Container debugging information:"
-        echo "================================"
-        
         # Check container state
-        echo "Container State:"
-        az container show \
-          --resource-group "$RESOURCE_GROUP" \
-          --name "$CONTAINER_NAME" \
-          --query 'instanceView.state' \
-          --output tsv
+        STATE=$(az container show --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME" --query 'instanceView.state' --output tsv)
+        echo "Container state: $STATE"
         
-        echo ""
-        echo "Container Logs (last 20 lines):"
-        az container logs \
-          --resource-group "$RESOURCE_GROUP" \
-          --name "$CONTAINER_NAME" \
-          --tail 20 || echo "Could not retrieve logs"
+        # Show recent logs
+        echo "Recent logs:"
+        az container logs --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME" --tail 10 || echo "Logs not available"
         
-        echo ""
-        echo "Network Test (if container is running):"
+        # Test connectivity
         if [ -n "${{ env.CONTAINER_IP }}" ]; then
-          echo "Testing HTTP connection to ${{ env.CONTAINER_IP }}:80"
-          curl -v --connect-timeout 10 "http://${{ env.CONTAINER_IP }}:80" || echo "Connection failed"
-          
-          echo ""
-          echo "Testing direct FQDN connection:"
-          curl -v --connect-timeout 10 "http://${{ env.CONTAINER_FQDN }}" || echo "FQDN connection failed"
+          echo "Testing connectivity..."
+          curl -s --connect-timeout 5 "http://${{ env.CONTAINER_FQDN }}/" > /dev/null && echo "✅ HTTP accessible" || echo "❌ HTTP not accessible"
         fi
 
     - name: Update Cloudflare DNS
@@ -528,20 +446,8 @@ jobs:
         done
         
         echo ""
-        echo "🎉 Cloudflare DNS automation completed!"
-        echo ""
-        echo "📋 What was configured:"
-        echo "  • A record: $DOMAIN_NAME -> $RECORD_CONTENT"
-        echo "  • Proxy: Enabled (orange cloud)"
-        echo "  • SSL: Handled by Cloudflare"
-        echo ""
-        echo "🌐 Public resolution:"
-        echo "  • DNS queries return Cloudflare proxy IPs (expected)"
-        echo "  • Cloudflare routes traffic to your container IP"
-        echo "  • HTTPS/SSL termination handled by Cloudflare"
-        echo ""
-        echo "🔗 Your site should be accessible at:"
-        echo "  https://$DOMAIN_NAME"
+        echo "✅ DNS automation completed"
+        echo "Site available at: https://$DOMAIN_NAME"
 
 
 
@@ -565,29 +471,11 @@ jobs:
           
           if curl -s -f -m 30 "https://$DOMAIN_NAME" > /dev/null; then
             echo "✅ HTTPS access successful!"
-            echo "🎉 Your trading application is live at: https://$DOMAIN_NAME"
-            
-            # Test WebSocket over WSS
-            echo "Testing WebSocket SSL support..."
-            if curl -s -f -m 10 -H "Connection: Upgrade" -H "Upgrade: websocket" "https://$DOMAIN_NAME/ws" 2>/dev/null; then
-              echo "✅ WebSocket SSL (WSS) support confirmed"
-            else
-              echo "⚠️  WebSocket SSL test inconclusive (expected for some setups)"
-            fi
-            
+            echo "✅ HTTPS access successful - site is live!"
             echo ""
-            echo "🌟 DEPLOYMENT COMPLETE 🌟"
-            echo "=========================="
-            echo "✅ Container deployed and running"
-            echo "✅ DNS automatically updated"
-            echo "✅ HTTPS enabled via Cloudflare"
-            echo "✅ WebSocket support enabled"
-            echo ""
-            echo "🔗 Access your trading application:"
-            echo "   https://$DOMAIN_NAME"
-            echo ""
-            echo "🔌 WebSocket endpoint:"
-            echo "   wss://$DOMAIN_NAME/ws"
+            echo "🎉 DEPLOYMENT COMPLETE"
+            echo "Access: https://$DOMAIN_NAME"
+            echo "WebSocket: wss://$DOMAIN_NAME/ws"
             
             break
           else
