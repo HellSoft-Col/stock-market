@@ -279,14 +279,23 @@ jobs:
          echo "- HTTP WebSocket support enabled"
          echo "- Log Analytics: Enabled"
          echo "- Direct application access on port 8080"
+         echo "- Cloudflare-ready for free HTTPS"
          echo ""
          echo "Access Information:"
          echo "=================="
-         echo "Website: http://[CONTAINER_FQDN]:8080/"
+         echo "Direct access: http://[CONTAINER_FQDN]:8080/"
          echo "WebSocket: ws://[CONTAINER_FQDN]:8080/ws"
-         echo "Trading interface: http://[CONTAINER_FQDN]:8080/"
          echo ""
-         echo "Note: For production HTTPS, configure a reverse proxy"
+         echo "For HTTPS with Cloudflare (FREE):"
+         echo "1. Add domain to Cloudflare"
+         echo "2. Create A record: trading.hellsoft.tech -> [CONTAINER_IP]"
+         echo "3. Enable 'Proxied' (orange cloud)"
+         echo "4. Set SSL mode to 'Flexible'"
+         echo "5. Enable 'Always Use HTTPS'"
+         echo ""
+         echo "After Cloudflare setup:"
+         echo "Website: https://trading.hellsoft.tech/"
+         echo "WebSocket: wss://trading.hellsoft.tech/ws"
 
     - name: Health check
       run: |
@@ -330,7 +339,26 @@ jobs:
         echo "$INFO" | jq
         
         IP=$(echo "$INFO" | jq -r '.ip')
-        echo "Set DNS A record: ${{ vars.DOMAIN_NAME || 'your-domain.com' }} -> $IP"
+        FQDN=$(echo "$INFO" | jq -r '.fqdn')
+        
+        echo ""
+        echo "=== CLOUDFLARE SETUP ==="
+        echo "1. Add this DNS record in Cloudflare:"
+        echo "   Type: A"
+        echo "   Name: trading (or @)"  
+        echo "   Content: $IP"
+        echo "   Proxy: Enabled (orange cloud)"
+        echo ""
+        echo "2. SSL/TLS Settings:"
+        echo "   Mode: Flexible"
+        echo "   Always Use HTTPS: On"
+        echo ""
+        echo "3. After setup, access via:"
+        echo "   https://trading.hellsoft.tech/"
+        echo "   wss://trading.hellsoft.tech/ws"
+        echo ""
+        echo "Direct access (for testing):"
+        echo "   http://$FQDN:8080/"
 
     - name: Extended health check
       id: health_check
