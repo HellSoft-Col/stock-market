@@ -96,8 +96,8 @@ jobs:
         # Configure container
         buildah config --port 80 $FINAL_CONTAINER
         buildah config --env PORT=80 $FINAL_CONTAINER
-        buildah config --env CONFIG_FILE=/config.yaml $FINAL_CONTAINER
-        buildah config --cmd '/exchange-server' $FINAL_CONTAINER
+        buildah config --entrypoint '[]' $FINAL_CONTAINER
+        buildah config --cmd '["/exchange-server", "-config=/config.yaml"]' $FINAL_CONTAINER
         
         # Add labels
         buildah config --label org.opencontainers.image.source=https://github.com/${{ github.repository }} $FINAL_CONTAINER
@@ -122,11 +122,12 @@ jobs:
         # Test that the container can start and responds
         echo "Testing container startup..."
         
-        # Start container in detached mode with environment variable to help it start
+        # The Go application expects -config flag, not CONFIG_FILE env var
+        # Let's override the default command to use the config flag
         CONTAINER_ID=$(podman run -d \
-          -e CONFIG_FILE=/config.yaml \
           -e PORT=8080 \
-          ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }})
+          ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }} \
+          /exchange-server -config=/config.yaml)
         
         echo "Container started with ID: $CONTAINER_ID"
         
@@ -136,9 +137,11 @@ jobs:
         # Check if container is still running
         if podman ps | grep -q "$CONTAINER_ID"; then
           echo "✅ Container is running successfully"
+          echo "Container logs:"
           podman logs "$CONTAINER_ID" | head -20
         else
           echo "❌ Container failed to start"
+          echo "Container logs:"
           podman logs "$CONTAINER_ID" || true
         fi
         

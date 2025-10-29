@@ -49,10 +49,13 @@ jobs:
           fi
         else
           # For automatic deployment after build, use the SHA-based tag that was actually created
-          # This matches the build workflow: type=sha,prefix={{branch}}-
-          TAG="${{ github.ref_name }}-${{ github.sha }}"
+          # The metadata-action uses SHORT SHA format, so we need to match that
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          TAG="${{ github.ref_name }}-$SHORT_SHA"
         fi
         
+        echo "Full SHA: ${{ github.sha }}"
+        echo "Short SHA: $(echo "${{ github.sha }}" | cut -c1-7)"
         echo "Selected tag: $TAG"
         echo "Full image: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:$TAG"
         
@@ -95,111 +98,81 @@ jobs:
     - name: Generate deployment config
       run: |
         cat > deployment.yaml << EOF
-        apiVersion: '2021-10-01'
-        location: ${{ vars.AZURE_LOCATION || 'eastus' }}
-        name: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
-        properties:
-          containers:
-          # Main application container
-          - name: trading-app
-            properties:
-              image: ${{ steps.image.outputs.image }}
-              ports:
-              - protocol: TCP
-                port: 8080
-              environmentVariables:
-              - name: 'MONGODB_URI'
-                secureValue: '${{ secrets.MONGODB_URI }}'
-              - name: 'CONFIG_FILE'
-                value: '${{ vars.CONFIG_FILE || '/config.production.yaml' }}'
-              - name: 'PORT'
-                value: '8080'
-              - name: 'LOG_LEVEL'
-                value: '${{ vars.LOG_LEVEL || 'info' }}'
-              resources:
-                requests:
-                  memoryInGB: ${{ vars.MEMORY_GB || 1 }}
-                  cpu: ${{ vars.CPU_CORES || 0.5 }}
-          # Nginx + Let's Encrypt container
-          - name: nginx-ssl
-            properties:
-              image: nginxproxy/nginx-proxy:alpine
-              ports:
-              - protocol: TCP
-                port: 80
-              - protocol: TCP
-                port: 443
-              environmentVariables:
-              - name: 'DEFAULT_HOST'
-                value: '${{ vars.DOMAIN_NAME }}'
-              - name: 'VIRTUAL_HOST'
-                value: '${{ vars.DOMAIN_NAME }}'
-              - name: 'VIRTUAL_PORT'
-                value: '8080'
-              - name: 'LETSENCRYPT_HOST'
-                value: '${{ vars.DOMAIN_NAME }}'
-              - name: 'LETSENCRYPT_EMAIL'
-                value: '${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}'
-              volumeMounts:
-              - name: nginx-certs
-                mountPath: /etc/nginx/certs
-              - name: nginx-vhost
-                mountPath: /etc/nginx/vhost.d
-              - name: nginx-html
-                mountPath: /usr/share/nginx/html
-               resources:
-                 requests:
-                   memoryInGB: 0.5
-                   cpu: 0.3
-          # Let's Encrypt companion
-          - name: letsencrypt
-            properties:
-              image: nginxproxy/acme-companion:latest
-              environmentVariables:
-              - name: 'DEFAULT_EMAIL'
-                value: '${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}'
-              volumeMounts:
-              - name: nginx-certs
-                mountPath: /etc/nginx/certs
-              - name: nginx-vhost
-                mountPath: /etc/nginx/vhost.d
-              - name: nginx-html
-                mountPath: /usr/share/nginx/html
-              - name: acme-state
-                mountPath: /etc/acme.sh
-               resources:
-                 requests:
-                   memoryInGB: 0.3
-                   cpu: 0.1
-          imageRegistryCredentials:
-          - server: ${{ env.REGISTRY }}
-            username: ${{ github.actor }}
-            password: ${{ secrets.GITHUB_TOKEN }}
-          ipAddress:
-            type: Public
-            ports:
-            - protocol: TCP
-              port: 80
-            - protocol: TCP
-              port: 443
-            dnsNameLabel: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
-          osType: Linux
-          restartPolicy: Always
-          volumes:
-          - name: nginx-certs
-            emptyDir: {}
-          - name: nginx-vhost
-            emptyDir: {}
-          - name: nginx-html
-            emptyDir: {}
-          - name: acme-state
-            emptyDir: {}
-        type: Microsoft.ContainerInstance/containerGroups
+        {
+          "apiVersion": "2021-10-01",
+          "location": "${{ vars.AZURE_LOCATION || 'eastus' }}",
+          "name": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}",
+          "properties": {
+            "containers": [
+              {
+                "name": "trading-app",
+                "properties": {
+                  "image": "${{ steps.image.outputs.image }}",
+                  "command": ["/exchange-server", "-config=/config.production.yaml"],
+                  "ports": [
+                    {
+                      "protocol": "TCP",
+                      "port": 8080
+                    }
+                  ],
+                  "environmentVariables": [
+                    {
+                      "name": "MONGODB_URI",
+                      "secureValue": "${{ secrets.MONGODB_URI }}"
+                    },
+                    {
+                      "name": "PORT",
+                      "value": "8080"
+                    },
+                    {
+                      "name": "LOG_LEVEL",
+                      "value": "${{ vars.LOG_LEVEL || 'info' }}"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "memoryInGB": ${{ vars.MEMORY_GB || 1 }},
+                      "cpu": ${{ vars.CPU_CORES || 0.5 }}
+                    }
+                  }
+                }
+              }
+            ],
+            "imageRegistryCredentials": [
+              {
+                "server": "${{ env.REGISTRY }}",
+                "username": "${{ github.actor }}",
+                "password": "${{ secrets.GHCR_PAT }}"
+              }
+            ],
+            "ipAddress": {
+              "type": "Public",
+              "ports": [
+                {
+                  "protocol": "TCP",
+                  "port": 8080
+                }
+              ],
+              "dnsNameLabel": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
+            },
+            "osType": "Linux",
+            "restartPolicy": "Always"
+          },
+          "type": "Microsoft.ContainerInstance/containerGroups"
+        }
         EOF
 
     - name: Deploy container
       run: |
-        echo "Deploying with SSL support..."
+        echo "Deploying simplified container without SSL..."
+        echo "Image: ${{ steps.image.outputs.image }}"
+        echo "Registry: ${{ env.REGISTRY }}"
+        echo "Username: ${{ github.actor }}"
+        echo "Using GHCR_PAT for registry authentication"
+        
+        # Display the deployment config for debugging
+        echo "Deployment configuration:"
+        cat deployment.yaml
         
         az container delete \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
@@ -396,42 +369,65 @@ jobs:
         echo "Rolling back to: $ROLLBACK_IMAGE"
         
         # Generate rollback deployment config
-        cat > rollback-deployment.yaml << EOF
-        apiVersion: '2021-10-01'
-        location: ${{ vars.AZURE_LOCATION || 'eastus' }}
-        name: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
-        properties:
-          containers:
-          - name: trading-app
-            properties:
-              image: $ROLLBACK_IMAGE
-              ports:
-              - protocol: TCP
-                port: 8080
-              environmentVariables:
-              - name: 'MONGODB_URI'
-                secureValue: '${{ secrets.MONGODB_URI }}'
-              - name: 'CONFIG_FILE'
-                value: '${{ vars.CONFIG_FILE || '/config.production.yaml' }}'
-              - name: 'PORT'
-                value: '8080'
-              resources:
-                requests:
-                  memoryInGB: ${{ vars.MEMORY_GB || 1 }}
-                  cpu: ${{ vars.CPU_CORES || 0.5 }}
-          imageRegistryCredentials:
-          - server: ${{ env.REGISTRY }}
-            username: ${{ github.actor }}
-            password: ${{ secrets.GITHUB_TOKEN }}
-          ipAddress:
-            type: Public
-            ports:
-            - protocol: TCP
-              port: 80
-            dnsNameLabel: ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}
-          osType: Linux
-          restartPolicy: Always
-        type: Microsoft.ContainerInstance/containerGroups
+        cat > rollback-deployment.json << EOF
+        {
+          "apiVersion": "2021-10-01",
+          "location": "${{ vars.AZURE_LOCATION || 'eastus' }}",
+          "name": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}",
+          "properties": {
+            "containers": [
+              {
+                "name": "trading-app",
+                "properties": {
+                  "image": "$ROLLBACK_IMAGE",
+                  "command": ["/exchange-server", "-config=/config.production.yaml"],
+                  "ports": [
+                    {
+                      "protocol": "TCP",
+                      "port": 8080
+                    }
+                  ],
+                  "environmentVariables": [
+                    {
+                      "name": "MONGODB_URI",
+                      "secureValue": "${{ secrets.MONGODB_URI }}"
+                    },
+                    {
+                      "name": "PORT", 
+                      "value": "8080"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "memoryInGB": ${{ vars.MEMORY_GB || 1 }},
+                      "cpu": ${{ vars.CPU_CORES || 0.5 }}
+                    }
+                  }
+                }
+              }
+            ],
+            "imageRegistryCredentials": [
+              {
+                "server": "${{ env.REGISTRY }}",
+                "username": "${{ github.actor }}",
+                "password": "${{ secrets.GHCR_PAT }}"
+              }
+            ],
+            "ipAddress": {
+              "type": "Public",
+              "ports": [
+                {
+                  "protocol": "TCP",
+                  "port": 8080
+                }
+              ],
+              "dnsNameLabel": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
+            },
+            "osType": "Linux",
+            "restartPolicy": "Always"
+          },
+          "type": "Microsoft.ContainerInstance/containerGroups"
+        }
         EOF
         
         # Delete failed container and deploy rollback
@@ -444,4 +440,4 @@ jobs:
         
         az container create \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --file rollback-deployment.yaml || echo "❌ Rollback failed"
+          --file rollback-deployment.json || echo "❌ Rollback failed"
