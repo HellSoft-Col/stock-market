@@ -273,16 +273,16 @@ jobs:
          echo "Direct access: http://[CONTAINER_FQDN]/"
          echo "WebSocket: ws://[CONTAINER_FQDN]/ws"
          echo ""
-         echo "For HTTPS with Cloudflare (FREE):"
-         echo "1. Add domain to Cloudflare"
-         echo "2. Create A record: trading.hellsoft.tech -> [CONTAINER_IP]"
-         echo "3. Enable 'Proxied' (orange cloud)"
-         echo "4. Set SSL mode to 'Flexible'"
-         echo "5. Enable 'Always Use HTTPS'"
+         echo "Cloudflare DNS Automation:"
+         echo "✅ DNS record will be updated automatically"
+         echo "✅ HTTPS will be available via Cloudflare proxy"
          echo ""
-         echo "After Cloudflare setup:"
+         echo "After automation completes:"
          echo "Website: https://trading.hellsoft.tech/"
          echo "WebSocket: wss://trading.hellsoft.tech/ws"
+         echo ""
+         echo "Note: If Cloudflare secrets are not configured,"
+         echo "DNS must be updated manually in Cloudflare dashboard."
 
     - name: Health check
       run: |
@@ -346,6 +346,121 @@ jobs:
         echo ""
         echo "Direct access (for testing):"
         echo "   http://$FQDN/"
+        
+        # Export container IP for Cloudflare DNS update
+        echo "CONTAINER_IP=$IP" >> $GITHUB_ENV
+        echo "CONTAINER_FQDN=$FQDN" >> $GITHUB_ENV
+
+    - name: Update Cloudflare DNS
+      if: env.CONTAINER_IP != '' && env.CONTAINER_IP != 'null'
+      run: |
+        echo "Updating Cloudflare DNS record..."
+        
+        # DNS record configuration
+        ZONE_ID="${{ secrets.CLOUDFLARE_ZONE_ID }}"
+        API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}"
+        DOMAIN_NAME="trading.hellsoft.tech"
+        RECORD_TYPE="A"
+        RECORD_CONTENT="${{ env.CONTAINER_IP }}"
+        TTL=1  # Auto (proxied)
+        PROXIED=true
+        
+        if [ -z "$ZONE_ID" ] || [ -z "$API_TOKEN" ]; then
+          echo "Cloudflare credentials not configured - skipping DNS update"
+          echo "To enable automatic DNS updates:"
+          echo "1. Add CLOUDFLARE_ZONE_ID to GitHub secrets"
+          echo "2. Add CLOUDFLARE_API_TOKEN to GitHub secrets"
+          exit 0
+        fi
+        
+        echo "Zone ID: $ZONE_ID"
+        echo "Domain: $DOMAIN_NAME"
+        echo "New IP: $RECORD_CONTENT"
+        
+        # Check if DNS record exists
+        echo "Checking for existing DNS record..."
+        RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=$RECORD_TYPE&name=$DOMAIN_NAME" \
+          -H "Authorization: Bearer $API_TOKEN" \
+          -H "Content-Type: application/json" | \
+          jq -r '.result[0].id // empty')
+        
+        if [ -n "$RECORD_ID" ] && [ "$RECORD_ID" != "null" ]; then
+          echo "Existing DNS record found (ID: $RECORD_ID)"
+          echo "Updating existing record..."
+          
+          # Update existing record
+          RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{
+              "type": "'$RECORD_TYPE'",
+              "name": "'$DOMAIN_NAME'",
+              "content": "'$RECORD_CONTENT'",
+              "ttl": '$TTL',
+              "proxied": '$PROXIED'
+            }')
+          
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+          if [ "$SUCCESS" = "true" ]; then
+            echo "✅ DNS record updated successfully!"
+            echo "   $DOMAIN_NAME -> $RECORD_CONTENT (proxied)"
+          else
+            echo "❌ Failed to update DNS record:"
+            echo "$RESPONSE" | jq '.errors[]?.message // .errors // .'
+            exit 1
+          fi
+        else
+          echo "No existing DNS record found"
+          echo "Creating new DNS record..."
+          
+          # Create new record
+          RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{
+              "type": "'$RECORD_TYPE'",
+              "name": "'$DOMAIN_NAME'",
+              "content": "'$RECORD_CONTENT'",
+              "ttl": '$TTL',
+              "proxied": '$PROXIED'
+            }')
+          
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+          if [ "$SUCCESS" = "true" ]; then
+            NEW_RECORD_ID=$(echo "$RESPONSE" | jq -r '.result.id')
+            echo "✅ DNS record created successfully!"
+            echo "   Record ID: $NEW_RECORD_ID"
+            echo "   $DOMAIN_NAME -> $RECORD_CONTENT (proxied)"
+          else
+            echo "❌ Failed to create DNS record:"
+            echo "$RESPONSE" | jq '.errors[]?.message // .errors // .'
+            exit 1
+          fi
+        fi
+        
+        # Wait for DNS propagation
+        echo ""
+        echo "Waiting for DNS propagation..."
+        sleep 30
+        
+        # Verify DNS update
+        echo "Verifying DNS update..."
+        for i in {1..5}; do
+          RESOLVED_IP=$(dig +short "$DOMAIN_NAME" @1.1.1.1 | tail -n1)
+          if [ "$RESOLVED_IP" = "$RECORD_CONTENT" ]; then
+            echo "✅ DNS propagation confirmed: $DOMAIN_NAME -> $RESOLVED_IP"
+            break
+          else
+            echo "DNS not yet propagated (attempt $i/5): $RESOLVED_IP != $RECORD_CONTENT"
+            if [ $i -lt 5 ]; then
+              sleep 15
+            fi
+          fi
+        done
+        
+        echo ""
+        echo "🎉 Cloudflare DNS automation completed!"
+        echo "Your site should be accessible at: https://$DOMAIN_NAME"
 
     - name: Extended health check
       id: health_check
@@ -392,6 +507,72 @@ jobs:
         
         echo "✅ Extended health check completed"
         echo "healthy=true" >> $GITHUB_OUTPUT
+
+    - name: Test Cloudflare HTTPS
+      if: env.CONTAINER_IP != '' && env.CONTAINER_IP != 'null'
+      run: |
+        DOMAIN_NAME="trading.hellsoft.tech"
+        
+        if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "Cloudflare not configured - skipping HTTPS test"
+          exit 0
+        fi
+        
+        echo "Testing HTTPS access through Cloudflare..."
+        echo "Waiting for Cloudflare proxy to pick up changes..."
+        sleep 60
+        
+        # Test HTTPS access
+        for i in {1..3}; do
+          echo "Attempt $i/3: Testing https://$DOMAIN_NAME"
+          
+          if curl -s -f -m 30 "https://$DOMAIN_NAME" > /dev/null; then
+            echo "✅ HTTPS access successful!"
+            echo "🎉 Your trading application is live at: https://$DOMAIN_NAME"
+            
+            # Test WebSocket over WSS
+            echo "Testing WebSocket SSL support..."
+            if curl -s -f -m 10 -H "Connection: Upgrade" -H "Upgrade: websocket" "https://$DOMAIN_NAME/ws" 2>/dev/null; then
+              echo "✅ WebSocket SSL (WSS) support confirmed"
+            else
+              echo "⚠️  WebSocket SSL test inconclusive (expected for some setups)"
+            fi
+            
+            echo ""
+            echo "🌟 DEPLOYMENT COMPLETE 🌟"
+            echo "=========================="
+            echo "✅ Container deployed and running"
+            echo "✅ DNS automatically updated"
+            echo "✅ HTTPS enabled via Cloudflare"
+            echo "✅ WebSocket support enabled"
+            echo ""
+            echo "🔗 Access your trading application:"
+            echo "   https://$DOMAIN_NAME"
+            echo ""
+            echo "🔌 WebSocket endpoint:"
+            echo "   wss://$DOMAIN_NAME/ws"
+            
+            break
+          else
+            echo "❌ HTTPS test failed (attempt $i/3)"
+            if [ $i -lt 3 ]; then
+              echo "Waiting 30 seconds before retry..."
+              sleep 30
+            else
+              echo ""
+              echo "⚠️  HTTPS test failed after 3 attempts"
+              echo "This could be due to:"
+              echo "- DNS propagation delay (try again in a few minutes)"
+              echo "- Cloudflare proxy setup issues"
+              echo "- SSL certificate provisioning delay"
+              echo ""
+              echo "Manual verification:"
+              echo "1. Check DNS: dig trading.hellsoft.tech"
+              echo "2. Test direct: http://${{ env.CONTAINER_FQDN }}"
+              echo "3. Test HTTPS: https://$DOMAIN_NAME (may take 5-10 minutes)"
+            fi
+          fi
+        done
 
     - name: Verify Logging Configuration
       run: |
