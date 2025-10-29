@@ -3,71 +3,529 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🥑 Intercambio de Aguacates - Consola de Depuración</title>
+    <title>🥑 Intercambio de Aguacates - Consola de Trading</title>
+    
+    <!-- Bulma CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%);
+            --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
         }
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
-            height: 100vh;
+        html, body {
+            font-family: 'Inter', sans-serif !important;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .is-family-monospace {
+            font-family: 'JetBrains Mono', monospace !important;
+        }
+        
+        /* Glass Morphism Effects */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Custom Hero */
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            position: relative;
             overflow: hidden;
         }
         
-        .debug-container {
-            display: grid;
-            grid-template-columns: 400px 1fr 400px;
-            grid-template-rows: 70px 1fr;
-            height: 100vh;
-            gap: 12px;
-            padding: 12px;
+        .hero-gradient::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            animation: float 20s ease-in-out infinite;
         }
         
-        .header {
-            grid-column: 1 / -1;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        /* Animated Gradients */
+        .gradient-primary {
+            background: var(--primary-gradient);
+        }
+        
+        .gradient-success {
+            background: var(--success-gradient);
+        }
+        
+        .gradient-warning {
+            background: var(--warning-gradient);
+        }
+        
+        .gradient-danger {
+            background: var(--danger-gradient);
+        }
+        
+        /* Status Indicators */
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-connected { background: #00d1b2; }
+        .status-connecting { background: #ffdd57; }
+        .status-disconnected { background: #ff3860; }
+        .status-authenticated { background: #3273dc; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Custom Animations */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-in-left {
+            animation: slideInLeft 0.3s ease-out;
+        }
+        
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .slide-in-right {
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        /* Enhanced Cards */
+        .stat-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
             border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: var(--success-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+        
+        /* Trading Cards */
+        .trading-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .trading-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        /* Message Styles */
+        .message-item {
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            border-left: 4px solid;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .message-success {
+            background: rgba(72, 187, 120, 0.1);
+            border-color: #48bb78;
+            color: #68d391;
+        }
+        
+        .message-error {
+            background: rgba(245, 101, 101, 0.1);
+            border-color: #f56565;
+            color: #fc8181;
+        }
+        
+        .message-info {
+            background: rgba(66, 153, 225, 0.1);
+            border-color: #4299e1;
+            color: #63b3ed;
+        }
+        
+        .message-warning {
+            background: rgba(237, 137, 54, 0.1);
+            border-color: #ed8936;
+            color: #f6ad55;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* Custom Bulma Overrides */
+        .navbar {
+            background: var(--glass-bg) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .navbar-brand .navbar-item {
+            color: white !important;
+        }
+        
+        .navbar-item, .navbar-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+        }
+        
+        .navbar-item:hover, .navbar-link:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+        }
+        
+        .button.is-primary {
+            background: var(--primary-gradient) !important;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .button.is-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .button.is-success {
+            background: var(--success-gradient) !important;
+            border: none;
+        }
+        
+        .button.is-warning {
+            background: var(--warning-gradient) !important;
+            border: none;
+        }
+        
+        .button.is-danger {
+            background: var(--danger-gradient) !important;
+            border: none;
+        }
+        
+        .input, .textarea, .select select {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            color: white !important;
+        }
+        
+        .input:focus, .textarea:focus, .select select:focus {
+            border-color: #3273dc !important;
+            box-shadow: 0 0 0 0.125em rgba(50, 115, 220, 0.25) !important;
+        }
+        
+        .input::placeholder, .textarea::placeholder {
+            color: rgba(255, 255, 255, 0.6) !important;
+        }
+        
+        .label {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+        }
+        
+        /* Panel Styles */
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel-heading {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .panel-block {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .panel-block:last-child {
+            border-bottom: none;
+        }
+        
+        /* Tab Styles */
+        .tabs ul {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .tabs li a {
+            color: rgba(255, 255, 255, 0.7) !important;
+            border-bottom: 1px solid transparent;
+        }
+        
+        .tabs li.is-active a {
+            color: white !important;
+            border-bottom-color: #3273dc !important;
+        }
+        
+        .tabs li a:hover {
+            color: white !important;
+            border-bottom-color: rgba(255, 255, 255, 0.3) !important;
+        }
+        
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.1);
+        }
+        
+        .top-bar {
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
-            color: white;
-            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.37);
+            padding: 0 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            z-index: 100;
         }
         
-        .panel {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 20px;
-            color: white;
-            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.37);
-            overflow-y: auto;
+        .main-layout {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
             display: flex;
             flex-direction: column;
-            min-height: 0; /* Important for flexbox scrolling */
+            overflow: hidden;
+            transition: transform 0.3s ease;
         }
         
-        .center-panel {
-            /* Ensure full width usage */
-            width: 100%;
-            min-width: 0; /* Important for grid items */
+        .sidebar.collapsed {
+            transform: translateX(-100%);
         }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+        
+        .content-header {
+            height: 60px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+        
+        .content-body {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .right-panel {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .right-panel.collapsed {
+            transform: translateX(100%);
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .brand h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .brand p {
+            font-size: 14px;
+            opacity: 0.8;
+            margin: 0;
+        }
+        
+        .top-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.connected { background: #10b981; }
+        .status-dot.connecting { background: #f59e0b; }
+        .status-dot.disconnected { background: #ef4444; }
+        .status-dot.authenticated { background: #3b82f6; }
+        
+        .panel-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .panel-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
 
-        /* Ensure dashboard content uses full width */
-        .center-panel .feature-section {
-            width: 100%;
-        }
 
-        .center-panel .tab-content {
-            width: 100%;
-        }
+
         
         .status-bar {
             display: flex;
@@ -87,36 +545,54 @@
         .status-connected { background: rgba(46, 204, 113, 0.3); border: 1px solid #2ecc71; }
         .status-authenticated { background: rgba(52, 152, 219, 0.3); border: 1px solid #3498db; }
         
-        .tabs {
+        .nav-tabs {
             display: flex;
-            gap: 3px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 20px;
+            overflow-x: auto;
         }
         
-        .tab {
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.1);
+        .nav-tab {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 16px;
+            background: transparent;
             border: none;
-            border-radius: 8px 8px 0 0;
-            color: white;
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.7);
             cursor: pointer;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
-            transition: background 0.3s, transform 0.2s;
-            min-width: 70px;
+            transition: all 0.3s ease;
             text-align: center;
+            white-space: nowrap;
         }
         
-        .tab:hover {
+        .nav-tab:hover {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-tab.active {
+            color: #fff;
             background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
-        .tab.active {
-            background: rgba(255, 255, 255, 0.25);
-            transform: translateY(0);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .tab-content {
@@ -131,15 +607,96 @@
             flex-direction: column;
         }
         
-        input, select, button, textarea {
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .form-input, .form-select, .form-textarea {
             width: 100%;
-            padding: 8px;
+            padding: 14px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
             border: none;
-            border-radius: 6px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            min-height: 48px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+        }
+        
+        .btn-secondary {
             background: rgba(255, 255, 255, 0.1);
             color: white;
-            font-size: 12px;
-            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
         }
         
         input::placeholder, textarea::placeholder {
@@ -374,12 +931,85 @@
             overflow-y: auto;
         }
 
-        .feature-section {
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 24px;
             margin-bottom: 20px;
-            padding: 16px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
             background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .feature-title {
@@ -579,28 +1209,96 @@
             100% { opacity: 1; transform: translateY(-50%) scale(1); }
         }
 
-        /* Responsive design improvements */
-        @media (max-width: 1400px) {
-            .debug-container {
-                grid-template-columns: 350px 1fr 350px;
-            }
+        .toggle-btn {
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
-
+        
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Responsive Design */
         @media (max-width: 1200px) {
-            .debug-container {
-                grid-template-columns: 300px 1fr 300px;
-            }
-        }
-
-        @media (max-width: 1000px) {
-            .debug-container {
-                grid-template-columns: 1fr;
-                grid-template-rows: 70px auto auto auto;
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 80px;
+                bottom: 0;
+                z-index: 50;
+                transform: translateX(-100%);
             }
             
-            .panel {
-                max-height: 500px;
+            .sidebar.open {
+                transform: translateX(0);
             }
+            
+            .right-panel {
+                position: absolute;
+                right: 0;
+                top: 80px;
+                bottom: 0;
+                z-index: 50;
+                transform: translateX(100%);
+            }
+            
+            .right-panel.open {
+                transform: translateX(0);
+            }
+            
+            .content-area {
+                margin: 0;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .top-bar {
+                padding: 0 16px;
+            }
+            
+            .brand h1 {
+                font-size: 20px;
+            }
+            
+            .brand p {
+                display: none;
+            }
+            
+            .sidebar, .right-panel {
+                width: 280px;
+            }
+            
+            .content-body {
+                padding: 16px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .backdrop.active {
+            opacity: 1;
+            visibility: visible;
         }
 
         /* Improve form layouts */
@@ -630,30 +1328,606 @@
     </style>
 </head>
 <body>
-    <div class="debug-container">
-        <div class="header">
-            <div>
-                <h1>🥑 Intercambio de Aguacates - Consola de Depuración</h1>
-                <p style="font-size: 12px; opacity: 0.8; margin: 0;">
-                    🛠️ Interfaz de Depuración - Los clientes Java deben conectarse como clientes de trading normales
-                </p>
+    <!-- Hero Section -->
+    <section class="hero is-primary is-medium hero-gradient">
+        <div class="hero-head">
+            <nav class="navbar glass">
+                <div class="container">
+                    <div class="navbar-brand">
+                        <div class="navbar-item">
+                            <span class="icon is-large mr-3">
+                                <i class="fas fa-seedling fa-2x" style="color: #4ade80;"></i>
+                            </span>
+                            <div>
+                                <h1 class="title is-4 has-text-white mb-1">Intercambio de Aguacates</h1>
+                                <p class="subtitle is-6 has-text-white-ter">Consola de Trading Profesional</p>
+                            </div>
+                        </div>
+                        
+                        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" onclick="toggleMobileMenu()">
+                            <span aria-hidden="true"></span>
+                            <span aria-hidden="true"></span>
+                            <span aria-hidden="true"></span>
+                        </a>
+                    </div>
+                    
+                    <div class="navbar-menu" id="navbarMenu">
+                        <div class="navbar-end">
+                            <div class="navbar-item">
+                                <div class="field is-grouped">
+                                    <div class="control">
+                                        <div class="tags has-addons">
+                                            <span class="tag is-dark">Estado</span>
+                                            <span class="tag" id="status-tag">
+                                                <span id="status-dot" class="status-dot status-disconnected"></span>
+                                                <span id="status-text">Desconectado</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="control">
+                                        <span class="tag is-info is-light" id="connection-time"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        
+        <div class="hero-body">
+            <div class="container">
+                <div class="columns is-vcentered">
+                    <div class="col">
+                        <h1 class="title is-1 has-text-white">
+                            <span class="icon-text">
+                                <span class="icon is-large">
+                                    <i class="fas fa-chart-line"></i>
+                                </span>
+                                <span>Trading Dashboard</span>
+                            </span>
+                        </h1>
+                        <h2 class="subtitle is-3 has-text-white-ter">
+                            Plataforma avanzada de trading con simulación en tiempo real
+                        </h2>
+                    </div>
+                </div>
             </div>
-            <div class="status-bar">
-                <div id="status-indicator" class="status-indicator status-disconnected">Desconectado</div>
-                <span id="connection-time"></span>
-                <span id="server-time"></span>
+        </div>
+    </section>
+
+    <script>
+                <div class="column is-3">
+                    <div class="panel glass-card">
+                        <p class="panel-heading">
+                            <span class="icon-text">
+                                <span class="icon">
+                                    <i class="fas fa-tools"></i>
+                                </span>
+                                <span>Herramientas de Trading</span>
+                            </span>
+                        </p>
+                        
+                        <div class="panel-block">
+                            <div class="tabs is-boxed is-fullwidth">
+                                <ul>
+                                    <li class="is-active">
+                                        <a onclick="switchSidebarTab('auth')">
+                                            <span class="icon is-small"><i class="fas fa-key"></i></span>
+                                            <span>Auth</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a onclick="switchSidebarTab('simulator')">
+                                            <span class="icon is-small"><i class="fas fa-rocket"></i></span>
+                                            <span>Simulador</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a onclick="switchSidebarTab('debug')">
+                                            <span class="icon is-small"><i class="fas fa-bug"></i></span>
+                                            <span>Debug</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- Auth Tab Content -->
+                        <div id="auth-content" class="panel-block is-block">
+                            <div class="box glass-card">
+                                <h3 class="title is-5 has-text-white">
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-shield-alt"></i></span>
+                                        <span>Autenticación</span>
+                                    </span>
+                                </h3>
+                                
+                                <div class="field">
+                                    <label class="label">Token del Equipo</label>
+                                    <div class="control has-icons-left">
+                                        <input class="input" type="text" id="token" placeholder="TK-XXXX">
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-key"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="field is-grouped">
+                                    <div class="control">
+                                        <button class="button is-primary" id="connect-btn" onclick="toggleConnection()">
+                                            <span class="icon">
+                                                <i class="fas fa-plug"></i>
+                                            </span>
+                                            <span>Conectar</span>
+                                        </button>
+                                    </div>
+                                    <div class="control">
+                                        <button class="button is-success" id="login-btn" onclick="login()" disabled>
+                                            <span class="icon">
+                                                <i class="fas fa-sign-in-alt"></i>
+                                            </span>
+                                            <span>Login</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="team-info" class="notification is-success is-light" style="display: none;">
+                                    <div id="team-details"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Inventory Card -->
+                            <div class="box glass-card">
+                                <h3 class="title is-5 has-text-white">
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-boxes"></i></span>
+                                        <span>Inventario</span>
+                                    </span>
+                                </h3>
+                                <div id="inventory-grid" class="columns is-multiline">
+                                    <div class="column is-half">
+                                        <div class="stat-card">
+                                            <div class="stat-label">Sin datos</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Simulator Tab Content -->
+                        <div id="simulator-content" class="panel-block is-block" style="display: none;">
+                            <div class="box glass-card">
+                                <h3 class="title is-5 has-text-white">
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-rocket"></i></span>
+                                        <span>Simulador de Mercado</span>
+                                    </span>
+                                </h3>
+                                
+                                <div class="field">
+                                    <label class="label">Tipo de Orden</label>
+                                    <div class="control has-icons-left">
+                                        <div class="select is-fullwidth">
+                                            <select id="sim-side">
+                                                <option value="BUY">🟢 Comprar</option>
+                                                <option value="SELL">🔴 Vender</option>
+                                            </select>
+                                        </div>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="field">
+                                    <label class="label">Producto</label>
+                                    <div class="control has-icons-left">
+                                        <div class="select is-fullwidth">
+                                            <select id="sim-product">
+                                                <option value="FOSFO">FOSFO</option>
+                                                <option value="PITA">PITA</option>
+                                                <option value="PALTA-OIL">PALTA-OIL</option>
+                                                <option value="GUACA">GUACA</option>
+                                                <option value="SEBO">SEBO</option>
+                                                <option value="H-GUACA">H-GUACA</option>
+                                            </select>
+                                        </div>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-leaf"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="columns">
+                                    <div class="column">
+                                        <div class="field">
+                                            <label class="label">Cantidad</label>
+                                            <div class="control has-icons-left">
+                                                <input class="input" type="number" id="sim-qty" placeholder="10" min="1">
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-hashtag"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="field">
+                                            <label class="label">Precio</label>
+                                            <div class="control has-icons-left">
+                                                <input class="input" type="number" id="sim-price" placeholder="15.50" step="0.01">
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-dollar-sign"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="field">
+                                    <div class="control">
+                                        <button class="button is-success is-fullwidth" onclick="createMarketOrder()" disabled id="create-order-btn">
+                                            <span class="icon">
+                                                <i class="fas fa-chart-line"></i>
+                                            </span>
+                                            <span>Crear Orden de Mercado</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Debug Tab Content -->
+                        <div id="debug-content" class="panel-block is-block" style="display: none;">
+                            <div class="box glass-card">
+                                <h3 class="title is-5 has-text-white">
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-bug"></i></span>
+                                        <span>Herramientas de Debug</span>
+                                    </span>
+                                </h3>
+                                
+                                <div class="buttons">
+                                    <button class="button is-danger" onclick="injectError('INSUFFICIENT_BALANCE')" disabled id="err-balance-btn">
+                                        <span class="icon">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </span>
+                                        <span>Saldo Insuficiente</span>
+                                    </button>
+                                    <button class="button is-warning" onclick="injectError('DISCONNECT_CLIENT')" disabled id="err-disconnect-btn">
+                                        <span class="icon">
+                                            <i class="fas fa-unlink"></i>
+                                        </span>
+                                        <span>Desconectar</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Left Sidebar -->
+            <div class="sidebar" id="sidebar">
+        let ws = null;
+                    </div>
+                    
+                    <div class="nav-tabs">
+                        <button class="nav-tab active" onclick="switchSidebarTab('auth')">🔐 Auth</button>
+                        <button class="nav-tab" onclick="switchSidebarTab('simulator')">🎯 Simulador</button>
+                        <button class="nav-tab" onclick="switchSidebarTab('debug')">🧪 Debug</button>
+                    </div>
+                    
+                    <div class="panel-content">
+                        <!-- Auth Tab -->
+                        <div id="auth-content" class="tab-content active">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-icon">🔐</div>
+                                    <h3 class="card-title">Autenticación</h3>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Token del Equipo</label>
+                                    <input type="text" id="token" class="form-input" placeholder="TK-XXXX" />
+                                </div>
+                                
+                                <div style="display: flex; gap: 12px;">
+                                    <button id="connect-btn" class="btn btn-primary" onclick="toggleConnection()">
+                                        <span>🔌</span> Conectar
+                                    </button>
+                                    <button id="login-btn" class="btn btn-secondary" onclick="login()" disabled>
+                                        <span>🚀</span> Iniciar Sesión
+                                    </button>
+                                </div>
+                                
+                                <div id="team-info" style="display: none; margin-top: 16px;">
+                                    <div class="card" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3);">
+                                        <div id="team-details"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-icon">📦</div>
+                                    <h3 class="card-title">Inventario</h3>
+                                </div>
+                                <div id="inventory-visualizer" class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-label">Sin datos</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Simulator Tab -->
+                        <div id="simulator-content" class="tab-content">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-icon">🎯</div>
+                                    <h3 class="card-title">Simulador de Mercado</h3>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Tipo de Orden</label>
+                                    <select id="sim-side" class="form-select">
+                                        <option value="BUY">🟢 Comprar</option>
+                                        <option value="SELL">🔴 Vender</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Producto</label>
+                                    <select id="sim-product" class="form-select">
+                                        <option value="FOSFO">FOSFO</option>
+                                        <option value="PITA">PITA</option>
+                                        <option value="PALTA-OIL">PALTA-OIL</option>
+                                        <option value="GUACA">GUACA</option>
+                                        <option value="SEBO">SEBO</option>
+                                        <option value="H-GUACA">H-GUACA</option>
+                                    </select>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <div class="form-group">
+                                        <label class="form-label">Cantidad</label>
+                                        <input type="number" id="sim-qty" class="form-input" placeholder="10" min="1" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Precio</label>
+                                        <input type="number" id="sim-price" class="form-input" placeholder="15.50" step="0.01" />
+                                    </div>
+                                </div>
+                                
+                                <button onclick="createMarketOrder()" class="btn btn-success" disabled id="create-order-btn">
+                                    <span>📈</span> Crear Orden
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Debug Tab -->
+                        <div id="debug-content" class="tab-content">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-icon">⚠️</div>
+                                    <h3 class="card-title">Inyección de Errores</h3>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <button onclick="injectError('INSUFFICIENT_BALANCE')" class="btn btn-danger" disabled id="err-balance-btn">
+                                        ❌ Saldo Insuficiente
+                                    </button>
+                                    <button onclick="injectError('DISCONNECT_CLIENT')" class="btn btn-danger" disabled id="err-disconnect-btn">
+                                        🔌 Desconectar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Center Content Area -->
+            <div class="content-area">
+                <div class="content-header">
+                    <div class="nav-tabs">
+                        <button class="nav-tab active" onclick="switchMainTab('dashboard')">📊 Dashboard</button>
+                        <button class="nav-tab" onclick="switchMainTab('ticker')">📈 Ticker</button>
+                        <button class="nav-tab" onclick="switchMainTab('orderbook')">📋 Órdenes</button>
+                        <button class="nav-tab" onclick="switchMainTab('transactions')">📑 Transacciones</button>
+                    </div>
+                </div>
+                
+                <div class="content-body">
+                    <!-- Dashboard Tab -->
+                    <div id="dashboard-content" class="tab-content active">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="dashboard-balance">$--</div>
+                                <div class="stat-label">Balance</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="dashboard-profit">$--</div>
+                                <div class="stat-label">P&L</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="dashboard-orders">--</div>
+                                <div class="stat-label">Órdenes Activas</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="dashboard-fills">--</div>
+                                <div class="stat-label">Ejecuciones</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-icon">🏆</div>
+                                <h3 class="card-title">Top Productos</h3>
+                            </div>
+                            <div id="top-products">
+                                <p>Cargando datos...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ticker Tab -->
+                    <div id="ticker-content" class="tab-content">
+                        <div id="ticker-list" class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-label">No hay datos disponibles</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Book Tab -->
+                    <div id="orderbook-content" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-icon">📋</div>
+                                <h3 class="card-title">Libro de Órdenes</h3>
+                                <select id="product-selector" class="form-select" style="width: auto;" onchange="updateOrderBook()">
+                                    <option value="">Seleccionar Producto</option>
+                                    <option value="FOSFO">FOSFO</option>
+                                    <option value="PITA">PITA</option>
+                                    <option value="PALTA-OIL">PALTA-OIL</option>
+                                    <option value="GUACA">GUACA</option>
+                                    <option value="SEBO">SEBO</option>
+                                    <option value="H-GUACA">H-GUACA</option>
+                                </select>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <h4 style="color: #10b981; text-align: center; margin-bottom: 12px;">🟢 COMPRAS</h4>
+                                    <div id="buy-orders"></div>
+                                </div>
+                                <div>
+                                    <h4 style="color: #ef4444; text-align: center; margin-bottom: 12px;">🔴 VENTAS</h4>
+                                    <div id="sell-orders"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transactions Tab -->
+                    <div id="transactions-content" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-icon">📑</div>
+                                <h3 class="card-title">Registro de Transacciones</h3>
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick="filterTransactions('all')" class="btn btn-secondary" style="padding: 8px 12px; min-height: auto;">Todas</button>
+                                    <button onclick="filterTransactions('fills')" class="btn btn-secondary" style="padding: 8px 12px; min-height: auto;">Ejecuciones</button>
+                                    <button onclick="clearTransactionLog()" class="btn btn-danger" style="padding: 8px 12px; min-height: auto;">Limpiar</button>
+                                </div>
+                            </div>
+                            
+                            <div id="transaction-log" style="height: 400px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 16px;">
+                                <p>No hay transacciones registradas</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel -->
+            <div class="right-panel" id="right-panel">
+                <div class="panel-container">
+                    <div class="panel-header">
+                        <h2 class="panel-title">💼 Trading</h2>
+                    </div>
+                    
+                    <div class="nav-tabs">
+                        <button class="nav-tab active" onclick="switchRightTab('trading')">💼 Trading</button>
+                        <button class="nav-tab" onclick="switchRightTab('messages')">💬 Mensajes</button>
+                    </div>
+                    
+                    <div class="panel-content">
+                        <!-- Trading Tab -->
+                        <div id="trading-content" class="tab-content active">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-icon">💼</div>
+                                    <h3 class="card-title">Nueva Orden</h3>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <div class="form-group">
+                                        <label class="form-label">Tipo</label>
+                                        <select id="side" class="form-select">
+                                            <option value="BUY">🟢 Comprar</option>
+                                            <option value="SELL">🔴 Vender</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Modo</label>
+                                        <select id="mode" class="form-select">
+                                            <option value="MARKET">📈 Mercado</option>
+                                            <option value="LIMIT">🎯 Límite</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Producto</label>
+                                    <select id="product" class="form-select">
+                                        <option value="FOSFO">FOSFO</option>
+                                        <option value="PITA">PITA</option>
+                                        <option value="PALTA-OIL">PALTA-OIL</option>
+                                        <option value="GUACA">GUACA</option>
+                                        <option value="SEBO">SEBO</option>
+                                        <option value="H-GUACA">H-GUACA</option>
+                                    </select>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <div class="form-group">
+                                        <label class="form-label">Cantidad</label>
+                                        <input type="number" id="qty" class="form-input" placeholder="10" min="1" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Precio</label>
+                                        <input type="number" id="price" class="form-input" placeholder="15.50" step="0.01" />
+                                    </div>
+                                </div>
+                                
+                                <button id="place-order-btn" class="btn btn-primary" onclick="placeOrder()" disabled>
+                                    <span>📤</span> Realizar Orden
+                                </button>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-icon">📋</div>
+                                    <h3 class="card-title">Mis Órdenes</h3>
+                                </div>
+                                <div id="my-orders-list">
+                                    <p>No hay órdenes activas</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Messages Tab -->
+                        <div id="messages-content" class="tab-content">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-icon">💬</div>
+                                    <h3 class="card-title">Mensajes del Sistema</h3>
+                                    <button onclick="clearMessages()" class="btn btn-secondary" style="padding: 8px 12px; min-height: auto;">Limpiar</button>
+                                </div>
+                                
+                                <div id="message-list" style="height: 400px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 12px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
-        <!-- Left Panel: Authentication & Market Simulator -->
-        <div class="panel">
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('auth')">🔐 Auth</button>
-                <button class="tab" onclick="switchTab('simulator')">🎯 Simulador</button>
-                <button class="tab" onclick="switchTab('debug')">🧪 Debug</button>
-                <button class="tab" onclick="switchTab('sessions')">👥 Sesiones</button>
-                <button class="tab" onclick="switchTab('docs')">📚 Docs</button>
-            </div>
+        <!-- Mobile Backdrop -->
+        <div class="backdrop" id="backdrop" onclick="closeAllPanels()"></div>
+    </div>
             
             <div id="auth-tab" class="tab-content active">
                 <div class="debug-warning">
@@ -973,7 +2247,7 @@
                         <span>Dashboard en Vivo</span>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                         <div class="team-info">
                             <h4>💰 Estado Financiero</h4>
                             <p id="dashboard-balance">Balance: $--</p>
@@ -1154,9 +2428,434 @@
                     <button onclick="exportMessages()">📥 Exportar</button>
                 </div>
                 <div class="messages" id="message-list"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Center Content Area -->
+                <div class="column">
+                    <div class="tabs is-boxed">
+                        <ul>
+                            <li class="is-active">
+                                <a onclick="switchMainTab('dashboard')">
+                                    <span class="icon is-small"><i class="fas fa-tachometer-alt"></i></span>
+                                    <span>Dashboard</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a onclick="switchMainTab('ticker')">
+                                    <span class="icon is-small"><i class="fas fa-chart-area"></i></span>
+                                    <span>Ticker</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a onclick="switchMainTab('orderbook')">
+                                    <span class="icon is-small"><i class="fas fa-list-alt"></i></span>
+                                    <span>Libro de Órdenes</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a onclick="switchMainTab('transactions')">
+                                    <span class="icon is-small"><i class="fas fa-history"></i></span>
+                                    <span>Transacciones</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Dashboard Content -->
+                    <div id="dashboard-content" class="content-tab">
+                        <!-- Stats Cards -->
+                        <div class="columns">
+                            <div class="column">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="dashboard-balance">$--</div>
+                                    <div class="stat-label">Balance Total</div>
+                                </div>
+                            </div>
+                            <div class="column">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="dashboard-profit" style="background: var(--warning-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">$--</div>
+                                    <div class="stat-label">Ganancias/Pérdidas</div>
+                                </div>
+                            </div>
+                            <div class="column">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="dashboard-orders" style="background: var(--dark-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">--</div>
+                                    <div class="stat-label">Órdenes Activas</div>
+                                </div>
+                            </div>
+                            <div class="column">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="dashboard-fills" style="background: var(--danger-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">--</div>
+                                    <div class="stat-label">Ejecuciones</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Charts and Analysis -->
+                        <div class="columns">
+                            <div class="column is-8">
+                                <div class="box glass-card">
+                                    <h3 class="title is-4 has-text-white">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-chart-line"></i></span>
+                                            <span>Actividad del Mercado</span>
+                                        </span>
+                                    </h3>
+                                    <div class="content has-text-white-ter">
+                                        <div id="market-activity" class="is-family-monospace">
+                                            <div class="notification is-info is-light">
+                                                <i class="fas fa-info-circle"></i> Conecta para ver la actividad del mercado en tiempo real
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="column">
+                                <div class="box glass-card">
+                                    <h3 class="title is-5 has-text-white">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-trophy"></i></span>
+                                            <span>Top Productos</span>
+                                        </span>
+                                    </h3>
+                                    <div id="top-products" class="content has-text-white-ter">
+                                        <p>Cargando datos...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ticker Content -->
+                    <div id="ticker-content" class="content-tab" style="display: none;">
+                        <div class="box glass-card">
+                            <h3 class="title is-4 has-text-white">
+                                <span class="icon-text">
+                                    <span class="icon"><i class="fas fa-chart-area"></i></span>
+                                    <span>Ticker de Mercado en Vivo</span>
+                                </span>
+                            </h3>
+                            <div id="ticker-list" class="columns is-multiline">
+                                <div class="column is-full">
+                                    <div class="notification is-warning is-light">
+                                        <i class="fas fa-exclamation-triangle"></i> No hay datos de mercado disponibles
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Book Content -->
+                    <div id="orderbook-content" class="content-tab" style="display: none;">
+                        <div class="box glass-card">
+                            <div class="level">
+                                <div class="level-left">
+                                    <div class="level-item">
+                                        <h3 class="title is-4 has-text-white">
+                                            <span class="icon-text">
+                                                <span class="icon"><i class="fas fa-list-alt"></i></span>
+                                                <span>Libro de Órdenes</span>
+                                            </span>
+                                        </h3>
+                                    </div>
+                                </div>
+                                <div class="level-right">
+                                    <div class="level-item">
+                                        <div class="field">
+                                            <div class="control has-icons-left">
+                                                <div class="select">
+                                                    <select id="product-selector" onchange="updateOrderBook()">
+                                                        <option value="">Seleccionar Producto</option>
+                                                        <option value="FOSFO">FOSFO</option>
+                                                        <option value="PITA">PITA</option>
+                                                        <option value="PALTA-OIL">PALTA-OIL</option>
+                                                        <option value="GUACA">GUACA</option>
+                                                        <option value="SEBO">SEBO</option>
+                                                        <option value="H-GUACA">H-GUACA</option>
+                                                    </select>
+                </div>
+                
+                <!-- Right Sidebar -->
+                <div class="column is-3">
+                    <div class="panel glass-card">
+                        <p class="panel-heading">
+                            <span class="icon-text">
+                                <span class="icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </span>
+                                <span>Centro de Trading</span>
+                            </span>
+                        </p>
+                        
+                        <div class="panel-block">
+                            <div class="tabs is-boxed is-fullwidth">
+                                <ul>
+                                    <li class="is-active">
+                                        <a onclick="switchRightTab('trading')">
+                                            <span class="icon is-small"><i class="fas fa-exchange-alt"></i></span>
+                                            <span>Trading</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a onclick="switchRightTab('orders')">
+                                            <span class="icon is-small"><i class="fas fa-list"></i></span>
+                                            <span>Órdenes</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a onclick="switchRightTab('messages')">
+                                            <span class="icon is-small"><i class="fas fa-comments"></i></span>
+                                            <span>Mensajes</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- Trading Tab -->
+                        <div id="trading-content" class="panel-block is-block">
+                            <div class="box glass-card">
+                                <h3 class="title is-5 has-text-white">
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-plus-circle"></i></span>
+                                        <span>Nueva Orden</span>
+                                    </span>
+                                </h3>
+                                
+                                <div class="columns">
+                                    <div class="column">
+                                        <div class="field">
+                                            <label class="label">Tipo</label>
+                                            <div class="control has-icons-left">
+                                                <div class="select is-fullwidth">
+                                                    <select id="side">
+                                                        <option value="BUY">🟢 Comprar</option>
+                                                        <option value="SELL">🔴 Vender</option>
+                                                    </select>
+                                                </div>
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="field">
+                                            <label class="label">Modo</label>
+                                            <div class="control has-icons-left">
+                                                <div class="select is-fullwidth">
+                                                    <select id="mode">
+                                                        <option value="MARKET">📈 Mercado</option>
+                                                        <option value="LIMIT">🎯 Límite</option>
+                                                    </select>
+                                                </div>
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-cog"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="field">
+                                    <label class="label">Producto</label>
+                                    <div class="control has-icons-left">
+                                        <div class="select is-fullwidth">
+                                            <select id="product">
+                                                <option value="FOSFO">FOSFO</option>
+                                                <option value="PITA">PITA</option>
+                                                <option value="PALTA-OIL">PALTA-OIL</option>
+                                                <option value="GUACA">GUACA</option>
+                                                <option value="SEBO">SEBO</option>
+                                                <option value="H-GUACA">H-GUACA</option>
+                                            </select>
+                                        </div>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-leaf"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="columns">
+                                    <div class="column">
+                                        <div class="field">
+                                            <label class="label">Cantidad</label>
+                                            <div class="control has-icons-left">
+                                                <input class="input" type="number" id="qty" placeholder="10" min="1">
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-hashtag"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="field">
+                                            <label class="label">Precio</label>
+                                            <div class="control has-icons-left">
+                                                <input class="input" type="number" id="price" placeholder="15.50" step="0.01">
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-dollar-sign"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="field">
+                                    <div class="control">
+                                        <button class="button is-primary is-fullwidth" id="place-order-btn" onclick="placeOrder()" disabled>
+                                            <span class="icon">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </span>
+                                            <span>Realizar Orden</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Orders Tab -->
+                        <div id="orders-content" class="panel-block is-block" style="display: none;">
+                            <div class="box glass-card">
+                                <h3 class="title is-5 has-text-white">
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-list"></i></span>
+                                        <span>Mis Órdenes</span>
+                                    </span>
+                                </h3>
+                                
+                                <div class="buttons">
+                                    <button class="button is-info is-small" onclick="refreshMyOrders()">
+                                        <span class="icon">
+                                            <i class="fas fa-sync"></i>
+                                        </span>
+                                        <span>Actualizar</span>
+                                    </button>
+                                    <button class="button is-danger is-small" onclick="cancelAllOrders()">
+                                        <span class="icon">
+                                            <i class="fas fa-times"></i>
+                                        </span>
+                                        <span>Cancelar Todas</span>
+                                    </button>
+                                </div>
+                                
+                                <div id="my-orders-list" class="content is-family-monospace">
+                                    <div class="notification is-warning is-light">
+                                        <i class="fas fa-info-circle"></i> No hay órdenes activas
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Messages Tab -->
+                        <div id="messages-content" class="panel-block is-block" style="display: none;">
+                            <div class="box glass-card">
+                                <div class="level">
+                                    <div class="level-left">
+                                        <div class="level-item">
+                                            <h3 class="title is-5 has-text-white">
+                                                <span class="icon-text">
+                                                    <span class="icon"><i class="fas fa-comments"></i></span>
+                                                    <span>Mensajes del Sistema</span>
+                                                </span>
+                                            </h3>
+                                        </div>
+                                    </div>
+                                    <div class="level-right">
+                                        <div class="level-item">
+                                            <button class="button is-small" onclick="clearMessages()">
+                                                <span class="icon">
+                                                    <i class="fas fa-trash"></i>
+                                                </span>
+                                                <span>Limpiar</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div id="message-list" class="content is-family-monospace" style="height: 400px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 1rem;">
+                                    <div class="notification is-info is-light">
+                                        <i class="fas fa-info-circle"></i> No hay mensajes del sistema
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
+                                                <span class="icon is-small is-left">
+                                                    <i class="fas fa-leaf"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="columns">
+                                <div class="column">
+                                    <h4 class="title is-5 has-text-success">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-arrow-up"></i></span>
+                                            <span>Órdenes de Compra</span>
+                                        </span>
+                                    </h4>
+                                    <div id="buy-orders" class="is-family-monospace">
+                                        <div class="notification is-success is-light">Selecciona un producto</div>
+                                    </div>
+                                </div>
+                                <div class="column">
+                                    <h4 class="title is-5 has-text-danger">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-arrow-down"></i></span>
+                                            <span>Órdenes de Venta</span>
+                                        </span>
+                                    </h4>
+                                    <div id="sell-orders" class="is-family-monospace">
+                                        <div class="notification is-danger is-light">Selecciona un producto</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transactions Content -->
+                    <div id="transactions-content" class="content-tab" style="display: none;">
+                        <div class="box glass-card">
+                            <div class="level">
+                                <div class="level-left">
+                                    <div class="level-item">
+                                        <h3 class="title is-4 has-text-white">
+                                            <span class="icon-text">
+                                                <span class="icon"><i class="fas fa-history"></i></span>
+                                                <span>Registro de Transacciones</span>
+                                            </span>
+                                        </h3>
+                                    </div>
+                                </div>
+                                <div class="level-right">
+                                    <div class="level-item">
+                                        <div class="buttons">
+                                            <button class="button is-info is-small" onclick="filterTransactions('all')">Todas</button>
+                                            <button class="button is-success is-small" onclick="filterTransactions('fills')">Ejecuciones</button>
+                                            <button class="button is-danger is-small" onclick="clearTransactionLog()">Limpiar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="transaction-log" class="content is-family-monospace" style="height: 400px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 1rem;">
+                                <div class="notification is-info is-light">
+                                    <i class="fas fa-info-circle"></i> No hay transacciones registradas
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
     <script>
         let ws = null;
@@ -1202,52 +2901,71 @@
         const connectionTime = document.getElementById('connection-time');
         const serverTime = document.getElementById('server-time');
         
-        // Tab Management
-        function switchTab(tabName) {
-            console.log('Switching to tab:', tabName); // Debug logging
+        // Bulma Tab Management
+        function switchSidebarTab(tabName) {
+            // Remove active class from all sidebar tabs
+            document.querySelectorAll('.column.is-3 .tabs li').forEach(tab => tab.classList.remove('is-active'));
+            document.querySelectorAll('.column.is-3 .panel-block.is-block').forEach(content => content.style.display = 'none');
             
-            // Find the panel containing this tab
-            const panel = event.target.closest('.panel');
-            if (!panel) {
-                console.error('No panel found for tab');
-                return;
-            }
-            
-            // Only affect tabs within this panel
-            panel.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            panel.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            // Activate clicked tab
-            event.target.classList.add('active');
-            
-            // Activate corresponding tab content
-            const targetTab = document.getElementById(`${tabName}-tab`);
-            if (targetTab) {
-                targetTab.classList.add('active');
-                console.log('Successfully activated tab:', tabName);
-            } else {
-                console.error('Target tab not found:', `${tabName}-tab`);
-            }
+            // Activate clicked tab and corresponding content
+            event.target.closest('li').classList.add('is-active');
+            document.getElementById(`${tabName}-content`).style.display = 'block';
         }
         
         function switchMainTab(tabName) {
-            // Find the center panel
-            const centerPanel = document.querySelector('.center-panel');
-            centerPanel.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            centerPanel.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            // Remove active class from all main tabs
+            document.querySelectorAll('.column:not(.is-3) .tabs li').forEach(tab => tab.classList.remove('is-active'));
+            document.querySelectorAll('.content-tab').forEach(content => content.style.display = 'none');
             
-            event.target.classList.add('active');
-            document.getElementById(`${tabName}-tab`).classList.add('active');
+            // Activate clicked tab and corresponding content
+            event.target.closest('li').classList.add('is-active');
+            document.getElementById(`${tabName}-content`).style.display = 'block';
         }
         
         function switchRightTab(tabName) {
-            const panel = event.target.closest('.panel');
-            panel.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            panel.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            // Remove active class from all right panel tabs
+            document.querySelectorAll('.column.is-3:last-child .tabs li').forEach(tab => tab.classList.remove('is-active'));
+            document.querySelectorAll('.column.is-3:last-child .panel-block.is-block').forEach(content => content.style.display = 'none');
             
-            event.target.classList.add('active');
-            document.getElementById(`${tabName}-tab`).classList.add('active');
+            // Activate clicked tab and corresponding content
+            event.target.closest('li').classList.add('is-active');
+            document.getElementById(`${tabName}-content`).style.display = 'block';
         }
+        
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const navbarMenu = document.getElementById('navbarMenu');
+            navbarMenu.classList.toggle('is-active');
+        }
+        
+        // Panel Toggle Functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('backdrop');
+            
+            if (window.innerWidth <= 1200) {
+                sidebar.classList.toggle('open');
+                backdrop.classList.toggle('active');
+            }
+        }
+        
+        function toggleRightPanel() {
+            const rightPanel = document.getElementById('right-panel');
+            const backdrop = document.getElementById('backdrop');
+            
+            if (window.innerWidth <= 1200) {
+                rightPanel.classList.toggle('open');
+                backdrop.classList.toggle('active');
+            }
+        }
+        
+        function closeAllPanels() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('right-panel').classList.remove('open');
+            document.getElementById('backdrop').classList.remove('active');
+        }
+        
+
         
         // Connection Management
         function toggleConnection() {
@@ -1358,16 +3076,78 @@
         
         // Status Management
         function updateStatus(status, message) {
-            updateConnectionStatus(status, message);
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const statusTag = document.getElementById('status-tag');
+            
+            // Remove all status classes
+            statusDot.className = 'status-dot';
+            statusTag.className = 'tag';
+            
+            switch(status) {
+                case 'connecting':
+                    statusDot.classList.add('status-connecting');
+                    statusText.textContent = 'Conectando...';
+                    statusTag.classList.add('is-warning');
+                    break;
+                case 'connected':
+                    statusDot.classList.add('status-connected');
+                    statusText.textContent = 'Conectado';
+                    statusTag.classList.add('is-success');
+                    break;
+                case 'authenticated':
+                    statusDot.classList.add('status-authenticated');
+                    statusText.textContent = `Autenticado: ${message}`;
+                    statusTag.classList.add('is-info');
+                    break;
+                default:
+                    statusDot.classList.add('status-disconnected');
+                    statusText.textContent = 'Desconectado';
+                    statusTag.classList.add('is-danger');
+            }
+            
             updateButtonStates();
         }
         
         function addMessage(type, message) {
+            const messageContainer = document.getElementById('message-list');
             const msg = document.createElement('div');
-            msg.className = `message ${type}`;
-            msg.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            messageList.appendChild(msg);
-            messageList.scrollTop = messageList.scrollHeight;
+            
+            let bulmaClass = 'is-info';
+            let icon = 'fas fa-info-circle';
+            
+            switch(type) {
+                case 'success':
+                case 'fill':
+                    bulmaClass = 'is-success';
+                    icon = 'fas fa-check-circle';
+                    break;
+                case 'error':
+                    bulmaClass = 'is-danger';
+                    icon = 'fas fa-exclamation-circle';
+                    break;
+                case 'warning':
+                    bulmaClass = 'is-warning';
+                    icon = 'fas fa-exclamation-triangle';
+                    break;
+            }
+            
+            msg.className = `message-item message-${type}`;
+            msg.innerHTML = `
+                <span class="icon">
+                    <i class="${icon}"></i>
+                </span>
+                <span>[${new Date().toLocaleTimeString()}] ${message}</span>
+            `;
+            
+            messageContainer.appendChild(msg);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+            
+            // Remove old messages if too many
+            const messages = messageContainer.children;
+            if (messages.length > 100) {
+                messageContainer.removeChild(messages[0]);
+            }
         }
         
         // Authentication
