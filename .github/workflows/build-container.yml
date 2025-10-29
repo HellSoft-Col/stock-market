@@ -24,7 +24,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Buildah
       run: |
@@ -54,7 +54,7 @@ jobs:
       id: build
       run: |
         # Create a new container from base image
-        CONTAINER=$(buildah from golang:1.21-alpine)
+        CONTAINER=$(buildah from golang:1.25-alpine)
         echo "Created container: $CONTAINER"
         
         # Set working directory
@@ -157,7 +157,7 @@ jobs:
         output-file: sbom.spdx.json
 
     - name: Upload SBOM
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: sbom
         path: sbom.spdx.json
