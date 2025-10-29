@@ -1,7 +1,7 @@
 server:
   protocol: "websocket"
   host: "0.0.0.0"
-  port: 8080  # Consistent with container deployment
+  port: 80  # Default port for Cloudflare compatibility
   maxConnections: 100
   readTimeout: 30s
   writeTimeout: 10s

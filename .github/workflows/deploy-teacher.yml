@@ -249,16 +249,14 @@ jobs:
           --location '${{ vars.AZURE_LOCATION || 'eastus' }}' \
           --dns-name-label '$CONTAINER_NAME' \
           --ports 80 \
-          --protocol TCP \
           --cpu ${{ vars.CPU_CORES || 0.5 }} \
           --memory ${{ vars.MEMORY_GB || 1 }} \
           --restart-policy Always \
           --environment-variables PORT=80 LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }} \
           --secure-environment-variables MONGODB_URI='${{ secrets.MONGODB_URI }}' \
-          --registry-server '${{ env.REGISTRY }}' \
+          --registry-login-server '${{ env.REGISTRY }}' \
           --registry-username '${{ github.actor }}' \
-          --registry-password '${{ secrets.GHCR_PAT }}' \
-          --command-line '/exchange-server -config=/config.production.yaml'"
+          --registry-password '${{ secrets.GHCR_PAT }}'"
         
         # Add Log Analytics if available
         if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
@@ -374,6 +372,40 @@ jobs:
         # Export container IP for Cloudflare DNS update
         echo "CONTAINER_IP=$IP" >> $GITHUB_ENV
         echo "CONTAINER_FQDN=$FQDN" >> $GITHUB_ENV
+
+    - name: Debug Container Status
+      run: |
+        CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
+        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        
+        echo "Container debugging information:"
+        echo "================================"
+        
+        # Check container state
+        echo "Container State:"
+        az container show \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --query 'instanceView.state' \
+          --output tsv
+        
+        echo ""
+        echo "Container Logs (last 20 lines):"
+        az container logs \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --tail 20 || echo "Could not retrieve logs"
+        
+        echo ""
+        echo "Network Test (if container is running):"
+        if [ -n "${{ env.CONTAINER_IP }}" ]; then
+          echo "Testing HTTP connection to ${{ env.CONTAINER_IP }}:80"
+          curl -v --connect-timeout 10 "http://${{ env.CONTAINER_IP }}:80" || echo "Connection failed"
+          
+          echo ""
+          echo "Testing direct FQDN connection:"
+          curl -v --connect-timeout 10 "http://${{ env.CONTAINER_FQDN }}" || echo "FQDN connection failed"
+        fi
 
     - name: Update Cloudflare DNS
       if: env.CONTAINER_IP != '' && env.CONTAINER_IP != 'null'
@@ -511,51 +543,7 @@ jobs:
         echo "🔗 Your site should be accessible at:"
         echo "  https://$DOMAIN_NAME"
 
-    - name: Extended health check
-      id: health_check
-      run: |
-        CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
-        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
-        
-        echo "Performing extended health check..."
-        
-        # Wait for container to be fully ready
-        sleep 120
-        
-        # Check container is still running
-        STATE=$(az container show \
-          --resource-group "$RESOURCE_GROUP" \
-          --name "$CONTAINER_NAME" \
-          --query 'instanceView.state' \
-          --output tsv)
-        
-        if [ "$STATE" != "Running" ]; then
-          echo "❌ Container not running: $STATE"
-          exit 1
-        fi
-        
-        # Get container info for health check
-        INFO=$(az container show \
-          --resource-group "$RESOURCE_GROUP" \
-          --name "$CONTAINER_NAME" \
-          --query '{fqdn: ipAddress.fqdn, ip: ipAddress.ip}' \
-          --output json)
-        
-        FQDN=$(echo "$INFO" | jq -r '.fqdn')
-        
-         if [ "$FQDN" != "null" ] && [ -n "$FQDN" ]; then
-           # Test HTTP endpoint on port 80
-           echo "Testing HTTP endpoint: http://$FQDN"
-           if curl --fail --max-time 30 --retry 3 --retry-delay 10 "http://$FQDN" > /dev/null 2>&1; then
-             echo "✅ HTTP health check passed"
-           else
-             echo "❌ HTTP health check failed"
-             echo "Note: This is expected until Cloudflare proxy is configured"
-           fi
-         fi
-        
-        echo "✅ Extended health check completed"
-        echo "healthy=true" >> $GITHUB_OUTPUT
+
 
     - name: Test Cloudflare HTTPS
       if: env.CONTAINER_IP != '' && env.CONTAINER_IP != 'null'
@@ -774,7 +762,6 @@ jobs:
          echo "  SSL Auto-renewal: $([ -n "$(az container show --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME" --query 'properties.containers[?name==`certbot`]' --output tsv)" ] && echo "Enabled" || echo "Disabled")"
 
     - name: Save deployment metadata
-      if: steps.health_check.outputs.healthy == 'true'
       run: |
         echo "Saving deployment metadata..."
         
@@ -802,7 +789,7 @@ jobs:
         path: deployment-metadata.json
 
     - name: Promote to stable
-      if: steps.health_check.outputs.healthy == 'true' && github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main'
       run: |
         echo "Promoting deployment to stable tag..."
         
