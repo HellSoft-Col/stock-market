@@ -93,6 +93,9 @@ jobs:
         buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.yaml /config.yaml
         buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.production.yaml /config.production.yaml
         
+        # Copy web directory for static files (index.html)
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/web /web
+        
         # Configure container
         buildah config --port 80 $FINAL_CONTAINER
         buildah config --env PORT=80 $FINAL_CONTAINER

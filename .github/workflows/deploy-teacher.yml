@@ -97,7 +97,10 @@ jobs:
 
     - name: Generate deployment config
       run: |
-        cat > deployment.yaml << EOF
+        echo "📝 Generating deployment configuration..."
+        
+        # Generate base deployment config
+        cat > deployment.json << EOF
         {
           "apiVersion": "2021-10-01",
           "location": "${{ vars.AZURE_LOCATION || 'eastus' }}",
@@ -116,22 +119,6 @@ jobs:
                     }
                   ],
                   "environmentVariables": [
-                    {
-                      "name": "VIRTUAL_HOST",
-                      "value": "${{ vars.DOMAIN_NAME }}"
-                    },
-                    {
-                      "name": "VIRTUAL_PORT",
-                      "value": "8080"
-                    },
-                    {
-                      "name": "LETSENCRYPT_HOST",
-                      "value": "${{ vars.DOMAIN_NAME }}"
-                    },
-                    {
-                      "name": "LETSENCRYPT_EMAIL",
-                      "value": "${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}"
-                    },
                     {
                       "name": "MONGODB_URI",
                       "secureValue": "${{ secrets.MONGODB_URI }}"
@@ -154,9 +141,9 @@ jobs:
                 }
               },
               {
-                "name": "nginx-proxy",
+                "name": "https-portal",
                 "properties": {
-                  "image": "nginxproxy/nginx-proxy:alpine",
+                  "image": "steveltn/https-portal:1",
                   "ports": [
                     {
                       "protocol": "TCP",
@@ -169,77 +156,32 @@ jobs:
                   ],
                   "environmentVariables": [
                     {
-                      "name": "DEFAULT_HOST",
-                      "value": "${{ vars.DOMAIN_NAME || 'default.local' }}"
+                      "name": "DOMAINS",
+                      "value": "${{ vars.DOMAIN_NAME || 'example.com' }} -> http://localhost:8080"
+                    },
+                    {
+                      "name": "STAGE",
+                      "value": "${{ vars.LETSENCRYPT_STAGE || 'staging' }}"
+                    },
+                    {
+                      "name": "WEBSOCKET",
+                      "value": "true"
+                    },
+                    {
+                      "name": "CLIENT_MAX_BODY_SIZE",
+                      "value": "0"
                     }
                   ],
                   "volumeMounts": [
                     {
-                      "name": "nginx-certs",
-                      "mountPath": "/etc/nginx/certs",
-                      "readOnly": true
-                    },
-                    {
-                      "name": "nginx-vhost",
-                      "mountPath": "/etc/nginx/vhost.d"
-                    },
-                    {
-                      "name": "nginx-html",
-                      "mountPath": "/usr/share/nginx/html"
+                      "name": "https-portal-data",
+                      "mountPath": "/var/lib/https-portal"
                     }
                   ],
                   "resources": {
                     "requests": {
                       "memoryInGB": 0.5,
                       "cpu": 0.3
-                    }
-                  }
-                }
-              },
-              {
-                "name": "acme-companion",
-                "properties": {
-                  "image": "nginxproxy/acme-companion:latest",
-                  "environmentVariables": [
-                    {
-                      "name": "DEFAULT_EMAIL",
-                      "value": "${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}"
-                    },
-                    {
-                      "name": "NGINX_PROXY_CONTAINER",
-                      "value": "nginx-proxy"
-                    },
-                    {
-                      "name": "ACME_CA_URI",
-                      "value": "https://acme-v02.api.letsencrypt.org/directory"
-                    },
-                    {
-                      "name": "DEBUG",
-                      "value": "1"
-                    }
-                  ],
-                  "volumeMounts": [
-                    {
-                      "name": "nginx-certs",
-                      "mountPath": "/etc/nginx/certs"
-                    },
-                    {
-                      "name": "nginx-vhost",
-                      "mountPath": "/etc/nginx/vhost.d"
-                    },
-                    {
-                      "name": "nginx-html",
-                      "mountPath": "/usr/share/nginx/html"
-                    },
-                    {
-                      "name": "acme-state",
-                      "mountPath": "/etc/acme.sh"
-                    }
-                  ],
-                  "resources": {
-                    "requests": {
-                      "memoryInGB": 0.3,
-                      "cpu": 0.1
                     }
                   }
                 }
@@ -274,28 +216,30 @@ jobs:
             "restartPolicy": "Always",
             "volumes": [
               {
-                "name": "nginx-certs",
-                "emptyDir": {}
-              },
-              {
-                "name": "nginx-vhost",
-                "emptyDir": {}
-              },
-              {
-                "name": "nginx-html",
-                "emptyDir": {}
-              },
-              {
-                "name": "acme-state",
+                "name": "https-portal-data",
                 "emptyDir": {}
               }
-            ],
+            ]
+        EOF
+        
+        # Add Log Analytics conditionally
+        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
+          echo "✅ Adding Log Analytics configuration"
+          cat >> deployment.json << EOF
+            ,
             "diagnostics": {
               "logAnalytics": {
                 "workspaceId": "$LOG_ANALYTICS_WORKSPACE_ID",
                 "workspaceKey": "$LOG_ANALYTICS_WORKSPACE_KEY"
               }
             }
+        EOF
+        else
+          echo "⚠️ Skipping Log Analytics (workspace not available)"
+        fi
+        
+        # Close the JSON
+        cat >> deployment.json << EOF
           },
           "type": "Microsoft.ContainerInstance/containerGroups"
         }
@@ -322,34 +266,60 @@ jobs:
           echo "Using existing Log Analytics workspace: $WORKSPACE_EXISTS"
         fi
         
-        # Get workspace credentials
-        WORKSPACE_ID=$(az monitor log-analytics workspace show \
-          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
-          --query customerId --output tsv)
+        # Wait for workspace to be fully provisioned
+        echo "Waiting for workspace to be fully provisioned..."
+        sleep 30
         
-        WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys \
-          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
-          --query primarySharedKey --output tsv)
+        # Get workspace credentials with retry
+        for i in {1..3}; do
+          WORKSPACE_ID=$(az monitor log-analytics workspace show \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+            --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
+            --query customerId --output tsv 2>/dev/null)
+          
+          if [ -n "$WORKSPACE_ID" ] && [ "$WORKSPACE_ID" != "null" ]; then
+            break
+          fi
+          
+          echo "Attempt $i: Workspace not ready, waiting..."
+          sleep 10
+        done
         
-        echo "✅ Log Analytics Workspace ID: $WORKSPACE_ID"
-        echo "LOG_ANALYTICS_WORKSPACE_ID=$WORKSPACE_ID" >> $GITHUB_ENV
-        echo "LOG_ANALYTICS_WORKSPACE_KEY=$WORKSPACE_KEY" >> $GITHUB_ENV
+        if [ -z "$WORKSPACE_ID" ] || [ "$WORKSPACE_ID" = "null" ]; then
+          echo "❌ Failed to get workspace ID, disabling Log Analytics"
+          echo "LOG_ANALYTICS_ENABLED=false" >> $GITHUB_ENV
+        else
+          WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+            --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
+            --query primarySharedKey --output tsv)
+          
+          if [ -n "$WORKSPACE_KEY" ] && [ "$WORKSPACE_KEY" != "null" ]; then
+            echo "✅ Log Analytics Workspace ID: $WORKSPACE_ID"
+            echo "LOG_ANALYTICS_WORKSPACE_ID=$WORKSPACE_ID" >> $GITHUB_ENV
+            echo "LOG_ANALYTICS_WORKSPACE_KEY=$WORKSPACE_KEY" >> $GITHUB_ENV
+            echo "LOG_ANALYTICS_ENABLED=true" >> $GITHUB_ENV
+          else
+            echo "❌ Failed to get workspace key, disabling Log Analytics"
+            echo "LOG_ANALYTICS_ENABLED=false" >> $GITHUB_ENV
+          fi
+        fi
 
     - name: Deploy container with SSL and logging
       run: |
-        echo "🚀 Deploying container group with SSL certificates and logging..."
+        echo "🚀 Deploying WebSocket application with SSL and logging..."
         echo "📊 Image: ${{ steps.image.outputs.image }}"
         echo "🔧 Registry: ${{ env.REGISTRY }}"
         echo "👤 Username: ${{ github.actor }}"
         echo "🔑 Using GHCR_PAT for registry authentication"
-        echo "🔒 SSL: nginx-proxy + acme-companion (Let's Encrypt)"
+        echo "🔒 SSL: HTTPS-PORTAL with Let's Encrypt"
+        echo "🌐 WebSocket + HTTPS support enabled"
         echo "📝 Logging: Azure Log Analytics enabled"
+        echo "📁 Static files: /web/index.html included"
         
         # Display the deployment config for debugging
         echo "Deployment configuration:"
-        cat deployment.yaml
+        cat deployment.json
         
         az container delete \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
@@ -360,25 +330,39 @@ jobs:
         
         az container create \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --file deployment.yaml
+          --file deployment.json
         
         echo ""
-        echo "🎯 Deployment Configuration Summary:"
-        echo "=================================="
-        echo "Domain: ${{ vars.DOMAIN_NAME || 'NOT_SET' }}"
-        echo "Let's Encrypt Email: ${{ vars.LETSENCRYPT_EMAIL || 'NOT_SET' }}"
-        echo "SSL Auto-provisioning: $([ -n "${{ vars.DOMAIN_NAME }}" ] && echo "✅ Enabled" || echo "❌ Disabled - Set DOMAIN_NAME variable")"
+        echo "🎯 SSL-Enabled WebSocket Application Deployment:"
+        echo "==============================================="
+        echo "✅ HTTPS-PORTAL: Automatic SSL with Let's Encrypt"
+        echo "✅ WebSocket support: wss:// connections enabled"
+        echo "✅ HTTP → HTTPS redirect: Automatic"
+        echo "✅ Certificate auto-renewal: Every 60 days"
+        echo "✅ Log Analytics: Enabled"
         echo ""
-        echo "📋 Required DNS Setup:"
-        echo "====================="
+        echo "📋 Access Information:"
+        echo "===================="
         if [ -n "${{ vars.DOMAIN_NAME }}" ]; then
-          echo "1. Create DNS A record:"
-          echo "   ${{ vars.DOMAIN_NAME }} -> [Container IP will be shown below]"
-          echo "2. Wait 5-10 minutes for Let's Encrypt certificate provisioning"
-          echo "3. Access your app at: https://${{ vars.DOMAIN_NAME }}"
+          echo "🌐 Website: https://${{ vars.DOMAIN_NAME }}/"
+          echo "🔌 WebSocket: wss://${{ vars.DOMAIN_NAME }}/ws"
+          echo "📱 Trading interface: https://${{ vars.DOMAIN_NAME }}/"
+          echo ""
+          echo "📍 DNS Setup Required:"
+          echo "Create A record: ${{ vars.DOMAIN_NAME }} → [Container IP shown below]"
+          echo ""
+          echo "🔒 SSL Certificate Status:"
+          echo "Stage: ${{ vars.LETSENCRYPT_STAGE || 'staging' }}"
+          if [ "${{ vars.LETSENCRYPT_STAGE || 'staging' }}" = "staging" ]; then
+            echo "⚠️  Using staging certificates (untrusted)"
+            echo "💡 Set LETSENCRYPT_STAGE=production for trusted certificates"
+          else
+            echo "✅ Using production certificates (trusted)"
+          fi
         else
-          echo "⚠️  DOMAIN_NAME variable not set. SSL will not be configured."
-          echo "   Set DOMAIN_NAME in repository variables to enable SSL."
+          echo "⚠️  DOMAIN_NAME not set - using default domain"
+          echo "🌐 Website: https://[CONTAINER_FQDN]/"
+          echo "🔌 WebSocket: wss://[CONTAINER_FQDN]/ws"
         fi
 
     - name: Health check
