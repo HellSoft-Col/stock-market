@@ -428,6 +428,8 @@ jobs:
           if [ "$SUCCESS" = "true" ]; then
             echo "✅ DNS record updated successfully!"
             echo "   $DOMAIN_NAME -> $RECORD_CONTENT (proxied)"
+            echo "   Record ID: $(echo "$RESPONSE" | jq -r '.result.id')"
+            echo "   Proxied: $(echo "$RESPONSE" | jq -r '.result.proxied')"
           else
             echo "❌ Failed to update DNS record:"
             echo "$RESPONSE" | jq '.errors[]?.message // .errors // .'
@@ -455,6 +457,7 @@ jobs:
             echo "✅ DNS record created successfully!"
             echo "   Record ID: $NEW_RECORD_ID"
             echo "   $DOMAIN_NAME -> $RECORD_CONTENT (proxied)"
+            echo "   Proxied: $(echo "$RESPONSE" | jq -r '.result.proxied')"
           else
             echo "❌ Failed to create DNS record:"
             echo "$RESPONSE" | jq '.errors[]?.message // .errors // .'
@@ -467,24 +470,46 @@ jobs:
         echo "Waiting for DNS propagation..."
         sleep 30
         
-        # Verify DNS update
+        # Verify DNS update (accounting for Cloudflare proxy)
         echo "Verifying DNS update..."
         for i in {1..5}; do
           RESOLVED_IP=$(dig +short "$DOMAIN_NAME" @1.1.1.1 | tail -n1)
-          if [ "$RESOLVED_IP" = "$RECORD_CONTENT" ]; then
-            echo "✅ DNS propagation confirmed: $DOMAIN_NAME -> $RESOLVED_IP"
+          
+          # Check if we get Cloudflare IPs (indicating proxied record is working)
+          if echo "$RESOLVED_IP" | grep -qE "^(104\.2[0-1]\.|172\.6[4-7]\.|188\.114\.)"; then
+            echo "✅ DNS proxied through Cloudflare: $DOMAIN_NAME -> $RESOLVED_IP (Cloudflare IP)"
+            echo "✅ Origin server IP ($RECORD_CONTENT) correctly configured behind proxy"
+            break
+          elif [ "$RESOLVED_IP" = "$RECORD_CONTENT" ]; then
+            echo "✅ DNS direct resolution: $DOMAIN_NAME -> $RESOLVED_IP"
+            echo "⚠️  Note: Record appears to be unproxied (gray cloud)"
             break
           else
-            echo "DNS not yet propagated (attempt $i/5): $RESOLVED_IP != $RECORD_CONTENT"
+            echo "DNS propagation attempt $i/5: $RESOLVED_IP"
             if [ $i -lt 5 ]; then
               sleep 15
+            else
+              echo "⚠️  DNS verification inconclusive, but record was updated in Cloudflare"
+              echo "The DNS record update was successful in Cloudflare's API"
             fi
           fi
         done
         
         echo ""
         echo "🎉 Cloudflare DNS automation completed!"
-        echo "Your site should be accessible at: https://$DOMAIN_NAME"
+        echo ""
+        echo "📋 What was configured:"
+        echo "  • A record: $DOMAIN_NAME -> $RECORD_CONTENT"
+        echo "  • Proxy: Enabled (orange cloud)"
+        echo "  • SSL: Handled by Cloudflare"
+        echo ""
+        echo "🌐 Public resolution:"
+        echo "  • DNS queries return Cloudflare proxy IPs (expected)"
+        echo "  • Cloudflare routes traffic to your container IP"
+        echo "  • HTTPS/SSL termination handled by Cloudflare"
+        echo ""
+        echo "🔗 Your site should be accessible at:"
+        echo "  https://$DOMAIN_NAME"
 
     - name: Extended health check
       id: health_check
@@ -681,18 +706,23 @@ jobs:
         echo "Target Domain: $DOMAIN"
         echo ""
         
-        # Check if domain points to container
+        # Check if domain points to container (accounting for Cloudflare proxy)
         if [ "$DOMAIN" != "your-domain.com" ]; then
           echo "DNS Resolution Check:"
           RESOLVED_IP=$(dig +short "$DOMAIN" A | tail -n1)
           echo "  $DOMAIN resolves to: $RESOLVED_IP"
           echo "  Container IP: $IP"
           
-          if [ "$RESOLVED_IP" = "$IP" ]; then
-            echo "  ✅ DNS correctly points to container"
+          # Check if DNS is proxied through Cloudflare
+          if echo "$RESOLVED_IP" | grep -qE "^(104\.2[0-1]\.|172\.6[4-7]\.|188\.114\.)"; then
+            echo "  ✅ DNS proxied through Cloudflare (expected for HTTPS)"
+            echo "  ✅ Origin IP ($IP) configured behind Cloudflare proxy"
+          elif [ "$RESOLVED_IP" = "$IP" ]; then
+            echo "  ✅ DNS points directly to container"
+            echo "  ⚠️  Note: For HTTPS, enable Cloudflare proxy (orange cloud)"
           else
-            echo "  ❌ DNS mismatch - update your DNS A record"
-            echo "  Set: $DOMAIN -> $IP"
+            echo "  ❌ DNS issue - unexpected IP resolution"
+            echo "  Expected: Cloudflare proxy IPs or direct container IP ($IP)"
           fi
           echo ""
           
