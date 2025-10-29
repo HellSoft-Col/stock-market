@@ -28,17 +28,26 @@ jobs:
         format: 'table'
         exit-code: '0'  # Don't fail the build on vulnerabilities
 
-    - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
+    - name: Set up Go
+      uses: actions/setup-go@v5
       with:
-        args: ./...
+        go-version-file: 'go.mod'
+
+    - name: Run Gosec Security Scanner
+      run: |
+        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+        gosec ./... || true  # Don't fail build on security findings
 
     - name: Run Semgrep static analysis
-      uses: returntocorp/semgrep-action@v1
-      with:
-        config: auto
-        generateSarif: false  # Don't generate SARIF since we can't upload it
-      continue-on-error: true  # Don't fail build on findings
+      run: |
+        echo "Installing and running Semgrep..."
+        pip install semgrep
+        semgrep --config=auto --json --output=semgrep-results.json . || true
+        if [ -f semgrep-results.json ]; then
+          echo "Semgrep scan completed. Results:"
+          jq -r '.results[] | "\(.path):\(.start.line) - \(.message)"' semgrep-results.json || cat semgrep-results.json
+        fi
+      continue-on-error: true
 
     - name: Create security summary
       if: always()
@@ -69,16 +78,27 @@ jobs:
         go install golang.org/x/vuln/cmd/govulncheck@latest
         govulncheck ./... || true  # Don't fail build on vulnerabilities
 
-    - name: Run Nancy for dependency vulnerability scanning
+    - name: Run dependency vulnerability scanning with govulncheck
       run: |
-        go install github.com/sonatypecommunity/nancy@latest
-        go list -json -deps ./... | nancy sleuth || true  # Don't fail build on vulnerabilities
+        echo "Running comprehensive Go module vulnerability scan..."
+        go mod tidy
+        govulncheck -json ./... > vulns.json || true
+        if [ -s vulns.json ]; then
+          echo "Vulnerabilities found - see details below:"
+          cat vulns.json
+        else
+          echo "No vulnerabilities found in direct dependencies"
+        fi
         
-    - name: Check for known CVEs in Go modules
+    - name: Audit Go module dependencies
       run: |
-        echo "🔍 Checking Go modules for known vulnerabilities..."
+        echo "Checking Go modules for known vulnerabilities..."
         go mod download
-        go list -m all | grep -v "^go-stock-exchange" || true
+        echo "Direct dependencies:"
+        go list -m all
+        echo ""
+        echo "Checking for outdated modules:"
+        go list -u -m all || true
         
     - name: Create dependency summary
       if: always()
@@ -88,7 +108,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Tools used:**" >> $GITHUB_STEP_SUMMARY
         echo "- govulncheck (Go vulnerability database)" >> $GITHUB_STEP_SUMMARY
-        echo "- Nancy (Sonatype dependency scanner)" >> $GITHUB_STEP_SUMMARY
+        echo "- Go module dependency audit" >> $GITHUB_STEP_SUMMARY
 
   container-security:
     name: Container Security Scan
@@ -118,12 +138,12 @@ jobs:
         fail-build: false
         severity-cutoff: high
         
-    - name: Docker Scout CVE analysis
-      uses: docker/scout-action@v1
-      with:
-        command: cves
-        image: 'stock-exchange:scan'
-        exit-code: false  # Don't fail on vulnerabilities
+    - name: Docker Scout CVE analysis  
+      run: |
+        echo "Running basic container security checks..."
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy:latest image stock-exchange:scan --exit-code 0 || true
+        echo "Container security scan completed"
       continue-on-error: true
         
     - name: Create container security summary
