@@ -117,6 +117,22 @@ jobs:
                   ],
                   "environmentVariables": [
                     {
+                      "name": "VIRTUAL_HOST",
+                      "value": "${{ vars.DOMAIN_NAME }}"
+                    },
+                    {
+                      "name": "VIRTUAL_PORT",
+                      "value": "8080"
+                    },
+                    {
+                      "name": "LETSENCRYPT_HOST",
+                      "value": "${{ vars.DOMAIN_NAME }}"
+                    },
+                    {
+                      "name": "LETSENCRYPT_EMAIL",
+                      "value": "${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}"
+                    },
+                    {
                       "name": "MONGODB_URI",
                       "secureValue": "${{ secrets.MONGODB_URI }}"
                     },
@@ -136,6 +152,97 @@ jobs:
                     }
                   }
                 }
+              },
+              {
+                "name": "nginx-proxy",
+                "properties": {
+                  "image": "nginxproxy/nginx-proxy:alpine",
+                  "ports": [
+                    {
+                      "protocol": "TCP",
+                      "port": 80
+                    },
+                    {
+                      "protocol": "TCP",
+                      "port": 443
+                    }
+                  ],
+                  "environmentVariables": [
+                    {
+                      "name": "DEFAULT_HOST",
+                      "value": "${{ vars.DOMAIN_NAME || 'default.local' }}"
+                    }
+                  ],
+                  "volumeMounts": [
+                    {
+                      "name": "nginx-certs",
+                      "mountPath": "/etc/nginx/certs",
+                      "readOnly": true
+                    },
+                    {
+                      "name": "nginx-vhost",
+                      "mountPath": "/etc/nginx/vhost.d"
+                    },
+                    {
+                      "name": "nginx-html",
+                      "mountPath": "/usr/share/nginx/html"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "memoryInGB": 0.5,
+                      "cpu": 0.3
+                    }
+                  }
+                }
+              },
+              {
+                "name": "acme-companion",
+                "properties": {
+                  "image": "nginxproxy/acme-companion:latest",
+                  "environmentVariables": [
+                    {
+                      "name": "DEFAULT_EMAIL",
+                      "value": "${{ vars.LETSENCRYPT_EMAIL || 'admin@' }}${{ vars.DOMAIN_NAME }}"
+                    },
+                    {
+                      "name": "NGINX_PROXY_CONTAINER",
+                      "value": "nginx-proxy"
+                    },
+                    {
+                      "name": "ACME_CA_URI",
+                      "value": "https://acme-v02.api.letsencrypt.org/directory"
+                    },
+                    {
+                      "name": "DEBUG",
+                      "value": "1"
+                    }
+                  ],
+                  "volumeMounts": [
+                    {
+                      "name": "nginx-certs",
+                      "mountPath": "/etc/nginx/certs"
+                    },
+                    {
+                      "name": "nginx-vhost",
+                      "mountPath": "/etc/nginx/vhost.d"
+                    },
+                    {
+                      "name": "nginx-html",
+                      "mountPath": "/usr/share/nginx/html"
+                    },
+                    {
+                      "name": "acme-state",
+                      "mountPath": "/etc/acme.sh"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "memoryInGB": 0.3,
+                      "cpu": 0.1
+                    }
+                  }
+                }
               }
             ],
             "imageRegistryCredentials": [
@@ -150,25 +257,95 @@ jobs:
               "ports": [
                 {
                   "protocol": "TCP",
+                  "port": 80
+                },
+                {
+                  "protocol": "TCP",
+                  "port": 443
+                },
+                {
+                  "protocol": "TCP",
                   "port": 8080
                 }
               ],
               "dnsNameLabel": "${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
             },
             "osType": "Linux",
-            "restartPolicy": "Always"
+            "restartPolicy": "Always",
+            "volumes": [
+              {
+                "name": "nginx-certs",
+                "emptyDir": {}
+              },
+              {
+                "name": "nginx-vhost",
+                "emptyDir": {}
+              },
+              {
+                "name": "nginx-html",
+                "emptyDir": {}
+              },
+              {
+                "name": "acme-state",
+                "emptyDir": {}
+              }
+            ],
+            "diagnostics": {
+              "logAnalytics": {
+                "workspaceId": "$LOG_ANALYTICS_WORKSPACE_ID",
+                "workspaceKey": "$LOG_ANALYTICS_WORKSPACE_KEY"
+              }
+            }
           },
           "type": "Microsoft.ContainerInstance/containerGroups"
         }
         EOF
 
-    - name: Deploy container
+    - name: Create Log Analytics Workspace
       run: |
-        echo "Deploying simplified container without SSL..."
-        echo "Image: ${{ steps.image.outputs.image }}"
-        echo "Registry: ${{ env.REGISTRY }}"
-        echo "Username: ${{ github.actor }}"
-        echo "Using GHCR_PAT for registry authentication"
+        echo "🔍 Setting up Azure Log Analytics workspace for container logging..."
+        
+        # Check if workspace exists, create if not
+        WORKSPACE_EXISTS=$(az monitor log-analytics workspace show \
+          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+          --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
+          --query name --output tsv 2>/dev/null || echo "")
+        
+        if [ -z "$WORKSPACE_EXISTS" ]; then
+          echo "Creating new Log Analytics workspace..."
+          az monitor log-analytics workspace create \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+            --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
+            --location ${{ vars.AZURE_LOCATION || 'eastus' }} \
+            --sku PerGB2018
+        else
+          echo "Using existing Log Analytics workspace: $WORKSPACE_EXISTS"
+        fi
+        
+        # Get workspace credentials
+        WORKSPACE_ID=$(az monitor log-analytics workspace show \
+          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+          --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
+          --query customerId --output tsv)
+        
+        WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys \
+          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+          --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
+          --query primarySharedKey --output tsv)
+        
+        echo "✅ Log Analytics Workspace ID: $WORKSPACE_ID"
+        echo "LOG_ANALYTICS_WORKSPACE_ID=$WORKSPACE_ID" >> $GITHUB_ENV
+        echo "LOG_ANALYTICS_WORKSPACE_KEY=$WORKSPACE_KEY" >> $GITHUB_ENV
+
+    - name: Deploy container with SSL and logging
+      run: |
+        echo "🚀 Deploying container group with SSL certificates and logging..."
+        echo "📊 Image: ${{ steps.image.outputs.image }}"
+        echo "🔧 Registry: ${{ env.REGISTRY }}"
+        echo "👤 Username: ${{ github.actor }}"
+        echo "🔑 Using GHCR_PAT for registry authentication"
+        echo "🔒 SSL: nginx-proxy + acme-companion (Let's Encrypt)"
+        echo "📝 Logging: Azure Log Analytics enabled"
         
         # Display the deployment config for debugging
         echo "Deployment configuration:"
@@ -184,6 +361,25 @@ jobs:
         az container create \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
           --file deployment.yaml
+        
+        echo ""
+        echo "🎯 Deployment Configuration Summary:"
+        echo "=================================="
+        echo "Domain: ${{ vars.DOMAIN_NAME || 'NOT_SET' }}"
+        echo "Let's Encrypt Email: ${{ vars.LETSENCRYPT_EMAIL || 'NOT_SET' }}"
+        echo "SSL Auto-provisioning: $([ -n "${{ vars.DOMAIN_NAME }}" ] && echo "✅ Enabled" || echo "❌ Disabled - Set DOMAIN_NAME variable")"
+        echo ""
+        echo "📋 Required DNS Setup:"
+        echo "====================="
+        if [ -n "${{ vars.DOMAIN_NAME }}" ]; then
+          echo "1. Create DNS A record:"
+          echo "   ${{ vars.DOMAIN_NAME }} -> [Container IP will be shown below]"
+          echo "2. Wait 5-10 minutes for Let's Encrypt certificate provisioning"
+          echo "3. Access your app at: https://${{ vars.DOMAIN_NAME }}"
+        else
+          echo "⚠️  DOMAIN_NAME variable not set. SSL will not be configured."
+          echo "   Set DOMAIN_NAME in repository variables to enable SSL."
+        fi
 
     - name: Health check
       run: |
@@ -263,16 +459,166 @@ jobs:
         
         if [ "$FQDN" != "null" ] && [ -n "$FQDN" ]; then
           # Test HTTP endpoint
-          echo "Testing HTTP endpoint: http://$FQDN"
-          if curl --fail --max-time 30 --retry 3 --retry-delay 10 "http://$FQDN" > /dev/null 2>&1; then
+          echo "Testing HTTP endpoint: http://$FQDN:8080"
+          if curl --fail --max-time 30 --retry 3 --retry-delay 10 "http://$FQDN:8080" > /dev/null 2>&1; then
             echo "✅ HTTP health check passed"
           else
             echo "⚠️ HTTP health check failed, but container is running"
+          fi
+          
+          # Check SSL certificate status (will fail since we don't have SSL currently)
+          echo "🔒 Checking SSL certificate status..."
+          if timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -dates 2>/dev/null; then
+            echo "✅ SSL certificate found and valid"
+            
+            # Get certificate details
+            echo "Certificate details:"
+            timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>/dev/null || true
+          else
+            echo "❌ No SSL certificate found (expected - current deployment is HTTP only)"
+            echo "💡 To add SSL, we need to re-add nginx+Let's Encrypt containers"
           fi
         fi
         
         echo "✅ Extended health check completed"
         echo "healthy=true" >> $GITHUB_OUTPUT
+
+    - name: Verify Logging Configuration
+      run: |
+        CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
+        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        
+        echo "📊 Container Logging Verification"
+        echo "================================="
+        
+        # Show container group details with logging info
+        echo "Container Group Diagnostics:"
+        az container show \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --query 'properties.diagnostics' \
+          --output table || echo "No diagnostics configured"
+        
+        echo ""
+        echo "📝 How to View Container Logs:"
+        echo "============================="
+        echo "Option 1 - Azure CLI:"
+        echo "  # View all containers"
+        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME"
+        echo ""
+        echo "  # View specific container"
+        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name trading-app"
+        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name nginx-proxy"
+        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name acme-companion"
+        echo ""
+        echo "Option 2 - Azure Portal:"
+        echo "  1. Go to Azure Portal → Container Instances"
+        echo "  2. Select '$CONTAINER_NAME'"
+        echo "  3. Click 'Logs' in the left menu"
+        echo "  4. Use KQL queries to filter logs"
+        echo ""
+        echo "Option 3 - Log Analytics Queries:"
+        echo "  # All container logs"
+        echo "  ContainerInstanceLog_CL | where TimeGenerated > ago(1h)"
+        echo ""
+        echo "  # SSL certificate logs"
+        echo "  ContainerInstanceLog_CL | where ContainerName_s == 'acme-companion' | where TimeGenerated > ago(1h)"
+        echo ""
+        echo "  # nginx proxy logs"
+        echo "  ContainerInstanceLog_CL | where ContainerName_s == 'nginx-proxy' | where TimeGenerated > ago(1h)"
+
+    - name: SSL Certificate Status Check
+      id: ssl_check
+      run: |
+        CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
+        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        DOMAIN="${{ vars.DOMAIN_NAME || 'your-domain.com' }}"
+        
+        echo "🔒 Comprehensive SSL Certificate Status Check"
+        echo "============================================="
+        
+        # Get container FQDN
+        INFO=$(az container show \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --query '{fqdn: ipAddress.fqdn, ip: ipAddress.ip}' \
+          --output json)
+        
+        FQDN=$(echo "$INFO" | jq -r '.fqdn')
+        IP=$(echo "$INFO" | jq -r '.ip')
+        
+        echo "Container FQDN: $FQDN"
+        echo "Container IP: $IP"
+        echo "Target Domain: $DOMAIN"
+        echo ""
+        
+        # Check if domain points to container
+        if [ "$DOMAIN" != "your-domain.com" ]; then
+          echo "🌐 DNS Resolution Check:"
+          RESOLVED_IP=$(dig +short "$DOMAIN" A | tail -n1)
+          echo "  $DOMAIN resolves to: $RESOLVED_IP"
+          echo "  Container IP: $IP"
+          
+          if [ "$RESOLVED_IP" = "$IP" ]; then
+            echo "  ✅ DNS correctly points to container"
+          else
+            echo "  ❌ DNS mismatch - update your DNS A record"
+            echo "  💡 Set: $DOMAIN -> $IP"
+          fi
+          echo ""
+          
+          # Check SSL certificate on custom domain
+          echo "🔒 SSL Certificate Check for $DOMAIN:"
+          if timeout 10 openssl s_client -connect "$DOMAIN:443" -servername "$DOMAIN" < /dev/null 2>/dev/null; then
+            echo "  ✅ SSL connection successful"
+            
+            # Get certificate details
+            CERT_INFO=$(timeout 10 openssl s_client -connect "$DOMAIN:443" -servername "$DOMAIN" < /dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>/dev/null)
+            if [ $? -eq 0 ]; then
+              echo "  📋 Certificate Details:"
+              echo "$CERT_INFO" | sed 's/^/    /'
+              
+              # Check expiration
+              EXPIRY=$(echo "$CERT_INFO" | grep "notAfter" | cut -d= -f2-)
+              echo "  📅 Expires: $EXPIRY"
+              
+              # Check if Let's Encrypt
+              if echo "$CERT_INFO" | grep -q "Let's Encrypt"; then
+                echo "  🎯 Issuer: Let's Encrypt (auto-renewal enabled)"
+              fi
+            fi
+          else
+            echo "  ❌ No SSL certificate found or connection failed"
+            echo "  💡 Possible causes:"
+            echo "    - Let's Encrypt still provisioning (can take 5-10 minutes)"
+            echo "    - DNS not pointing to container"
+            echo "    - nginx-proxy not configured properly"
+          fi
+        fi
+        
+        echo ""
+        echo "🔍 Container Logs (nginx-ssl):"
+        az container logs \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --container-name nginx-ssl \
+          --tail 20 || echo "  ❌ nginx-ssl container not found (SSL disabled)"
+        
+        echo ""
+        echo "🔍 Container Logs (letsencrypt):"
+        az container logs \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --container-name letsencrypt \
+          --tail 20 || echo "  ❌ letsencrypt container not found (SSL disabled)"
+        
+        echo ""
+        echo "📊 Current Deployment Status:"
+        echo "  HTTP (port 8080): Available at http://$FQDN:8080"
+        if [ "$DOMAIN" != "your-domain.com" ]; then
+          echo "  HTTPS (port 443): Check https://$DOMAIN"
+        fi
+        echo "  SSL Auto-renewal: $([ -n "$(az container show --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_NAME" --query 'properties.containers[?name==`letsencrypt`]' --output tsv)" ] && echo "Enabled" || echo "Disabled")"
 
     - name: Save deployment metadata
       if: steps.health_check.outputs.healthy == 'true'
