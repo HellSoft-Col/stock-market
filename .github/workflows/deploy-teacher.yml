@@ -97,7 +97,7 @@ jobs:
 
     - name: Generate deployment config
       run: |
-        echo "📝 Generating deployment configuration..."
+        echo "Generating deployment configuration..."
         
         # Generate base deployment config
         cat > deployment.json << EOF
@@ -261,7 +261,7 @@ jobs:
             }
         EOF
         else
-          echo "⚠️ Skipping Log Analytics (workspace not available)"
+          echo "Skipping Log Analytics (workspace not available)"
         fi
         
         # Close the JSON
@@ -333,15 +333,15 @@ jobs:
 
     - name: Deploy container with SSL and logging
       run: |
-         echo "🚀 Deploying WebSocket application with SSL..."
-         echo "📊 Image: ${{ steps.image.outputs.image }}"
-         echo "🔧 Registry: ${{ env.REGISTRY }}"
-         echo "👤 Username: ${{ github.actor }}"
-         echo "🔑 Using GHCR_PAT for registry authentication"
-         echo "🔒 SSL: nginx + Let's Encrypt (Microsoft Container Registry)"
-         echo "🌐 WebSocket + HTTPS support enabled"
-         echo "📝 Logging: Azure Log Analytics enabled"
-         echo "📁 Static files: /web/index.html included"
+        echo "Deploying WebSocket application with SSL..."
+        echo "Image: ${{ steps.image.outputs.image }}"
+        echo "Registry: ${{ env.REGISTRY }}"
+        echo "Username: ${{ github.actor }}"
+        echo "Using GHCR_PAT for registry authentication"
+        echo "SSL: nginx + Let's Encrypt (Microsoft Container Registry)"
+        echo "WebSocket + HTTPS support enabled"
+        echo "Logging: Azure Log Analytics enabled"
+        echo "Static files: /web/index.html included"
         
         # Display the deployment config for debugging
         echo "Deployment configuration:"
@@ -357,36 +357,36 @@ jobs:
         az container create \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
           --file deployment.json
-        
+         
          echo ""
-         echo "🎯 SSL-Enabled WebSocket Application Deployment:"
-         echo "==============================================="
-         echo "✅ nginx Reverse Proxy: Microsoft Container Registry"
-         echo "✅ Let's Encrypt SSL: Automatic certificate management"
-         echo "✅ WebSocket support: wss:// connections enabled"
-         echo "✅ HTTP → HTTPS redirect: Automatic"
-         echo "✅ Certificate auto-renewal: Every 12 hours"
-         echo "✅ Log Analytics: Enabled"
-        echo ""
-        echo "📋 Access Information:"
-        echo "===================="
+         echo "SSL-Enabled WebSocket Application Deployment:"
+         echo "============================================="
+         echo "- nginx Reverse Proxy: Microsoft Container Registry"
+         echo "- Let's Encrypt SSL: Automatic certificate management"
+         echo "- WebSocket support: wss:// connections enabled"
+         echo "- HTTP to HTTPS redirect: Automatic"
+         echo "- Certificate auto-renewal: Every 12 hours"
+         echo "- Log Analytics: Enabled"
+         echo ""
+         echo "Access Information:"
+         echo "=================="
          if [ -n "${{ vars.DOMAIN_NAME }}" ]; then
-           echo "🌐 Website: https://${{ vars.DOMAIN_NAME }}/"
-           echo "🔌 WebSocket: wss://${{ vars.DOMAIN_NAME }}/ws"
-           echo "📱 Trading interface: https://${{ vars.DOMAIN_NAME }}/"
+           echo "Website: https://${{ vars.DOMAIN_NAME }}/"
+           echo "WebSocket: wss://${{ vars.DOMAIN_NAME }}/ws"
+           echo "Trading interface: https://${{ vars.DOMAIN_NAME }}/"
            echo ""
-           echo "📍 DNS Setup Required:"
-           echo "Create A record: ${{ vars.DOMAIN_NAME }} → [Container IP shown below]"
+           echo "DNS Setup Required:"
+           echo "Create A record: ${{ vars.DOMAIN_NAME }} -> [Container IP shown below]"
            echo ""
-           echo "🔒 SSL Certificate Status:"
+           echo "SSL Certificate Status:"
            echo "Stage: staging (will be auto-generated after DNS setup)"
-           echo "⚠️  Using staging certificates initially (untrusted)"
-           echo "💡 Certificates will auto-upgrade to production after validation"
+           echo "Using staging certificates initially (untrusted)"
+           echo "Certificates will auto-upgrade to production after validation"
          else
-           echo "⚠️  DOMAIN_NAME not set - using container FQDN"
-           echo "🌐 Website: https://[CONTAINER_FQDN]/"
-           echo "🔌 WebSocket: wss://[CONTAINER_FQDN]/ws"
-           echo "💡 Set DOMAIN_NAME variable for custom domain support"
+           echo "DOMAIN_NAME not set - using container FQDN"
+           echo "Website: https://[CONTAINER_FQDN]/"
+           echo "WebSocket: wss://[CONTAINER_FQDN]/ws"
+           echo "Set DOMAIN_NAME variable for custom domain support"
          fi
 
     - name: Health check
@@ -471,17 +471,17 @@ jobs:
            if curl --insecure --fail --max-time 30 --retry 3 --retry-delay 10 "https://$FQDN" > /dev/null 2>&1; then
              echo "✅ HTTPS health check passed"
            else
-             echo "⚠️ HTTPS health check failed, checking HTTP fallback"
+             echo "HTTPS health check failed, checking HTTP fallback"
              # Test HTTP redirect
              if curl --fail --max-time 10 "http://$FQDN" 2>&1 | grep -q "301\|302"; then
                echo "✅ HTTP redirect to HTTPS working"
              else
-               echo "⚠️ HTTP redirect not working yet"
+               echo "HTTP redirect not working yet"
              fi
            fi
            
            # Check SSL certificate status
-           echo "🔒 Checking SSL certificate status..."
+           echo "Checking SSL certificate status..."
            if timeout 10 openssl s_client -connect "$FQDN:443" -servername "$FQDN" < /dev/null 2>/dev/null | openssl x509 -noout -dates 2>/dev/null; then
              echo "✅ SSL certificate found and accessible"
              
@@ -497,7 +497,7 @@ jobs:
                echo "🔧 Self-signed certificate (Let's Encrypt will replace after DNS setup)"
              fi
            else
-             echo "⚠️ SSL certificate not accessible yet (nginx may still be starting)"
+             echo "SSL certificate not accessible yet (nginx may still be starting)"
            fi
          fi
         
@@ -509,7 +509,7 @@ jobs:
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
         
-        echo "📊 Container Logging Verification"
+        echo "Container Logging Verification"
         echo "================================="
         
         # Show container group details with logging info
@@ -521,7 +521,7 @@ jobs:
           --output table || echo "No diagnostics configured"
         
         echo ""
-        echo "📝 How to View Container Logs:"
+        echo "How to View Container Logs:"
         echo "============================="
         echo "Option 1 - Azure CLI:"
         echo "  # View all containers"
@@ -555,7 +555,7 @@ jobs:
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
         DOMAIN="${{ vars.DOMAIN_NAME || 'your-domain.com' }}"
         
-        echo "🔒 Comprehensive SSL Certificate Status Check"
+        echo "Comprehensive SSL Certificate Status Check"
         echo "============================================="
         
         # Get container FQDN
@@ -575,7 +575,7 @@ jobs:
         
         # Check if domain points to container
         if [ "$DOMAIN" != "your-domain.com" ]; then
-          echo "🌐 DNS Resolution Check:"
+          echo "DNS Resolution Check:"
           RESOLVED_IP=$(dig +short "$DOMAIN" A | tail -n1)
           echo "  $DOMAIN resolves to: $RESOLVED_IP"
           echo "  Container IP: $IP"
@@ -584,12 +584,12 @@ jobs:
             echo "  ✅ DNS correctly points to container"
           else
             echo "  ❌ DNS mismatch - update your DNS A record"
-            echo "  💡 Set: $DOMAIN -> $IP"
+            echo "  Set: $DOMAIN -> $IP"
           fi
           echo ""
           
           # Check SSL certificate on custom domain
-          echo "🔒 SSL Certificate Check for $DOMAIN:"
+          echo "SSL Certificate Check for $DOMAIN:"
           if timeout 10 openssl s_client -connect "$DOMAIN:443" -servername "$DOMAIN" < /dev/null 2>/dev/null; then
             echo "  ✅ SSL connection successful"
             
@@ -610,7 +610,7 @@ jobs:
             fi
           else
             echo "  ❌ No SSL certificate found or connection failed"
-            echo "  💡 Possible causes:"
+            echo "  Possible causes:"
             echo "    - Let's Encrypt still provisioning (can take 5-10 minutes)"
             echo "    - DNS not pointing to container"
             echo "    - nginx-proxy not configured properly"
@@ -642,7 +642,7 @@ jobs:
            --tail 10 || echo "  ❌ trading-app container logs not available"
         
          echo ""
-         echo "📊 Current Deployment Status:"
+         echo "Current Deployment Status:"
          echo "  HTTP (port 80): Redirects to HTTPS"
          echo "  HTTPS (port 443): Available at https://$FQDN"
          echo "  Direct HTTP (port 8080): Available at http://$FQDN:8080"
@@ -654,7 +654,7 @@ jobs:
     - name: Save deployment metadata
       if: steps.health_check.outputs.healthy == 'true'
       run: |
-        echo "📝 Saving deployment metadata..."
+        echo "Saving deployment metadata..."
         
         cat > deployment-metadata.json << EOF
         {
@@ -682,7 +682,7 @@ jobs:
     - name: Promote to stable
       if: steps.health_check.outputs.healthy == 'true' && github.ref == 'refs/heads/main'
       run: |
-        echo "🏷️ Promoting deployment to stable tag..."
+        echo "Promoting deployment to stable tag..."
         
         # Login to registry
         echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
