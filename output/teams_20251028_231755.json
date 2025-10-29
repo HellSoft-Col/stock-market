@@ -1,0 +1,234 @@
+{
+  "generated_at": "2025-10-28T23:17:55.589920",
+  "total_teams": 12,
+  "teams": [
+    {
+      "teamName": "Alquimistas de Palta",
+      "token": "TK-09jKZrvn0NF11v99j10vT4Fx",
+      "species": "Premium",
+      "specialty": "PALTA-OIL",
+      "recipe": "5 FOSFO + 3 PITA",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Arpistas de Pita-Pita",
+      "token": "TK-NVUoEHwzH1BRcgcyyDdhx2a4",
+      "species": "Premium",
+      "specialty": "PITA",
+      "recipe": "8 NUCREM",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Avocultores del Hueso Cósmico",
+      "token": "TK-XqnoG2blE3DFmApa75iexwvC",
+      "species": "Básico",
+      "specialty": "PALTA-OIL",
+      "recipe": "5 FOSFO + 3 PITA",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Cartógrafos de Fosfolima",
+      "token": "TK-egakIjLDHsuRF4KgObBILmlE",
+      "species": "Premium",
+      "specialty": "FOSFO",
+      "recipe": "4 SEBO",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Cosechadores de Semillas",
+      "token": "TK-QJ3a6pYMPtJS62xpuclWe1pH",
+      "species": "Premium",
+      "specialty": "PITA",
+      "recipe": "8 NUCREM",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Forjadores Holográficos",
+      "token": "TK-B8YdOACQCKTf0ZEjqRawhXhQ",
+      "species": "Premium",
+      "specialty": "H-GUACA",
+      "recipe": "10 GTRON + 6 FOSFO",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Ingenieros Holo-Aguacate",
+      "token": "TK-SO4U3Kr25DbMLNiooci5U0YT",
+      "species": "Premium",
+      "specialty": "H-GUACA",
+      "recipe": "12 PALTA-OIL + 5 CASCAR-ALLOY",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Mensajeros del Núcleo",
+      "token": "TK-XKAG1T8R9smShyRc6akllOUl",
+      "species": "Premium",
+      "specialty": "NUCREM",
+      "recipe": "8 NUCREM",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Mineros de Guacatrones",
+      "token": "TK-easOq988WJaYn9tVhYyPukAr",
+      "species": "Premium",
+      "specialty": "H-GUACA",
+      "recipe": "12 PALTA-OIL + 5 CASCAR-ALLOY",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Monjes del Guacamole Estelar",
+      "token": "TK-3h1JhNyu8oKT0DChOD5LKpN1",
+      "species": "Premium",
+      "specialty": "FOSFO",
+      "recipe": "5 FOSFO + 3 PITA",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Orfebres de Cáscara",
+      "token": "TK-6fAQHLCn9oiw7ITU4ywtHW2x",
+      "species": "Premium",
+      "specialty": "FOSFO",
+      "recipe": "10 GTRON + 6 FOSFO",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    },
+    {
+      "teamName": "Someliers de Aceite",
+      "token": "TK-TUkY6A0GaXzJw0LEKiVmosYw",
+      "species": "Premium",
+      "specialty": "PALTA-OIL",
+      "recipe": "4 SEBO",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA",
+        "NUCREM",
+        "CASCAR-ALLOY",
+        "GTRON"
+      ]
+    }
+  ]
+}

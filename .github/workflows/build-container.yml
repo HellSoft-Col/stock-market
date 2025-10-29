@@ -103,7 +103,7 @@ jobs:
         buildah config --port 80 $FINAL_CONTAINER
         buildah config --env PORT=80 $FINAL_CONTAINER
         buildah config --entrypoint '[]' $FINAL_CONTAINER
-        buildah config --cmd '["./exchange-server", "-config=./config.yaml"]' $FINAL_CONTAINER
+        buildah config --cmd '["./exchange-server", "-config=./config.production.yaml"]' $FINAL_CONTAINER
         
         # Add labels
         buildah config --label org.opencontainers.image.source=https://github.com/${{ github.repository }} $FINAL_CONTAINER

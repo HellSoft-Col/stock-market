@@ -1,0 +1,76 @@
+{
+  "generated_at": "2025-10-28T22:52:01.833084",
+  "total_teams": 5,
+  "teams": [
+    {
+      "teamName": "Juanín Void Fund",
+      "token": "TK-OYggaOMIsissOsNYcgP6xy9l",
+      "species": "Lemonian",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA"
+      ]
+    },
+    {
+      "teamName": "Meteor Organic Partners",
+      "token": "TK-SNmgR23srR9li26SVYgEkTCe",
+      "species": "Policarpian",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA"
+      ]
+    },
+    {
+      "teamName": "Patana Infinity Industries",
+      "token": "TK-EG8rZa5ieyOIMXBYptB7yZ2F",
+      "species": "Cremosian",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA"
+      ]
+    },
+    {
+      "teamName": "Potro Intergalactic Palta",
+      "token": "TK-S9Fsl3Jto1JG02rbfWPk46Wp",
+      "species": "Zephyrian",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA"
+      ]
+    },
+    {
+      "teamName": "Quantum Toast Potro",
+      "token": "TK-vtP2zg13bADCPVJOtLwKJGry",
+      "species": "Juaninian",
+      "initialBalance": 100000,
+      "authorizedProducts": [
+        "FOSFO",
+        "PITA",
+        "PALTA-OIL",
+        "GUACA",
+        "SEBO",
+        "H-GUACA"
+      ]
+    }
+  ]
+}
