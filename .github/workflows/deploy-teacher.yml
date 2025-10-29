@@ -45,6 +45,35 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Setup Log Analytics Workspace
+      run: |
+        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        WORKSPACE_NAME="${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }}"
+        LOCATION="${{ vars.AZURE_LOCATION || 'eastus' }}"
+        
+        # Create Log Analytics workspace
+        az monitor log-analytics workspace create \
+          --resource-group "$RESOURCE_GROUP" \
+          --workspace-name "$WORKSPACE_NAME" \
+          --location "$LOCATION" \
+          --sku PerGB2018 \
+          --only-show-errors || echo "Workspace already exists"
+        
+        # Get workspace ID
+        WORKSPACE_ID=$(az monitor log-analytics workspace show \
+          --resource-group "$RESOURCE_GROUP" \
+          --workspace-name "$WORKSPACE_NAME" \
+          --query customerId \
+          --output tsv)
+        
+        if [ -n "$WORKSPACE_ID" ] && [ "$WORKSPACE_ID" != "null" ]; then
+          echo "✅ Log Analytics Workspace ready: $WORKSPACE_ID"
+          echo "LOG_ANALYTICS_WORKSPACE_ID=$WORKSPACE_ID" >> $GITHUB_ENV
+        else
+          echo "❌ Failed to get Log Analytics workspace ID"
+          exit 1
+        fi
+
     - name: Deploy Container
       run: |
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
@@ -64,11 +93,12 @@ jobs:
           --cpu ${{ vars.CPU_CORES || 0.5 }} \
           --memory ${{ vars.MEMORY_GB || 1 }} \
           --restart-policy Always \
-          --environment-variables PORT=80 LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }} \
+          --environment-variables PORT=80 LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }} ENV=production \
           --secure-environment-variables MONGODB_URI='${{ secrets.MONGODB_URI }}' \
           --registry-login-server '${{ env.REGISTRY }}' \
           --registry-username '${{ github.actor }}' \
-          --registry-password '${{ secrets.GHCR_PAT }}'
+          --registry-password '${{ secrets.GHCR_PAT }}' \
+          --log-analytics-workspace '${{ env.LOG_ANALYTICS_WORKSPACE_ID }}'
 
     - name: Health check
       run: |
@@ -129,16 +159,36 @@ jobs:
           echo "✅ DNS record created: $DOMAIN_NAME -> ${{ env.CONTAINER_IP }}"
         fi
 
-    - name: Verify deployment
+    - name: Verify deployment and logging
       run: |
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        
+        # Check Log Analytics integration
+        LOGGING_CONFIG=$(az container show \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --query 'properties.diagnostics.logAnalytics.workspaceId' \
+          --output tsv 2>/dev/null || echo "none")
         
         echo "🎉 DEPLOYMENT COMPLETE"
         echo "✅ Container: $CONTAINER_NAME"
         echo "✅ Direct access: http://${{ env.CONTAINER_FQDN }}"
         echo "✅ HTTPS access: https://trading.hellsoft.tech"
         echo "✅ WebSocket: wss://trading.hellsoft.tech/ws"
+        
+        if [ "$LOGGING_CONFIG" != "none" ] && [ "$LOGGING_CONFIG" != "null" ] && [ -n "$LOGGING_CONFIG" ]; then
+          echo "✅ Log Analytics: Integrated ($LOGGING_CONFIG)"
+          echo ""
+          echo "📊 View logs in Azure Portal:"
+          echo "1. Go to Azure Portal → Container Instances"
+          echo "2. Select '$CONTAINER_NAME'"
+          echo "3. Click 'Logs' in the left sidebar"
+          echo "4. Use query: ContainerInstanceLog_CL | order by TimeGenerated desc"
+        else
+          echo "⚠️  Log Analytics: Not detected"
+          echo "Logs available via CLI: az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME"
+        fi
 
 
 
@@ -185,7 +235,7 @@ jobs:
                 "name": "trading-app",
                 "properties": {
                   "image": "$ROLLBACK_IMAGE",
-                  "command": ["/exchange-server", "-config=/config.production.yaml"],
+                   "command": ["./exchange-server", "-config=./config.production.yaml"],
                    "ports": [
                      {
                        "protocol": "TCP",
@@ -200,6 +250,10 @@ jobs:
                      {
                        "name": "PORT", 
                        "value": "80"
+                     },
+                     {
+                       "name": "ENV",
+                       "value": "production"
                      }
                    ],
                   "resources": {
@@ -243,6 +297,20 @@ jobs:
         
         sleep 10
         
-        az container create \
+        # Get Log Analytics workspace ID for rollback
+        WORKSPACE_ID=$(az monitor log-analytics workspace show \
           --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --file rollback-deployment.json || echo "❌ Rollback failed"
+          --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
+          --query customerId \
+          --output tsv 2>/dev/null || echo "")
+        
+        if [ -n "$WORKSPACE_ID" ] && [ "$WORKSPACE_ID" != "null" ]; then
+          az container create \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+            --file rollback-deployment.json \
+            --log-analytics-workspace "$WORKSPACE_ID" || echo "❌ Rollback failed"
+        else
+          az container create \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
+            --file rollback-deployment.json || echo "❌ Rollback failed"
+        fi

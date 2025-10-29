@@ -11,9 +11,13 @@ import (
 func InitLogger(level, format string) {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	// Set output format
-	if strings.ToLower(format) == "console" || os.Getenv("ENV") == "development" {
+	// Set output format - Azure Log Analytics needs stdout for JSON logs
+	if strings.ToLower(format) == "console" && os.Getenv("ENV") == "development" {
+		// Only use console format in development
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	} else {
+		// Production: always JSON to stdout for Azure Log Analytics
+		log.Logger = log.Output(os.Stdout)
 	}
 
 	// Set log level
@@ -33,5 +37,6 @@ func InitLogger(level, format string) {
 	log.Info().
 		Str("level", level).
 		Str("format", format).
+		Str("env", os.Getenv("ENV")).
 		Msg("Logger initialized")
 }

@@ -84,23 +84,26 @@ jobs:
         # Create final image from distroless
         FINAL_CONTAINER=$(buildah from gcr.io/distroless/static-debian12:nonroot)
         
+        # Set working directory first
+        buildah config --workingdir /app $FINAL_CONTAINER
+        
         # Copy certificates and timezone data
         buildah copy --from $CONTAINER $FINAL_CONTAINER /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
         buildah copy --from $CONTAINER $FINAL_CONTAINER /usr/share/zoneinfo /usr/share/zoneinfo
         
-        # Copy binary and configs
-        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/exchange-server /exchange-server
-        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.yaml /config.yaml
-        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.production.yaml /config.production.yaml
+        # Copy binary and configs to working directory
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/exchange-server /app/exchange-server
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.yaml /app/config.yaml
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/config.production.yaml /app/config.production.yaml
         
         # Copy web directory for static files (index.html)
-        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/web /web
+        buildah copy --from $CONTAINER $FINAL_CONTAINER /app/web /app/web
         
         # Configure container
         buildah config --port 80 $FINAL_CONTAINER
         buildah config --env PORT=80 $FINAL_CONTAINER
         buildah config --entrypoint '[]' $FINAL_CONTAINER
-        buildah config --cmd '["/exchange-server", "-config=/config.yaml"]' $FINAL_CONTAINER
+        buildah config --cmd '["./exchange-server", "-config=./config.yaml"]' $FINAL_CONTAINER
         
         # Add labels
         buildah config --label org.opencontainers.image.source=https://github.com/${{ github.repository }} $FINAL_CONTAINER
@@ -130,7 +133,7 @@ jobs:
         CONTAINER_ID=$(podman run -d \
           -e PORT=80 \
           ${{ env.REGISTRY }}/${{ steps.image_name.outputs.name }}:${{ github.sha }} \
-          /exchange-server -config=/config.yaml)
+          ./exchange-server -config=./config.yaml)
         
         echo "Container started with ID: $CONTAINER_ID"
         
