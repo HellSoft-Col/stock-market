@@ -23,14 +23,16 @@ var validProducts = map[string]bool{
 }
 
 type OrderService struct {
-	orderRepo domain.OrderRepository
-	marketSvc domain.MarketService
+	orderRepo   domain.OrderRepository
+	marketSvc   domain.MarketService
+	broadcaster domain.Broadcaster
 }
 
-func NewOrderService(orderRepo domain.OrderRepository, marketSvc domain.MarketService) *OrderService {
+func NewOrderService(orderRepo domain.OrderRepository, marketSvc domain.MarketService, broadcaster domain.Broadcaster) *OrderService {
 	return &OrderService{
-		orderRepo: orderRepo,
-		marketSvc: marketSvc,
+		orderRepo:   orderRepo,
+		marketSvc:   marketSvc,
+		broadcaster: broadcaster,
 	}
 }
 
@@ -94,6 +96,24 @@ func (s *OrderService) ProcessOrder(ctx context.Context, teamName string, orderM
 		Int("qty", order.Quantity).
 		Msg("Order created successfully")
 
+	// Send acknowledgment
+	ackMsg := &domain.OrderAckMessage{
+		Type:       "ORDER_ACK",
+		ClOrdID:    order.ClOrdID,
+		Status:     "PENDING",
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	if s.broadcaster != nil {
+		if err := s.broadcaster.SendToClient(teamName, ackMsg); err != nil {
+			log.Warn().
+				Str("clOrdID", order.ClOrdID).
+				Str("teamName", teamName).
+				Err(err).
+				Msg("Failed to send order acknowledgment")
+		}
+	}
+
 	// Send order to market engine
 	s.marketSvc.ProcessOrder(order, nil) // Client connection will be added in Phase 7
 
@@ -143,5 +163,4 @@ func GenerateOrderID(teamName string) string {
 	return fmt.Sprintf("ORD-%s-%d-%s", teamName, timestamp, shortUUID)
 }
 
-// Verify the service implements the interface
 var _ domain.OrderService = (*OrderService)(nil)

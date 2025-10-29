@@ -64,5 +64,4 @@ func (s *AuthService) ValidateToken(ctx context.Context, token string) (*domain.
 	return team, nil
 }
 
-// Verify the service implements the interface
 var _ domain.AuthService = (*AuthService)(nil)

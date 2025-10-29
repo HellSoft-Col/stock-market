@@ -64,13 +64,17 @@ func main() {
 	orderRepo := mongodb.NewOrderRepository(db.GetDatabase())
 	fillRepo := mongodb.NewFillRepository(db.GetDatabase())
 	marketStateRepo := mongodb.NewMarketStateRepository(db.GetDatabase())
+	inventoryRepo := mongodb.NewInventoryRepository(db.GetDatabase())
 	orderBookRepo := memory.NewOrderBookRepository()
 
 	// Create broadcaster
 	broadcaster := transport.NewBroadcaster()
 
+	// Create inventory service
+	inventoryService := service.NewInventoryService(teamRepo, inventoryRepo, db)
+
 	// Create market engine
-	marketEngine := market.NewMarketEngine(cfg, db, orderRepo, fillRepo, marketStateRepo, orderBookRepo, broadcaster)
+	marketEngine := market.NewMarketEngine(cfg, db, orderRepo, fillRepo, marketStateRepo, orderBookRepo, broadcaster, inventoryService, teamRepo)
 
 	// Create rate limiter
 	rateLimitConfig := service.RateLimitConfig{
@@ -81,9 +85,9 @@ func main() {
 
 	// Create services
 	authService := service.NewAuthService(teamRepo)
-	orderService := service.NewOrderService(orderRepo, marketEngine)
+	orderService := service.NewOrderService(orderRepo, marketEngine, broadcaster)
 	resyncService := service.NewResyncService(fillRepo)
-	productionService := service.NewProductionService(teamRepo)
+	productionService := service.NewProductionService(teamRepo, inventoryService, broadcaster)
 
 	// Create message router
 	router := transport.NewMessageRouter(authService, orderService, broadcaster, marketEngine, resyncService, productionService, rateLimiter)

@@ -48,6 +48,8 @@ type LoginOKMessage struct {
 	Team               string            `json:"team"`
 	Species            string            `json:"species"`
 	InitialBalance     float64           `json:"initialBalance"`
+	CurrentBalance     float64           `json:"currentBalance"`
+	Inventory          map[string]int    `json:"inventory"`
 	AuthorizedProducts []string          `json:"authorizedProducts"`
 	Recipes            map[string]Recipe `json:"recipes"`
 	Role               TeamRole          `json:"role"`
@@ -101,6 +103,19 @@ type EventDeltaMessage struct {
 	Type       string        `json:"type"`
 	Events     []FillMessage `json:"events"`
 	ServerTime string        `json:"serverTime"`
+}
+
+type OrderAckMessage struct {
+	Type       string `json:"type"`
+	ClOrdID    string `json:"clOrdID"`
+	Status     string `json:"status"`
+	ServerTime string `json:"serverTime"`
+}
+
+type InventoryUpdateMessage struct {
+	Type       string         `json:"type"`
+	Inventory  map[string]int `json:"inventory"`
+	ServerTime string         `json:"serverTime"`
 }
 
 // Base message for parsing

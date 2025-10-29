@@ -102,5 +102,70 @@ func (r *TeamRepository) GetAll(ctx context.Context) ([]*domain.Team, error) {
 	return teams, nil
 }
 
-// Verify the repository implements the interface
+func (r *TeamRepository) UpdateInventory(ctx context.Context, teamName string, inventory map[string]int) error {
+	update := bson.M{
+		"$set": bson.M{
+			"inventory":           inventory,
+			"lastInventoryUpdate": time.Now(),
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"teamName": teamName}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update inventory: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return domain.ErrTeamNotFound
+	}
+
+	return nil
+}
+
+func (r *TeamRepository) UpdateBalance(ctx context.Context, teamName string, balance float64) error {
+	update := bson.M{
+		"$set": bson.M{
+			"currentBalance": balance,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"teamName": teamName}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update balance: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return domain.ErrTeamNotFound
+	}
+
+	return nil
+}
+
+func (r *TeamRepository) GetTeamsWithInventory(ctx context.Context, product string, minQuantity int) ([]*domain.Team, error) {
+	filter := bson.M{
+		fmt.Sprintf("inventory.%s", product): bson.M{"$gte": minQuantity},
+	}
+
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get teams with inventory: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var teams []*domain.Team
+	for cursor.Next(ctx) {
+		var team domain.Team
+		if err := cursor.Decode(&team); err != nil {
+			return nil, fmt.Errorf("failed to decode team: %w", err)
+		}
+		teams = append(teams, &team)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
+	}
+
+	return teams, nil
+}
+
 var _ domain.TeamRepository = (*TeamRepository)(nil)

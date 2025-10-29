@@ -125,5 +125,4 @@ func (b *Broadcaster) GetConnectedClients() []string {
 	return teams
 }
 
-// Verify the broadcaster implements the interface
 var _ domain.Broadcaster = (*Broadcaster)(nil)

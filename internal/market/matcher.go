@@ -1,6 +1,7 @@
 package market
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rs/zerolog/log"
@@ -18,13 +19,17 @@ type MatchResult struct {
 }
 
 type Matcher struct {
-	orderBook      domain.OrderBookRepository
-	offerGenerator *OfferGenerator
+	orderBook        domain.OrderBookRepository
+	offerGenerator   *OfferGenerator
+	inventoryService domain.InventoryService
+	teamRepo         domain.TeamRepository
 }
 
-func NewMatcher(orderBook domain.OrderBookRepository) *Matcher {
+func NewMatcher(orderBook domain.OrderBookRepository, inventoryService domain.InventoryService, teamRepo domain.TeamRepository) *Matcher {
 	return &Matcher{
-		orderBook: orderBook,
+		orderBook:        orderBook,
+		inventoryService: inventoryService,
+		teamRepo:         teamRepo,
 	}
 }
 
@@ -44,21 +49,41 @@ func (m *Matcher) ProcessOrder(order *domain.Order) (*MatchResult, error) {
 }
 
 func (m *Matcher) processBuyOrder(buyOrder *domain.Order) (*MatchResult, error) {
-	// Get all SELL orders for this product, sorted by price ASC (lowest first)
+	// First, try immediate matching with existing SELL orders
 	sellOrders := m.orderBook.GetSellOrders(buyOrder.Product)
 
-	// Try to find a match
 	for _, sellOrder := range sellOrders {
 		if !m.canMatch(buyOrder, sellOrder) {
 			continue
 		}
 
+		// Check if seller still has inventory
+		if m.inventoryService != nil {
+			canSell, err := m.inventoryService.CanSell(context.Background(), sellOrder.TeamName, sellOrder.Product, sellOrder.Quantity-sellOrder.FilledQty)
+			if err != nil {
+				log.Warn().
+					Str("sellTeam", sellOrder.TeamName).
+					Str("product", sellOrder.Product).
+					Err(err).
+					Msg("Failed to check seller inventory")
+				continue
+			}
+			if !canSell {
+				log.Debug().
+					Str("sellTeam", sellOrder.TeamName).
+					Str("product", sellOrder.Product).
+					Int("needed", sellOrder.Quantity-sellOrder.FilledQty).
+					Msg("Seller no longer has sufficient inventory")
+				continue
+			}
+		}
+
 		return m.createMatchResult(buyOrder, sellOrder), nil
 	}
 
-	// No match found - add to order book and generate offer
+	// No immediate match - add to order book and broadcast offer to teams with inventory
 	m.orderBook.AddOrder(buyOrder.Product, buyOrder.Side, buyOrder)
-	m.generateOfferAsync(buyOrder)
+	m.broadcastOfferToEligibleSellers(buyOrder)
 
 	return &MatchResult{
 		Matched:       false,
@@ -122,6 +147,55 @@ func (m *Matcher) generateOfferAsync(buyOrder *domain.Order) {
 				Str("clOrdID", buyOrder.ClOrdID).
 				Err(err).
 				Msg("Failed to generate offer")
+		}
+	}()
+}
+
+func (m *Matcher) broadcastOfferToEligibleSellers(buyOrder *domain.Order) {
+	if m.offerGenerator == nil || m.inventoryService == nil || m.teamRepo == nil {
+		// Fallback to old method if services not available
+		m.generateOfferAsync(buyOrder)
+		return
+	}
+
+	go func() {
+		ctx := context.Background()
+
+		// Get teams with inventory for this product
+		neededQty := buyOrder.Quantity - buyOrder.FilledQty
+		eligibleTeams, err := m.teamRepo.GetTeamsWithInventory(ctx, buyOrder.Product, neededQty)
+		if err != nil {
+			log.Warn().
+				Str("clOrdID", buyOrder.ClOrdID).
+				Str("product", buyOrder.Product).
+				Err(err).
+				Msg("Failed to get eligible sellers, using fallback offer generation")
+			m.generateOfferAsync(buyOrder)
+			return
+		}
+
+		if len(eligibleTeams) == 0 {
+			log.Info().
+				Str("clOrdID", buyOrder.ClOrdID).
+				Str("product", buyOrder.Product).
+				Int("neededQty", neededQty).
+				Msg("No teams have sufficient inventory for offer")
+			return
+		}
+
+		log.Info().
+			Str("clOrdID", buyOrder.ClOrdID).
+			Str("product", buyOrder.Product).
+			Int("neededQty", neededQty).
+			Int("eligibleTeams", len(eligibleTeams)).
+			Msg("Broadcasting offer to eligible sellers")
+
+		// Generate targeted offer to eligible teams
+		if err := m.offerGenerator.GenerateTargetedOffer(buyOrder, eligibleTeams); err != nil {
+			log.Warn().
+				Str("clOrdID", buyOrder.ClOrdID).
+				Err(err).
+				Msg("Failed to generate targeted offer")
 		}
 	}()
 }
@@ -202,7 +276,40 @@ func (m *Matcher) getMarketPrice(product string) (*domain.MarketState, error) {
 	return nil, nil
 }
 
-// Helper function for min
+/*
+SIMPLIFIED ORDER MATCHING ALGORITHM DOCUMENTATION
+
+The order matching system now follows these educational principles:
+
+1. SELL ORDER PROCESSING:
+   - First checks if there are existing BUY orders that can match immediately
+   - If no immediate match, order goes to order book for future matching
+
+2. BUY ORDER PROCESSING:
+   - First checks if there are existing SELL orders that can match immediately
+   - If no immediate match, broadcasts an OFFER to all teams with inventory
+   - Only teams with sufficient inventory receive the offer
+
+3. OFFER SYSTEM:
+   - BUY orders create OFFERS that are sent to teams with the required product
+   - Teams can approve or deny offers through the web interface
+   - Offers have expiration times for urgency
+   - Students can see and interact with offers in real-time
+
+4. INVENTORY VALIDATION:
+   - Teams must have sufficient inventory to receive sell offers
+   - Production updates inventory automatically
+   - Trades update inventory (buyer gains, seller loses)
+
+5. EDUCATIONAL BENEFITS:
+   - Students see exactly who can fulfill their orders
+   - Clear cause-and-effect between production and trading opportunities
+   - Interactive approval/denial teaches negotiation concepts
+   - Real-time inventory tracking shows resource management
+
+For debugging: Check team inventories, monitor offer broadcasts, and verify trades update inventories correctly.
+*/
+
 func min(a, b int) int {
 	if a < b {
 		return a

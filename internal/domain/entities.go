@@ -7,16 +7,19 @@ import (
 )
 
 type Team struct {
-	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	APIKey             string             `bson:"apiKey" json:"apiKey"`
-	TeamName           string             `bson:"teamName" json:"teamName"`
-	Species            string             `bson:"species" json:"species"`
-	InitialBalance     float64            `bson:"initialBalance" json:"initialBalance"`
-	AuthorizedProducts []string           `bson:"authorizedProducts" json:"authorizedProducts"`
-	Recipes            map[string]Recipe  `bson:"recipes" json:"recipes"`
-	Role               TeamRole           `bson:"role" json:"role"`
-	CreatedAt          time.Time          `bson:"createdAt" json:"createdAt"`
-	LastLogin          time.Time          `bson:"lastLogin" json:"lastLogin"`
+	ID                  primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	APIKey              string             `bson:"apiKey" json:"apiKey"`
+	TeamName            string             `bson:"teamName" json:"teamName"`
+	Species             string             `bson:"species" json:"species"`
+	InitialBalance      float64            `bson:"initialBalance" json:"initialBalance"`
+	CurrentBalance      float64            `bson:"currentBalance" json:"currentBalance"`
+	AuthorizedProducts  []string           `bson:"authorizedProducts" json:"authorizedProducts"`
+	Inventory           map[string]int     `bson:"inventory" json:"inventory"` // Product -> Quantity
+	Recipes             map[string]Recipe  `bson:"recipes" json:"recipes"`
+	Role                TeamRole           `bson:"role" json:"role"`
+	CreatedAt           time.Time          `bson:"createdAt" json:"createdAt"`
+	LastLogin           time.Time          `bson:"lastLogin" json:"lastLogin"`
+	LastInventoryUpdate time.Time          `bson:"lastInventoryUpdate" json:"lastInventoryUpdate"`
 }
 
 type Recipe struct {
@@ -86,4 +89,15 @@ type Product struct {
 	Unit       string  `json:"unit"`
 	BasePrice  float64 `json:"basePrice"`
 	Volatility float64 `json:"volatility"`
+}
+
+type InventoryTransaction struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	TeamName  string             `bson:"teamName" json:"teamName"`
+	Product   string             `bson:"product" json:"product"`
+	Change    int                `bson:"change" json:"change"` // Positive for production/buy, negative for sell
+	Reason    string             `bson:"reason" json:"reason"` // "PRODUCTION", "TRADE_BUY", "TRADE_SELL", "INITIAL"
+	OrderID   string             `bson:"orderID,omitempty" json:"orderID,omitempty"`
+	FillID    string             `bson:"fillID,omitempty" json:"fillID,omitempty"`
+	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`
 }

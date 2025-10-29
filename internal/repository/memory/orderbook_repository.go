@@ -325,5 +325,4 @@ func (r *OrderBookRepository) LoadFromDatabase(ctx context.Context, orderRepo do
 	return nil
 }
 
-// Verify the repository implements the interface
 var _ domain.OrderBookRepository = (*OrderBookRepository)(nil)

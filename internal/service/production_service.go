@@ -3,18 +3,23 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/yourusername/avocado-exchange-server/internal/domain"
 )
 
 type ProductionService struct {
-	teamRepo domain.TeamRepository
+	teamRepo         domain.TeamRepository
+	inventoryService domain.InventoryService
+	broadcaster      domain.Broadcaster
 }
 
-func NewProductionService(teamRepo domain.TeamRepository) *ProductionService {
+func NewProductionService(teamRepo domain.TeamRepository, inventoryService domain.InventoryService, broadcaster domain.Broadcaster) *ProductionService {
 	return &ProductionService{
-		teamRepo: teamRepo,
+		teamRepo:         teamRepo,
+		inventoryService: inventoryService,
+		broadcaster:      broadcaster,
 	}
 }
 
@@ -40,12 +45,43 @@ func (s *ProductionService) ProcessProduction(ctx context.Context, teamName stri
 		}
 	}
 
-	// Log production event (server doesn't track inventory)
+	// Update inventory
+	if s.inventoryService != nil {
+		if err := s.inventoryService.UpdateInventory(ctx, teamName, prodMsg.Product, prodMsg.Quantity, "PRODUCTION", "", ""); err != nil {
+			log.Error().
+				Str("teamName", teamName).
+				Str("product", prodMsg.Product).
+				Int("quantity", prodMsg.Quantity).
+				Err(err).
+				Msg("Failed to update inventory after production")
+			return fmt.Errorf("failed to update inventory: %w", err)
+		}
+	}
+
+	// Send updated inventory to the team
+	if s.broadcaster != nil {
+		updatedInventory, err := s.inventoryService.GetTeamInventory(ctx, teamName)
+		if err == nil {
+			inventoryMsg := &domain.InventoryUpdateMessage{
+				Type:       "INVENTORY_UPDATE",
+				Inventory:  updatedInventory,
+				ServerTime: time.Now().Format(time.RFC3339),
+			}
+
+			if err := s.broadcaster.SendToClient(teamName, inventoryMsg); err != nil {
+				log.Warn().
+					Str("teamName", teamName).
+					Err(err).
+					Msg("Failed to send inventory update to team")
+			}
+		}
+	}
+
 	log.Info().
 		Str("teamName", teamName).
 		Str("product", prodMsg.Product).
 		Int("quantity", prodMsg.Quantity).
-		Msg("Production update received")
+		Msg("Production update processed and inventory updated")
 
 	return nil
 }
@@ -90,5 +126,4 @@ func (s *ProductionService) validateAuthorization(team *domain.Team, product str
 	return fmt.Errorf("team not authorized to produce %s", product)
 }
 
-// Verify the service implements the interface
 var _ domain.ProductionService = (*ProductionService)(nil)

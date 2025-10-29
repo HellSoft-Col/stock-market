@@ -203,6 +203,60 @@
         .form-row select {
             margin-bottom: 10px;
         }
+        
+        .order-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+        }
+        
+        .order-item.buy { border-left-color: #2ecc71; }
+        .order-item.sell { border-left-color: #e74c3c; }
+        .order-item.pending { border-left-color: #f39c12; }
+        .order-item.filled { border-left-color: #9b59b6; }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .order-details {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .order-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        
+        .order-actions button {
+            flex: 1;
+            margin-bottom: 0;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .approve-btn {
+            background: rgba(46, 204, 113, 0.3) !important;
+        }
+        
+        .approve-btn:hover {
+            background: rgba(46, 204, 113, 0.5) !important;
+        }
+        
+        .deny-btn {
+            background: rgba(231, 76, 60, 0.3) !important;
+        }
+        
+        .deny-btn:hover {
+            background: rgba(231, 76, 60, 0.5) !important;
+        }
     </style>
 </head>
 <body>
@@ -241,6 +295,13 @@
                 <h3>Order Book</h3>
                 <div id="order-book-data">
                     <p>Select a product to view order book</p>
+                </div>
+            </div>
+            
+            <div class="order-management" style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 15px; margin-top: 10px;">
+                <h3>Live Orders</h3>
+                <div id="live-orders-list" style="max-height: 200px; overflow-y: auto;">
+                    <p>No active orders</p>
                 </div>
             </div>
         </div>
@@ -290,6 +351,11 @@
         let connected = false;
         let authenticated = false;
         let teamInfo = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        let reconnectDelay = 1000;
+        let pingInterval = null;
+        let orders = new Map();
         
         const statusEl = document.getElementById('status');
         const connectBtn = document.getElementById('connect-btn');
@@ -328,11 +394,15 @@
             
             ws.onopen = function() {
                 connected = true;
+                reconnectAttempts = 0;
                 updateStatus('connected', 'Connected - Please login');
                 addMessage('success', 'WebSocket connected');
                 connectBtn.textContent = 'Disconnect';
                 loginBtn.disabled = false;
                 connectionTime.textContent = `Connected: ${new Date().toLocaleTimeString()}`;
+                
+                // Start ping/pong mechanism
+                startPing();
             };
             
             ws.onmessage = function(event) {
@@ -344,11 +414,26 @@
                 }
             };
             
-            ws.onclose = function() {
+            ws.onclose = function(event) {
                 connected = false;
                 authenticated = false;
-                updateStatus('disconnected', 'Disconnected');
-                addMessage('error', 'WebSocket disconnected');
+                stopPing();
+                
+                if (event.wasClean) {
+                    updateStatus('disconnected', 'Disconnected');
+                    addMessage('info', 'WebSocket disconnected cleanly');
+                } else {
+                    updateStatus('disconnected', 'Connection lost');
+                    addMessage('error', `WebSocket disconnected unexpectedly: ${event.code} ${event.reason}`);
+                    
+                    // Attempt reconnection
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        attemptReconnect();
+                    } else {
+                        addMessage('error', 'Max reconnection attempts reached');
+                    }
+                }
+                
                 connectBtn.textContent = 'Connect';
                 loginBtn.disabled = true;
                 placeOrderBtn.disabled = true;
@@ -358,6 +443,35 @@
             ws.onerror = function(error) {
                 addMessage('error', `WebSocket error: ${error}`);
             };
+        }
+        
+        function attemptReconnect() {
+            reconnectAttempts++;
+            const delay = reconnectDelay * Math.pow(2, reconnectAttempts - 1); // Exponential backoff
+            
+            updateStatus('connecting', `Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`);
+            addMessage('info', `Attempting reconnection ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`);
+            
+            setTimeout(() => {
+                if (!connected) {
+                    connect();
+                }
+            }, delay);
+        }
+        
+        function startPing() {
+            pingInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({type: 'PING'}));
+                }
+            }, 25000); // Ping every 25 seconds
+        }
+        
+        function stopPing() {
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
         }
         
         function disconnect() {
@@ -424,6 +538,9 @@
             addMessage('info', `Placing ${side} order: ${qty} ${product} @ ${mode}`);
             ws.send(JSON.stringify(orderMsg));
             
+            // Track the order locally
+            addOrderToTracker(clOrdID, side, mode, product, qty, price, message);
+            
             // Clear form
             document.getElementById('qty').value = '';
             document.getElementById('price').value = '';
@@ -439,24 +556,43 @@
                     addMessage('success', `Logged in as ${data.team} (${data.species})`);
                     placeOrderBtn.disabled = false;
                     
-                    // Show team info
+                    // Show team info with inventory
                     const teamInfoEl = document.getElementById('team-info');
                     const teamDetailsEl = document.getElementById('team-details');
+                    
+                    const inventoryHtml = data.inventory ? 
+                        Object.entries(data.inventory)
+                            .filter(([product, qty]) => qty > 0)
+                            .map(([product, qty]) => `${product}: ${qty}`)
+                            .join(', ') || 'No inventory' 
+                        : 'No inventory';
+                    
                     teamDetailsEl.innerHTML = `
                         <p><strong>Team:</strong> ${data.team}</p>
                         <p><strong>Species:</strong> ${data.species}</p>
-                        <p><strong>Balance:</strong> $${data.initialBalance}</p>
-                        <p><strong>Products:</strong> ${data.authorizedProducts.join(', ')}</p>
+                        <p><strong>Balance:</strong> $${data.currentBalance || data.initialBalance}</p>
+                        <p><strong>Inventory:</strong> ${inventoryHtml}</p>
+                        <p><strong>Authorized Products:</strong> ${data.authorizedProducts.join(', ')}</p>
                     `;
                     teamInfoEl.style.display = 'block';
                     break;
                     
                 case 'ERROR':
                     addMessage('error', `${data.code}: ${data.reason}`);
+                    // If order error, update order status
+                    if (data.clOrdID) {
+                        updateOrderStatus(data.clOrdID, 'error', data.reason);
+                    }
+                    break;
+                    
+                case 'ORDER_ACK':
+                    addMessage('success', `Order acknowledged: ${data.clOrdID}`);
+                    updateOrderStatus(data.clOrdID, 'pending', 'Order acknowledged by server');
                     break;
                     
                 case 'FILL':
                     addMessage('fill', `FILL: ${data.fillQty} ${data.product} @ $${data.fillPrice} (${data.side}) - Counterparty: ${data.counterparty}`);
+                    updateOrderStatus(data.clOrdID, 'filled', `Filled ${data.fillQty}/${data.totalQty} @ $${data.fillPrice}`);
                     break;
                     
                 case 'TICKER':
@@ -468,6 +604,16 @@
                     
                 case 'OFFER':
                     addMessage('info', `OFFER: ${data.buyer} wants ${data.quantityRequested} ${data.product} @ max $${data.maxPrice} (expires in ${data.expiresIn}ms)`);
+                    displayOfferForApproval(data);
+                    break;
+                    
+                case 'INVENTORY_UPDATE':
+                    updateInventoryDisplay(data.inventory);
+                    addMessage('info', 'Inventory updated');
+                    break;
+                    
+                case 'PONG':
+                    // Server responded to ping
                     break;
                     
                 case 'ECHO':
@@ -530,6 +676,157 @@
                 }
             });
         });
+        
+        // Order tracking functions
+        function addOrderToTracker(clOrdID, side, mode, product, qty, price, message) {
+            const order = {
+                clOrdID,
+                side,
+                mode,
+                product,
+                qty,
+                price,
+                message,
+                status: 'submitted',
+                timestamp: new Date(),
+                statusText: 'Submitted to server'
+            };
+            
+            orders.set(clOrdID, order);
+            updateOrdersDisplay();
+        }
+        
+        function updateOrderStatus(clOrdID, status, statusText) {
+            const order = orders.get(clOrdID);
+            if (order) {
+                order.status = status;
+                order.statusText = statusText;
+                order.lastUpdate = new Date();
+                updateOrdersDisplay();
+            }
+        }
+        
+        function updateOrdersDisplay() {
+            const ordersContainer = document.getElementById('live-orders-list');
+            
+            if (orders.size === 0) {
+                ordersContainer.innerHTML = '<p>No active orders</p>';
+                return;
+            }
+            
+            const orderArray = Array.from(orders.values()).sort((a, b) => b.timestamp - a.timestamp);
+            
+            ordersContainer.innerHTML = orderArray.map(order => {
+                const priceText = order.mode === 'LIMIT' && order.price ? `@ $${order.price}` : '@ Market';
+                const timeText = order.timestamp.toLocaleTimeString();
+                
+                return `
+                    <div class="order-item ${order.side.toLowerCase()} ${order.status}">
+                        <div class="order-header">
+                            <strong>${order.side} ${order.qty} ${order.product}</strong>
+                            <span class="timestamp">${timeText}</span>
+                        </div>
+                        <div class="order-details">
+                            ${order.mode} ${priceText} | Status: ${order.statusText}
+                            ${order.message ? `| Message: "${order.message}"` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function displayOfferForApproval(offer) {
+            const ordersContainer = document.getElementById('live-orders-list');
+            
+            // Create offer element for approval/denial
+            const offerElement = document.createElement('div');
+            offerElement.className = 'order-item pending';
+            offerElement.innerHTML = `
+                <div class="order-header">
+                    <strong>OFFER: ${offer.buyer} wants ${offer.quantityRequested} ${offer.product}</strong>
+                    <span>@ max $${offer.maxPrice}</span>
+                </div>
+                <div class="order-details">
+                    Offer ID: ${offer.offerId} | Expires in: ${offer.expiresIn}ms
+                </div>
+                <div class="order-actions" id="offer-actions-${offer.offerId}">
+                    <button class="approve-btn" onclick="respondToOffer('${offer.offerId}', true)">Approve</button>
+                    <button class="deny-btn" onclick="respondToOffer('${offer.offerId}', false)">Deny</button>
+                </div>
+            `;
+            
+            // Add to top of orders list
+            ordersContainer.insertBefore(offerElement, ordersContainer.firstChild);
+            
+            // Auto-remove after expiration
+            if (offer.expiresIn) {
+                setTimeout(() => {
+                    if (offerElement.parentNode) {
+                        offerElement.remove();
+                    }
+                }, offer.expiresIn);
+            }
+        }
+        
+        function respondToOffer(offerId, accept) {
+            if (!authenticated) {
+                addMessage('error', 'Must be authenticated to respond to offers');
+                return;
+            }
+            
+            const response = {
+                type: 'ACCEPT_OFFER',
+                offerId: offerId,
+                accept: accept
+            };
+            
+            ws.send(JSON.stringify(response));
+            
+            // Remove offer actions
+            const actionsEl = document.getElementById(`offer-actions-${offerId}`);
+            if (actionsEl) {
+                actionsEl.innerHTML = `<span style="color: ${accept ? '#2ecc71' : '#e74c3c'};">${accept ? 'APPROVED' : 'DENIED'}</span>`;
+            }
+            
+            addMessage('info', `Offer ${offerId} ${accept ? 'approved' : 'denied'}`);
+        }
+        
+        function updateInventoryDisplay(inventory) {
+            if (!teamInfo) return;
+            
+            // Update the stored team info
+            teamInfo.inventory = inventory;
+            
+            // Update the display
+            const teamDetailsEl = document.getElementById('team-details');
+            const inventoryHtml = inventory ? 
+                Object.entries(inventory)
+                    .filter(([product, qty]) => qty > 0)
+                    .map(([product, qty]) => `${product}: ${qty}`)
+                    .join(', ') || 'No inventory' 
+                : 'No inventory';
+            
+            teamDetailsEl.innerHTML = `
+                <p><strong>Team:</strong> ${teamInfo.team}</p>
+                <p><strong>Species:</strong> ${teamInfo.species}</p>
+                <p><strong>Balance:</strong> $${teamInfo.currentBalance || teamInfo.initialBalance}</p>
+                <p><strong>Inventory:</strong> ${inventoryHtml}</p>
+                <p><strong>Authorized Products:</strong> ${teamInfo.authorizedProducts.join(', ')}</p>
+            `;
+        }
+        
+        // Clean up old orders periodically
+        setInterval(() => {
+            const cutoff = new Date(Date.now() - 300000); // 5 minutes ago
+            for (const [clOrdID, order] of orders.entries()) {
+                if (order.status === 'filled' || order.status === 'error') {
+                    if (order.timestamp < cutoff) {
+                        orders.delete(clOrdID);
+                    }
+                }
+            }
+            updateOrdersDisplay();
+        }, 60000); // Clean every minute
     </script>
 </body>
 </html>

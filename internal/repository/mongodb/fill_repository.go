@@ -131,5 +131,4 @@ func (r *FillRepository) GetAll(ctx context.Context) ([]*domain.Fill, error) {
 	return fills, nil
 }
 
-// Verify the repository implements the interface
 var _ domain.FillRepository = (*FillRepository)(nil)

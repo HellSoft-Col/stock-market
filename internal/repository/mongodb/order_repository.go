@@ -172,5 +172,4 @@ func (r *OrderRepository) Cancel(ctx context.Context, clOrdID string) error {
 	return nil
 }
 
-// Verify the repository implements the interface
 var _ domain.OrderRepository = (*OrderRepository)(nil)

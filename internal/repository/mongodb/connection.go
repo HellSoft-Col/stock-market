@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -74,11 +75,11 @@ func (db *Database) createIndexes(ctx context.Context) error {
 	teamsCollection := db.database.Collection("teams")
 	teamsIndexes := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{"apiKey", 1}},
+			Keys:    bson.D{primitive.E{Key: "apiKey", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys:    bson.D{{"teamName", 1}},
+			Keys:    bson.D{primitive.E{Key: "teamName", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 	}
@@ -91,17 +92,27 @@ func (db *Database) createIndexes(ctx context.Context) error {
 	ordersCollection := db.database.Collection("orders")
 	ordersIndexes := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{"clOrdID", 1}},
+			Keys:    bson.D{primitive.E{Key: "clOrdID", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys: bson.D{{"teamName", 1}, {"createdAt", -1}},
+			Keys: bson.D{
+				primitive.E{Key: "teamName", Value: 1},
+				primitive.E{Key: "createdAt", Value: -1},
+			},
 		},
 		{
-			Keys: bson.D{{"status", 1}, {"product", 1}, {"side", 1}},
+			Keys: bson.D{
+				primitive.E{Key: "status", Value: 1},
+				primitive.E{Key: "product", Value: 1},
+				primitive.E{Key: "side", Value: 1},
+			},
 		},
 		{
-			Keys: bson.D{{"status", 1}, {"expiresAt", 1}},
+			Keys: bson.D{
+				primitive.E{Key: "status", Value: 1},
+				primitive.E{Key: "expiresAt", Value: 1},
+			},
 		},
 	}
 	if _, err := ordersCollection.Indexes().CreateMany(ctx, ordersIndexes); err != nil {
@@ -113,17 +124,26 @@ func (db *Database) createIndexes(ctx context.Context) error {
 	fillsCollection := db.database.Collection("fills")
 	fillsIndexes := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{"fillID", 1}},
+			Keys:    bson.D{primitive.E{Key: "fillID", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys: bson.D{{"buyer", 1}, {"executedAt", -1}},
+			Keys: bson.D{
+				primitive.E{Key: "buyer", Value: 1},
+				primitive.E{Key: "executedAt", Value: -1},
+			},
 		},
 		{
-			Keys: bson.D{{"seller", 1}, {"executedAt", -1}},
+			Keys: bson.D{
+				primitive.E{Key: "seller", Value: 1},
+				primitive.E{Key: "executedAt", Value: -1},
+			},
 		},
 		{
-			Keys: bson.D{{"product", 1}, {"executedAt", -1}},
+			Keys: bson.D{
+				primitive.E{Key: "product", Value: 1},
+				primitive.E{Key: "executedAt", Value: -1},
+			},
 		},
 	}
 	if _, err := fillsCollection.Indexes().CreateMany(ctx, fillsIndexes); err != nil {
@@ -135,7 +155,7 @@ func (db *Database) createIndexes(ctx context.Context) error {
 	marketStateCollection := db.database.Collection("market_state")
 	marketStateIndexes := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{"product", 1}},
+			Keys:    bson.D{primitive.E{Key: "product", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 	}
@@ -183,5 +203,4 @@ func (db *Database) Close(ctx context.Context) error {
 	return nil
 }
 
-// Verify the Database implements the interface
 var _ domain.Database = (*Database)(nil)

@@ -128,5 +128,4 @@ func (r *MarketStateRepository) Upsert(ctx context.Context, marketState *domain.
 	return nil
 }
 
-// Verify the repository implements the interface
 var _ domain.MarketStateRepository = (*MarketStateRepository)(nil)

@@ -13,8 +13,17 @@ type TeamRepository interface {
 	GetByAPIKey(ctx context.Context, apiKey string) (*Team, error)
 	GetByTeamName(ctx context.Context, teamName string) (*Team, error)
 	UpdateLastLogin(ctx context.Context, teamName string) error
+	UpdateInventory(ctx context.Context, teamName string, inventory map[string]int) error
+	UpdateBalance(ctx context.Context, teamName string, balance float64) error
 	Create(ctx context.Context, team *Team) error
 	GetAll(ctx context.Context) ([]*Team, error)
+	GetTeamsWithInventory(ctx context.Context, product string, minQuantity int) ([]*Team, error)
+}
+
+type InventoryRepository interface {
+	RecordTransaction(ctx context.Context, session mongo.SessionContext, transaction *InventoryTransaction) error
+	GetTeamInventory(ctx context.Context, teamName string) (map[string]int, error)
+	GetTeamTransactions(ctx context.Context, teamName string, since time.Time) ([]*InventoryTransaction, error)
 }
 
 type OrderRepository interface {
@@ -73,6 +82,12 @@ type MarketService interface {
 
 type ProductionService interface {
 	ProcessProduction(ctx context.Context, teamName string, prodMsg *ProductionUpdateMessage) error
+}
+
+type InventoryService interface {
+	UpdateInventory(ctx context.Context, teamName string, product string, change int, reason string, orderID string, fillID string) error
+	GetTeamInventory(ctx context.Context, teamName string) (map[string]int, error)
+	CanSell(ctx context.Context, teamName string, product string, quantity int) (bool, error)
 }
 
 type ResyncService interface {

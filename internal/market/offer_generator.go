@@ -236,6 +236,93 @@ func (og *OfferGenerator) GenerateOffer(buyOrder *domain.Order) error {
 	return nil
 }
 
+func (og *OfferGenerator) GenerateTargetedOffer(buyOrder *domain.Order, eligibleTeams []*domain.Team) error {
+	// Calculate offer price (10% above current mid price)
+	marketState, err := og.marketRepo.GetByProduct(context.Background(), buyOrder.Product)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to get market state for offer price")
+		return err
+	}
+
+	var offerPrice float64
+	if marketState.Mid != nil {
+		offerPrice = *marketState.Mid * 1.10 // 10% premium
+	} else {
+		offerPrice = 10.0 // Default price
+	}
+
+	// Generate unique offer ID
+	offerID := fmt.Sprintf("off-%d-%s", time.Now().Unix(), uuid.New().String()[:8])
+
+	// Determine expiration (configurable or default)
+	var expiresIn *int
+	var expiresAt time.Time
+
+	if og.config.Market.OfferTimeout > 0 {
+		timeoutMs := int(og.config.Market.OfferTimeout.Milliseconds())
+		expiresIn = &timeoutMs
+		expiresAt = time.Now().Add(og.config.Market.OfferTimeout)
+	} else {
+		// No expiration
+		expiresAt = time.Now().Add(24 * time.Hour) // Far future
+	}
+
+	// Create offer message
+	offerMsg := &domain.OfferMessage{
+		Type:              "OFFER",
+		OfferID:           offerID,
+		Buyer:             buyOrder.TeamName,
+		Product:           buyOrder.Product,
+		QuantityRequested: buyOrder.Quantity - buyOrder.FilledQty,
+		MaxPrice:          offerPrice,
+		ExpiresIn:         expiresIn,
+		Timestamp:         time.Now(),
+	}
+
+	// Store in memory
+	og.mu.Lock()
+	og.activeOffers[offerID] = &ActiveOffer{
+		OfferMsg:  offerMsg,
+		BuyOrder:  buyOrder,
+		ExpiresAt: expiresAt,
+	}
+	og.mu.Unlock()
+
+	// Send to eligible teams only
+	sentCount := 0
+	for _, team := range eligibleTeams {
+		if team.TeamName != buyOrder.TeamName { // Don't send to self
+			err := og.broadcaster.SendToClient(team.TeamName, offerMsg)
+			if err != nil {
+				log.Debug().
+					Str("team", team.TeamName).
+					Str("offerID", offerID).
+					Err(err).
+					Msg("Failed to send targeted offer to team")
+			} else {
+				sentCount++
+				log.Debug().
+					Str("team", team.TeamName).
+					Str("offerID", offerID).
+					Str("product", buyOrder.Product).
+					Int("teamInventory", team.Inventory[buyOrder.Product]).
+					Int("qty", buyOrder.Quantity-buyOrder.FilledQty).
+					Float64("maxPrice", offerPrice).
+					Msg("Targeted offer sent to team with inventory")
+			}
+		}
+	}
+
+	log.Info().
+		Str("offerID", offerID).
+		Str("product", buyOrder.Product).
+		Int("eligibleTeams", len(eligibleTeams)).
+		Int("sentCount", sentCount).
+		Msg("Targeted offer generated and sent to teams with inventory")
+
+	return nil
+}
+
 func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage, acceptorTeam string) error {
 	og.mu.RLock()
 	offer, exists := og.activeOffers[acceptMsg.OfferID]

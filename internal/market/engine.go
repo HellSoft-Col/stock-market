@@ -19,15 +19,17 @@ type OrderCommand struct {
 }
 
 type MarketEngine struct {
-	config         *config.Config
-	db             domain.Database
-	orderRepo      domain.OrderRepository
-	fillRepo       domain.FillRepository
-	marketRepo     domain.MarketStateRepository
-	orderBook      domain.OrderBookRepository
-	matcher        *Matcher
-	broadcaster    domain.Broadcaster
-	OfferGenerator *OfferGenerator
+	config           *config.Config
+	db               domain.Database
+	orderRepo        domain.OrderRepository
+	fillRepo         domain.FillRepository
+	marketRepo       domain.MarketStateRepository
+	orderBook        domain.OrderBookRepository
+	matcher          *Matcher
+	broadcaster      domain.Broadcaster
+	OfferGenerator   *OfferGenerator
+	inventoryService domain.InventoryService
+	teamRepo         domain.TeamRepository
 
 	orderChan chan OrderCommand
 	shutdown  chan struct{}
@@ -44,18 +46,22 @@ func NewMarketEngine(
 	marketRepo domain.MarketStateRepository,
 	orderBook domain.OrderBookRepository,
 	broadcaster domain.Broadcaster,
+	inventoryService domain.InventoryService,
+	teamRepo domain.TeamRepository,
 ) *MarketEngine {
 	return &MarketEngine{
-		config:      cfg,
-		db:          db,
-		orderRepo:   orderRepo,
-		fillRepo:    fillRepo,
-		marketRepo:  marketRepo,
-		orderBook:   orderBook,
-		broadcaster: broadcaster,
-		matcher:     NewMatcher(orderBook),
-		orderChan:   make(chan OrderCommand, 1000), // Buffered channel
-		shutdown:    make(chan struct{}),
+		config:           cfg,
+		db:               db,
+		orderRepo:        orderRepo,
+		fillRepo:         fillRepo,
+		marketRepo:       marketRepo,
+		orderBook:        orderBook,
+		broadcaster:      broadcaster,
+		inventoryService: inventoryService,
+		teamRepo:         teamRepo,
+		matcher:          NewMatcher(orderBook, inventoryService, teamRepo),
+		orderChan:        make(chan OrderCommand, 1000), // Buffered channel
+		shutdown:         make(chan struct{}),
 	}
 }
 
@@ -332,6 +338,27 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 			return nil, fmt.Errorf("failed to create fill record: %w", err)
 		}
 
+		// Update inventories if service is available
+		if m.inventoryService != nil {
+			// Buyer gains inventory
+			if err := m.inventoryService.UpdateInventory(context.Background(), buyOrder.TeamName, buyOrder.Product, fillQty, "TRADE_BUY", buyOrder.ClOrdID, fillID); err != nil {
+				log.Warn().
+					Str("fillID", fillID).
+					Str("buyer", buyOrder.TeamName).
+					Err(err).
+					Msg("Failed to update buyer inventory, continuing with trade")
+			}
+
+			// Seller loses inventory
+			if err := m.inventoryService.UpdateInventory(context.Background(), sellOrder.TeamName, sellOrder.Product, -fillQty, "TRADE_SELL", sellOrder.ClOrdID, fillID); err != nil {
+				log.Warn().
+					Str("fillID", fillID).
+					Str("seller", sellOrder.TeamName).
+					Err(err).
+					Msg("Failed to update seller inventory, continuing with trade")
+			}
+		}
+
 		return fill, nil
 	})
 	return err
@@ -404,5 +431,4 @@ func (m *MarketEngine) broadcastFill(result *MatchResult, buyOrder, sellOrder *d
 	}
 }
 
-// Verify the service implements the interface
 var _ domain.MarketService = (*MarketEngine)(nil)

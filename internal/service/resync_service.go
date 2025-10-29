@@ -81,5 +81,4 @@ func (s *ResyncService) GenerateEventDelta(ctx context.Context, teamName string,
 	return eventDelta, nil
 }
 
-// Verify the service implements the interface
 var _ domain.ResyncService = (*ResyncService)(nil)

@@ -66,6 +66,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleAcceptOffer(ctx, rawMessage, client)
 	case "RESYNC":
 		return r.handleResync(ctx, rawMessage, client)
+	case "PING":
+		return r.handlePing(ctx, client)
 	default:
 		// For unimplemented messages, echo back for now
 		return r.handleEcho(ctx, baseMsg, client)
@@ -95,12 +97,20 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 	client.RegisterWithServer(team.TeamName)
 	r.broadcaster.RegisterClient(team.TeamName, client)
 
+	// Get team inventory
+	inventory := team.Inventory
+	if inventory == nil {
+		inventory = make(map[string]int)
+	}
+
 	// Generate and send LOGIN_OK response
 	loginOKMsg := &domain.LoginOKMessage{
 		Type:               "LOGIN_OK",
 		Team:               team.TeamName,
 		Species:            team.Species,
 		InitialBalance:     team.InitialBalance,
+		CurrentBalance:     team.CurrentBalance,
+		Inventory:          inventory,
 		AuthorizedProducts: team.AuthorizedProducts,
 		Recipes:            team.Recipes,
 		Role:               team.Role,
@@ -322,6 +332,16 @@ func (r *MessageRouter) handleEcho(ctx context.Context, baseMsg domain.BaseMessa
 		"original":      baseMsg,
 		"time":          time.Now().Format(time.RFC3339),
 		"authenticated": client.GetTeamName() != "",
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handlePing(ctx context.Context, client MessageClient) error {
+	// Respond with PONG
+	response := map[string]any{
+		"type":      "PONG",
+		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
 	return client.SendMessage(response)
