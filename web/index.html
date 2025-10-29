@@ -40,26 +40,28 @@
     
     <style>
         :root {
-            --primary-color: #00b894;
-            --secondary-color: #0984e3;
-            --accent-color: #6c5ce7;
-            --warning-color: #fdcb6e;
-            --danger-color: #e17055;
-            --success-color: #00b894;
-            --info-color: #74b9ff;
-            --dark-bg: #2d3436;
-            --card-bg: #636e72;
-            --border-color: #b2bec3;
-            --text-primary: #2d3436;
-            --text-secondary: #636e72;
-            --avocado-green: #00b894;
-            --avocado-dark: #00a085;
+            --primary-color: #2563eb;
+            --secondary-color: #7c3aed;
+            --accent-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --success-color: #059669;
+            --info-color: #0284c7;
+            --dark-bg: #1f2937;
+            --card-bg: #374151;
+            --border-color: #d1d5db;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --avocado-green: #059669;
+            --avocado-dark: #047857;
+            --bg-gradient: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%);
         }
         
         html, body {
             font-family: 'Inter', sans-serif !important;
-            background: linear-gradient(135deg, #dfe6e9 0%, #b2bec3 50%, #636e72 100%);
+            background: var(--bg-gradient);
             min-height: 100vh;
+            color: var(--text-primary);
         }
         
         .is-family-monospace {
@@ -76,14 +78,17 @@
         }
         
         .button.is-avocado {
-            background-color: var(--avocado-green);
-            border-color: var(--avocado-green);
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
             color: white;
+            font-weight: 600;
         }
         
         .button.is-avocado:hover {
-            background-color: var(--avocado-dark);
-            border-color: var(--avocado-dark);
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
         
         /* Enhanced Bulma components */
@@ -113,7 +118,7 @@
         
         /* Hero customizations */
         .hero.is-avocado {
-            background: linear-gradient(135deg, var(--avocado-green) 0%, var(--avocado-dark) 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
         }
         
         .hero-pattern {
@@ -147,10 +152,10 @@
             animation: pulse 2s infinite;
         }
         
-        .status-connected { background: #00b894; }
-        .status-connecting { background: #fdcb6e; }
-        .status-disconnected { background: #e17055; }
-        .status-authenticated { background: #74b9ff; }
+        .status-connected { background: var(--success-color); }
+        .status-connecting { background: var(--warning-color); }
+        .status-disconnected { background: var(--danger-color); }
+        .status-authenticated { background: var(--info-color); }
         
         @keyframes pulse {
             0% { opacity: 1; transform: scale(1); }
@@ -176,7 +181,8 @@
             text-align: center;
             transition: all 0.3s ease;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid var(--avocado-green);
+            border-left: 4px solid var(--primary-color);
+            border: 1px solid #e5e7eb;
         }
         
         .stat-card:hover {
@@ -187,16 +193,16 @@
         .stat-value {
             font-size: 2rem;
             font-weight: 700;
-            color: var(--avocado-green);
+            color: var(--primary-color);
             margin-bottom: 0.5rem;
         }
         
         .stat-label {
             font-size: 0.875rem;
-            color: #636e72;
+            color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-weight: 500;
+            font-weight: 600;
         }
         
         /* Message Styles */
@@ -212,33 +218,34 @@
         }
         
         .message-success {
-            border-color: #00b894;
-            color: #00a085;
+            border-color: var(--success-color);
+            color: #047857;
         }
         
         .message-error {
-            border-color: #e17055;
-            color: #d63031;
+            border-color: var(--danger-color);
+            color: #b91c1c;
         }
         
         .message-info {
-            border-color: #74b9ff;
-            color: #0984e3;
+            border-color: var(--info-color);
+            color: #0369a1;
         }
         
         .message-warning {
-            border-color: #fdcb6e;
-            color: #e17055;
+            border-color: var(--warning-color);
+            color: #b45309;
         }
         
         .message-fill {
-            border-color: #6c5ce7;
-            color: #5f3dc4;
+            border-color: var(--secondary-color);
+            color: #6b21a8;
         }
         
         /* Navbar customizations */
         .navbar.is-avocado {
-            background-color: var(--avocado-green) !important;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
         /* Button customizations */
@@ -261,8 +268,8 @@
         }
         
         .input:focus, .textarea:focus, .select select:focus {
-            border-color: var(--avocado-green);
-            box-shadow: 0 0 0 0.125em rgba(0, 184, 148, 0.25);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.125em rgba(37, 99, 235, 0.25);
         }
         
         /* Scrollbar customizations */
@@ -296,19 +303,19 @@
         }
         
         .status-disconnected { 
-            background: rgba(225, 112, 85, 0.2); 
-            border: 1px solid #e17055; 
-            color: #d63031;
+            background: rgba(220, 38, 38, 0.1); 
+            border: 1px solid var(--danger-color); 
+            color: #b91c1c;
         }
         .status-connected { 
-            background: rgba(0, 184, 148, 0.2); 
-            border: 1px solid #00b894; 
-            color: #00a085;
+            background: rgba(5, 150, 105, 0.1); 
+            border: 1px solid var(--success-color); 
+            color: #047857;
         }
         .status-authenticated { 
-            background: rgba(116, 185, 255, 0.2); 
-            border: 1px solid #74b9ff; 
-            color: #0984e3;
+            background: rgba(2, 132, 199, 0.1); 
+            border: 1px solid var(--info-color); 
+            color: #0369a1;
         }
         
         /* Order book and trading specific styles */
@@ -323,10 +330,10 @@
             font-size: 0.875rem;
         }
         
-        .order-item.buy { border-left-color: #00b894; }
-        .order-item.sell { border-left-color: #e17055; }
-        .order-item.filled { border-left-color: #6c5ce7; }
-        .order-item.pending { border-left-color: #fdcb6e; }
+        .order-item.buy { border-left-color: var(--success-color); }
+        .order-item.sell { border-left-color: var(--danger-color); }
+        .order-item.filled { border-left-color: var(--secondary-color); }
+        .order-item.pending { border-left-color: var(--warning-color); }
         
         .order-header {
             display: flex;
@@ -347,15 +354,15 @@
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 8px;
-            border-left: 4px solid var(--avocado-green);
+            border-left: 4px solid var(--primary-color);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.875rem;
         }
         
-        .price-bid { color: #00b894; font-weight: 600; }
-        .price-ask { color: #e17055; font-weight: 600; }
-        .price-mid { color: #fdcb6e; font-weight: 600; }
+        .price-bid { color: var(--success-color); font-weight: 600; }
+        .price-ask { color: var(--danger-color); font-weight: 600; }
+        .price-mid { color: var(--warning-color); font-weight: 600; }
         
         /* Team info and utility styles */
         .team-info {
@@ -399,8 +406,8 @@
             font-weight: 600;
         }
         
-        .order-book-side.buy h5 { color: #00b894; }
-        .order-book-side.sell h5 { color: #e17055; }
+        .order-book-side.buy h5 { color: var(--success-color); }
+        .order-book-side.sell h5 { color: var(--danger-color); }
         
         .order-book-entry {
             display: flex;
@@ -584,10 +591,27 @@
                                             <i class="fas fa-keyboard"></i>
                                         </span>
                                     </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Connected Sessions Display -->
+                            <div class="card">
+                                <div class="card-content">
+                                    <h3 class="title is-6">
+                                        <span class="icon-text">
+                                            <span class="icon"><i class="fas fa-users"></i></span>
+                                            <span>Sesiones Conectadas</span>
+                                        </span>
+                                    </h3>
+                                    <div id="sessions-list" style="max-height: 300px; overflow-y: auto;">
+                                        <div class="notification is-info is-light">
+                                            <i class="fas fa-info-circle"></i> No hay sesiones conectadas
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-            </div>
         </div>
     </nav>
 
@@ -1237,22 +1261,7 @@
                                                 </span>
                             </div>
                             
-                            <!-- Connected Sessions Display -->
-                            <div class="card" style="margin-top: 1rem;">
-                                <div class="card-content">
-                                    <h3 class="title is-6">
-                                        <span class="icon-text">
-                                            <span class="icon"><i class="fas fa-users"></i></span>
-                                            <span>Sesiones Conectadas</span>
-                                        </span>
-                                    </h3>
-                                    <div id="sessions-list">
-                                        <div class="notification is-info is-light">
-                                            <i class="fas fa-info-circle"></i> No hay sesiones conectadas
-                                        </div>
-                                    </div>
-                                            </div>
-                                        </div>
+
                                     </div>
                                     
                                     <!-- Price Adjustment Tool -->
@@ -2041,12 +2050,15 @@
                     
                 case 'INVENTORY_UPDATE':
                     updateInventoryDisplay(data.inventory);
-                    addMessage('info', 'Inventory updated');
+                    addMessage('success', `📦 Inventario actualizado: ${Object.entries(data.inventory).map(([p,q]) => `${p}:${q}`).join(', ')}`);
+                    showAlert('Inventario actualizado exitosamente', 'success');
                     break;
                     
                 case 'ALL_ORDERS':
                     allOrders = data.orders;
                     updateAllOrdersDisplay();
+                    addMessage('success', `📋 ${data.orders.length} órdenes cargadas`);
+                    showAlert(`${data.orders.length} órdenes del mercado cargadas`, 'success');
                     break;
                     
                 case 'ORDER_BOOK_UPDATE':
@@ -2058,6 +2070,8 @@
                 case 'CONNECTED_SESSIONS':
                     connectedSessions = data.sessions;
                     updateSessionsDisplay();
+                    addMessage('success', `👥 ${data.sessions.length} sesiones conectadas`);
+                    showAlert(`${data.sessions.length} sesiones activas encontradas`, 'success');
                     break;
                     
                 case 'SERVER_STATS':
@@ -2066,6 +2080,14 @@
                     break;
                     
                 case 'PONG':
+                    if (window.lastPingTime) {
+                        const responseTime = Date.now() - window.lastPingTime;
+                        addMessage('success', `🏓 Pong recibido en ${responseTime}ms`);
+                        showAlert(`Pong: ${responseTime}ms`, 'success');
+                        delete window.lastPingTime;
+                    } else {
+                        addMessage('success', '🏓 Pong recibido');
+                    }
                     break;
                     
                 case 'ECHO':
@@ -2103,6 +2125,7 @@
             if (!teamInfo) return;
             teamInfo.inventory = inventory;
             displayTeamInfo(teamInfo);
+            updateInventoryVisualizer(inventory);
         }
         
         function updateTicker(ticker) {
@@ -2360,6 +2383,8 @@
         function requestAllOrders() {
             const msg = { type: 'REQUEST_ALL_ORDERS' };
             ws.send(JSON.stringify(msg));
+            addMessage('info', '📋 Solicitando todas las órdenes...');
+            showAlert('Cargando órdenes del mercado...', 'info');
         }
         
         function requestOrderBook() {
@@ -2386,15 +2411,21 @@
         }
         
         function sendPing() {
+            const startTime = Date.now();
             const msg = { type: 'PING' };
             ws.send(JSON.stringify(msg));
-            addMessage('info', 'Ping sent');
+            addMessage('info', '🏓 Ping enviado...');
+            showAlert('Ping enviado, esperando respuesta...', 'info');
+            
+            // Store ping time for response calculation
+            window.lastPingTime = startTime;
         }
         
         function requestResync() {
             const msg = { type: 'RESYNC', lastSync: '' };
             ws.send(JSON.stringify(msg));
-            addMessage('info', 'Resync requested');
+            addMessage('info', '🔄 Solicitando resincronización...');
+            showAlert('Resincronización iniciada...', 'info');
         }
         
         function respondToOffer(offerId, accept) {
@@ -2426,48 +2457,54 @@
         function requestConnectedSessions() {
             const msg = { type: 'REQUEST_CONNECTED_SESSIONS' };
             ws.send(JSON.stringify(msg));
-            addMessage('info', 'Requesting connected sessions...');
+            addMessage('info', '👥 Solicitando sesiones conectadas...');
+            showAlert('Cargando información de sesiones...', 'info');
         }
         
         function updateSessionsDisplay() {
             const container = document.getElementById('sessions-list');
             
             if (connectedSessions.length === 0) {
-                container.innerHTML = '<p>No connected sessions</p>';
+                container.innerHTML = '<div class="notification is-warning is-light"><i class="fas fa-info-circle"></i> No hay sesiones conectadas</div>';
                 return;
             }
             
             container.innerHTML = connectedSessions.map(session => {
                 const connectionTime = new Date(session.connectedAt).toLocaleTimeString();
                 
-                // Determine display based on client type
-                let clientIcon = '☕';
-                let clientText = 'Java Client';
+                // Determine display based on user agent or client type
+                let clientIcon = '🌐';
+                let clientText = 'Navegador Web';
                 let statusClass = session.authenticated ? 'authenticated' : 'connected';
-                let clientClass = 'java-client';
+                let clientClass = 'web-client';
                 
-                if (session.clientType === 'Multiple Clients') {
+                // Check if it's actually a Java client based on user agent or other indicators
+                if (session.userAgent && session.userAgent.includes('Java')) {
+                    clientIcon = '☕';
+                    clientText = 'Java Client';
+                    clientClass = 'java-client';
+                } else if (session.clientType === 'Multiple Clients') {
                     clientIcon = '🔗';
                     clientText = 'Multiple Clients';
                     statusClass = 'authenticated';
                     clientClass = 'multiple-clients';
-                } else if (session.clientType === 'Web Browser') {
-                    clientIcon = '🌐';
-                    clientText = 'Web Browser';
-                    clientClass = 'web-client';
+                } else if (session.clientType && session.clientType.includes('Java')) {
+                    clientIcon = '☕';
+                    clientText = 'Java Client';
+                    clientClass = 'java-client';
                 }
                 
                 return `
-                    <div class="session-item ${statusClass} ${clientClass}">
+                    <div class="order-item ${statusClass}">
                         <div class="order-header">
-                            <strong>${session.teamName || 'Anonymous'}</strong>
+                            <strong>${session.teamName || 'Anónimo'}</strong>
                             <span>${clientIcon} ${clientText}</span>
                         </div>
                         <div class="order-details">
-                            Connected: ${connectionTime} | 
-                            Status: ${session.authenticated ? 'Authenticated' : 'Connected'} | 
-                            ${session.remoteAddr}
-                            ${session.lastActivity ? `| Last Activity: ${new Date(session.lastActivity).toLocaleTimeString()}` : ''}
+                            Conectado: ${connectionTime} | 
+                            Estado: ${session.authenticated ? 'Autenticado' : 'Conectado'} | 
+                            IP: ${session.remoteAddr || 'N/A'}
+                            ${session.lastActivity ? `<br>Última actividad: ${new Date(session.lastActivity).toLocaleTimeString()}` : ''}
                         </div>
                     </div>
                 `;
@@ -2699,6 +2736,7 @@
             
             if (!qty || qty <= 0) {
                 addMessage('error', 'Por favor ingrese una cantidad válida');
+                showAlert('Cantidad inválida', 'error');
                 return;
             }
             
@@ -2711,8 +2749,15 @@
                 quantity: qty
             };
             
-            addMessage('info', `Probando producción: ${qty} ${product}`);
+            addMessage('info', `🏭 Simulando producción: ${qty} ${product}`);
+            showAlert(`Simulando producción de ${qty} ${product}...`, 'info');
             ws.send(JSON.stringify(prodMsg));
+            
+            // Simulate inventory update for testing (since server might not respond)
+            if (teamInfo && teamInfo.inventory) {
+                teamInfo.inventory[product] = (teamInfo.inventory[product] || 0) + qty;
+                updateInventoryDisplay(teamInfo.inventory);
+            }
             
             // Display production validation
             displayProductionValidation(product, qty, algorithmResult);
@@ -2995,19 +3040,29 @@
         // Inventory Visualizer
         function updateInventoryVisualizer(inventory) {
             const container = document.getElementById('inventory-visualizer');
+            const gridContainer = document.getElementById('inventory-grid');
             
             if (!inventory || Object.keys(inventory).length === 0) {
-                container.innerHTML = '<div class="inventory-item">Sin inventario</div>';
+                if (container) container.innerHTML = '<div class="inventory-item">Sin inventario</div>';
+                if (gridContainer) gridContainer.innerHTML = '<div class="inventory-item"><div class="has-text-grey">Sin datos</div></div>';
                 return;
             }
             
-            container.innerHTML = Object.entries(inventory)
+            const inventoryHTML = Object.entries(inventory)
                 .map(([product, qty]) => `
                     <div class="inventory-item">
                         <strong>${product}</strong><br>
-                        <span style="font-size: 14px; color: #f39c12;">${qty}</span>
+                        <span style="font-size: 16px; color: var(--success-color); font-weight: 600;">${qty}</span>
                     </div>
                 `).join('');
+            
+            if (container) {
+                container.innerHTML = inventoryHTML;
+                container.style.display = 'grid';
+            }
+            if (gridContainer) {
+                gridContainer.innerHTML = inventoryHTML;
+            }
         }
         
         // Quick Trade Functions
