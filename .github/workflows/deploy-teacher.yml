@@ -120,16 +120,16 @@ jobs:
                    ],
                    "environmentVariables": [
                      {
-                       "name": "MONGODB_URI",
-                       "secureValue": "${{ secrets.MONGODB_URI }}"
-                     },
-                     {
                        "name": "PORT",
                        "value": "80"
                      },
                      {
                        "name": "LOG_LEVEL",
                        "value": "${{ vars.LOG_LEVEL || 'info' }}"
+                     },
+                     {
+                       "name": "MONGODB_URI",
+                       "value": "${{ secrets.MONGODB_URI }}"
                      }
                    ],
                    "resources": {
@@ -164,8 +164,20 @@ jobs:
              "volumes": []
         EOF
         
-        # Skip Log Analytics configuration to avoid portal warnings
-        echo "Skipping Log Analytics (can be enabled via Azure CLI if needed)"
+        # Configure Log Analytics if available
+        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
+          echo "Adding Log Analytics configuration..."
+          cat >> deployment.json << EOF
+            ,
+            "diagnostics": {
+              "logAnalytics": {
+                "workspaceId": "$LOG_ANALYTICS_WORKSPACE_ID"
+              }
+            }
+        EOF
+        else
+          echo "Log Analytics not available - proceeding without"
+        fi
         
         # Close the JSON
         cat >> deployment.json << EOF
@@ -174,115 +186,127 @@ jobs:
         }
         EOF
 
-    - name: Create Log Analytics Workspace
+    - name: Setup Log Analytics for Portal Integration
       run: |
-        echo "🔍 Setting up Azure Log Analytics workspace for container logging..."
+        echo "Setting up Azure Log Analytics for Portal-compatible logging..."
         
-        # Check if workspace exists, create if not
-        WORKSPACE_EXISTS=$(az monitor log-analytics workspace show \
-          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
-          --query name --output tsv 2>/dev/null || echo "")
+        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        WORKSPACE_NAME="${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }}"
+        LOCATION="${{ vars.AZURE_LOCATION || 'eastus' }}"
         
-        if [ -z "$WORKSPACE_EXISTS" ]; then
-          echo "Creating new Log Analytics workspace..."
-          az monitor log-analytics workspace create \
-            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-            --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
-            --location ${{ vars.AZURE_LOCATION || 'eastus' }} \
-            --sku PerGB2018
+        # Create or get Log Analytics workspace
+        echo "Ensuring Log Analytics workspace exists..."
+        az monitor log-analytics workspace create \
+          --resource-group "$RESOURCE_GROUP" \
+          --workspace-name "$WORKSPACE_NAME" \
+          --location "$LOCATION" \
+          --sku PerGB2018 \
+          --only-show-errors || echo "Workspace may already exist"
+        
+        # Get workspace details
+        WORKSPACE_ID=$(az monitor log-analytics workspace show \
+          --resource-group "$RESOURCE_GROUP" \
+          --workspace-name "$WORKSPACE_NAME" \
+          --query customerId \
+          --output tsv)
+        
+        if [ -n "$WORKSPACE_ID" ] && [ "$WORKSPACE_ID" != "null" ]; then
+          echo "✅ Log Analytics Workspace ready"
+          echo "Workspace ID: $WORKSPACE_ID"
+          echo "LOG_ANALYTICS_WORKSPACE_ID=$WORKSPACE_ID" >> $GITHUB_ENV
+          echo "LOG_ANALYTICS_ENABLED=true" >> $GITHUB_ENV
         else
-          echo "Using existing Log Analytics workspace: $WORKSPACE_EXISTS"
-        fi
-        
-        # Wait for workspace to be fully provisioned
-        echo "Waiting for workspace to be fully provisioned..."
-        sleep 30
-        
-        # Get workspace credentials with retry
-        for i in {1..3}; do
-          WORKSPACE_ID=$(az monitor log-analytics workspace show \
-            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-            --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
-            --query customerId --output tsv 2>/dev/null)
-          
-          if [ -n "$WORKSPACE_ID" ] && [ "$WORKSPACE_ID" != "null" ]; then
-            break
-          fi
-          
-          echo "Attempt $i: Workspace not ready, waiting..."
-          sleep 10
-        done
-        
-        if [ -z "$WORKSPACE_ID" ] || [ "$WORKSPACE_ID" = "null" ]; then
-          echo "❌ Failed to get workspace ID, disabling Log Analytics"
+          echo "❌ Failed to create/access Log Analytics workspace"
           echo "LOG_ANALYTICS_ENABLED=false" >> $GITHUB_ENV
-        else
-          WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys \
-            --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-            --workspace-name ${{ vars.LOG_ANALYTICS_WORKSPACE || 'trading-course-logs' }} \
-            --query primarySharedKey --output tsv)
-          
-          if [ -n "$WORKSPACE_KEY" ] && [ "$WORKSPACE_KEY" != "null" ]; then
-            echo "✅ Log Analytics Workspace ID: $WORKSPACE_ID"
-            echo "LOG_ANALYTICS_WORKSPACE_ID=$WORKSPACE_ID" >> $GITHUB_ENV
-            echo "LOG_ANALYTICS_WORKSPACE_KEY=$WORKSPACE_KEY" >> $GITHUB_ENV
-            echo "LOG_ANALYTICS_ENABLED=true" >> $GITHUB_ENV
-          else
-            echo "❌ Failed to get workspace key, disabling Log Analytics"
-            echo "LOG_ANALYTICS_ENABLED=false" >> $GITHUB_ENV
-          fi
         fi
 
-    - name: Deploy container with SSL and logging
+    - name: Deploy container for Portal-compatible logging
       run: |
-        echo "Deploying WebSocket application..."
+        echo "Deploying WebSocket application with Portal-compatible configuration..."
         echo "Image: ${{ steps.image.outputs.image }}"
         echo "Registry: ${{ env.REGISTRY }}"
         echo "Username: ${{ github.actor }}"
-        echo "Using GHCR_PAT for registry authentication"
-        echo "WebSocket support enabled (HTTP)"
-        echo "Static files: Trading UI included"
-        echo "Logging: Azure Container logs available"
         
-        # Display the deployment config for debugging
-        echo "Deployment configuration:"
-        cat deployment.json
+        RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
+        CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         
+        # Delete existing container
+        echo "Removing existing container..."
         az container delete \
-          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --name ${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }} \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
           --yes || true
         
         sleep 10
         
-        az container create \
-          --resource-group ${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }} \
-          --file deployment.json
-         
-         echo ""
-         echo "WebSocket Application Deployment:"
-         echo "================================="
-         echo "- HTTP WebSocket support enabled"
-         echo "- Trading UI: Available at root path"
-         echo "- Direct application access on port 80 (Cloudflare compatible)"
-         echo "- Cloudflare-ready for free HTTPS"
-         echo ""
-         echo "Access Information:"
-         echo "=================="
-         echo "Direct access: http://[CONTAINER_FQDN]/"
-         echo "WebSocket: ws://[CONTAINER_FQDN]/ws"
-         echo ""
-         echo "Cloudflare DNS Automation:"
-         echo "✅ DNS record will be updated automatically"
-         echo "✅ HTTPS will be available via Cloudflare proxy"
-         echo ""
-         echo "After automation completes:"
-         echo "Website: https://trading.hellsoft.tech/"
-         echo "WebSocket: wss://trading.hellsoft.tech/ws"
-         echo ""
-         echo "Note: If Cloudflare secrets are not configured,"
-         echo "DNS must be updated manually in Cloudflare dashboard."
+        # Create container with CLI for Portal compatibility (no JSON config file)
+        echo "Creating container with Portal-compatible configuration..."
+        
+        DEPLOY_CMD="az container create \
+          --resource-group '$RESOURCE_GROUP' \
+          --name '$CONTAINER_NAME' \
+          --image '${{ steps.image.outputs.image }}' \
+          --location '${{ vars.AZURE_LOCATION || 'eastus' }}' \
+          --dns-name-label '$CONTAINER_NAME' \
+          --ports 80 \
+          --protocol TCP \
+          --cpu ${{ vars.CPU_CORES || 0.5 }} \
+          --memory ${{ vars.MEMORY_GB || 1 }} \
+          --restart-policy Always \
+          --environment-variables PORT=80 LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }} \
+          --secure-environment-variables MONGODB_URI='${{ secrets.MONGODB_URI }}' \
+          --registry-server '${{ env.REGISTRY }}' \
+          --registry-username '${{ github.actor }}' \
+          --registry-password '${{ secrets.GHCR_PAT }}' \
+          --command-line '/exchange-server -config=/config.production.yaml'"
+        
+        # Add Log Analytics if available
+        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
+          echo "Adding Log Analytics workspace integration..."
+          DEPLOY_CMD="$DEPLOY_CMD --log-analytics-workspace '$LOG_ANALYTICS_WORKSPACE_ID'"
+        fi
+        
+        echo "Executing deployment command..."
+        eval "$DEPLOY_CMD"
+        
+        echo ""
+        echo "✅ Container deployment completed!"
+        
+        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
+          echo "✅ Log Analytics integration enabled"
+          echo "📊 Container logs will be available in Azure Portal"
+        else
+          echo "⚠️  Log Analytics not configured"
+        fi
+        
+        echo ""
+        echo "WebSocket Application Deployment:"
+        echo "================================="
+        echo "- HTTP WebSocket support enabled"
+        echo "- Trading UI: Available at root path"  
+        echo "- Direct application access on port 80 (Cloudflare compatible)"
+        echo "- Portal-compatible logging configuration"
+        echo "- Cloudflare-ready for free HTTPS"
+        echo ""
+        echo "Access Information:"
+        echo "=================="
+        echo "Direct access: http://[CONTAINER_FQDN]/"
+        echo "WebSocket: ws://[CONTAINER_FQDN]/ws"
+        echo ""
+        echo "Cloudflare DNS Automation:"
+        echo "✅ DNS record will be updated automatically"
+        echo "✅ HTTPS will be available via Cloudflare proxy"
+        echo ""
+        echo "After automation completes:"
+        echo "Website: https://trading.hellsoft.tech/"
+        echo "WebSocket: wss://trading.hellsoft.tech/ws"
+        echo ""
+        echo "Azure Portal Logs:"
+        if [ "$LOG_ANALYTICS_ENABLED" = "true" ]; then
+          echo "✅ Available in Container Instances → $CONTAINER_NAME → Logs"
+        else
+          echo "⚠️  Log Analytics workspace required for Portal log viewing"
+        fi
 
     - name: Health check
       run: |
@@ -574,49 +598,63 @@ jobs:
           fi
         done
 
-    - name: Verify Logging Configuration
+    - name: Verify Portal Log Integration
       run: |
         CONTAINER_NAME="${{ vars.AZURE_CONTAINER_NAME || 'trading-course' }}"
         RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP || 'trading-course-rg' }}"
         
-        echo "Container Logging Verification"
-        echo "================================="
+        echo "Portal Log Integration Verification"
+        echo "==================================="
         
-        # Show container group details with logging info
-        echo "Container Group Diagnostics:"
+        # Check container configuration
+        echo "Checking container logging configuration..."
+        LOGGING_CONFIG=$(az container show \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$CONTAINER_NAME" \
+          --query 'properties.diagnostics.logAnalytics.workspaceId' \
+          --output tsv 2>/dev/null || echo "none")
+        
+        if [ "$LOGGING_CONFIG" != "none" ] && [ "$LOGGING_CONFIG" != "null" ] && [ -n "$LOGGING_CONFIG" ]; then
+          echo "✅ Log Analytics integration detected"
+          echo "Workspace ID: $LOGGING_CONFIG"
+          echo ""
+          echo "📊 How to View Logs in Azure Portal:"
+          echo "1. Go to Azure Portal"
+          echo "2. Navigate to Container Instances"
+          echo "3. Select '$CONTAINER_NAME'"
+          echo "4. Click 'Logs' in the left sidebar"
+          echo "5. Logs should be available without CLI requirement"
+          echo ""
+          echo "📈 Sample Log Analytics Queries:"
+          echo "# View all container logs (last hour)"
+          echo "ContainerInstanceLog_CL"
+          echo "| where TimeGenerated > ago(1h)"
+          echo "| order by TimeGenerated desc"
+          echo ""
+          echo "# Filter by log level"
+          echo "ContainerInstanceLog_CL"
+          echo "| where Message contains 'ERROR' or Message contains 'WARN'"
+          echo "| order by TimeGenerated desc"
+        else
+          echo "⚠️  Portal Log Analytics integration not detected"
+          echo "Container logs available via Azure CLI only:"
+          echo ""
+          echo "az container logs \\"
+          echo "  --resource-group $RESOURCE_GROUP \\"
+          echo "  --name $CONTAINER_NAME"
+          echo ""
+          echo "Note: For Portal log viewing, ensure Log Analytics workspace"
+          echo "is properly configured and the container deployment method"
+          echo "is compatible with Portal integration."
+        fi
+        
+        echo ""
+        echo "🔍 Current Container Status:"
         az container show \
           --resource-group "$RESOURCE_GROUP" \
           --name "$CONTAINER_NAME" \
-          --query 'properties.diagnostics' \
-          --output table || echo "No diagnostics configured"
-        
-        echo ""
-        echo "How to View Container Logs:"
-        echo "============================="
-        echo "Option 1 - Azure CLI:"
-        echo "  # View all containers"
-        echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME"
-        echo ""
-         echo "  # View specific container"
-         echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name trading-app"
-         echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name nginx-proxy"
-         echo "  az container logs --resource-group $RESOURCE_GROUP --name $CONTAINER_NAME --container-name certbot"
-        echo ""
-        echo "Option 2 - Azure Portal:"
-        echo "  1. Go to Azure Portal → Container Instances"
-        echo "  2. Select '$CONTAINER_NAME'"
-        echo "  3. Click 'Logs' in the left menu"
-        echo "  4. Use KQL queries to filter logs"
-        echo ""
-        echo "Option 3 - Log Analytics Queries:"
-        echo "  # All container logs"
-        echo "  ContainerInstanceLog_CL | where TimeGenerated > ago(1h)"
-        echo ""
-         echo "  # SSL certificate logs"
-         echo "  ContainerInstanceLog_CL | where ContainerName_s == 'certbot' | where TimeGenerated > ago(1h)"
-        echo ""
-        echo "  # nginx proxy logs"
-        echo "  ContainerInstanceLog_CL | where ContainerName_s == 'nginx-proxy' | where TimeGenerated > ago(1h)"
+          --query '{state: instanceView.state, restartCount: containers[0].instanceView.restartCount, logs: properties.diagnostics}' \
+          --output table
 
     - name: SSL Certificate Status Check
       id: ssl_check
