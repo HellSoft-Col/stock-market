@@ -11,8 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 
-	"github.com/yourusername/avocado-exchange-server/internal/config"
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/config"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
 )
 
 type Database struct {

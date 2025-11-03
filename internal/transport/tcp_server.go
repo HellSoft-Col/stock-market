@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yourusername/avocado-exchange-server/internal/config"
+	"github.com/HellSoft-Col/stock-market/internal/config"
 )
 
 type TCPServer struct {

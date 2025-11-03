@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
-	"github.com/yourusername/avocado-exchange-server/internal/market"
-	"github.com/yourusername/avocado-exchange-server/internal/service"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/market"
+	"github.com/HellSoft-Col/stock-market/internal/service"
 )
 
 type MessageRouter struct {

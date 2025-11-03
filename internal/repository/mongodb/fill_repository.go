@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
 )
 
 type FillRepository struct {

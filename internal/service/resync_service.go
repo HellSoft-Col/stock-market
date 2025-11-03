@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
 )
 
 type ResyncService struct {

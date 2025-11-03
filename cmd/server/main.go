@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yourusername/avocado-exchange-server/internal/config"
-	"github.com/yourusername/avocado-exchange-server/internal/market"
-	"github.com/yourusername/avocado-exchange-server/internal/repository/memory"
-	"github.com/yourusername/avocado-exchange-server/internal/repository/mongodb"
-	"github.com/yourusername/avocado-exchange-server/internal/service"
-	"github.com/yourusername/avocado-exchange-server/internal/transport"
-	"github.com/yourusername/avocado-exchange-server/pkg/logger"
+	"github.com/HellSoft-Col/stock-market/internal/config"
+	"github.com/HellSoft-Col/stock-market/internal/market"
+	"github.com/HellSoft-Col/stock-market/internal/repository/memory"
+	"github.com/HellSoft-Col/stock-market/internal/repository/mongodb"
+	"github.com/HellSoft-Col/stock-market/internal/service"
+	"github.com/HellSoft-Col/stock-market/internal/transport"
+	"github.com/HellSoft-Col/stock-market/pkg/logger"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/yourusername/avocado-exchange-server
+module github.com/HellSoft-Col/stock-market
 
 go 1.25
 

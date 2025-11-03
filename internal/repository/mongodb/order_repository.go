@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
 )
 
 type OrderRepository struct {

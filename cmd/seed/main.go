@@ -6,10 +6,10 @@ import (
 	"math/rand"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yourusername/avocado-exchange-server/internal/config"
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
-	"github.com/yourusername/avocado-exchange-server/internal/repository/mongodb"
-	"github.com/yourusername/avocado-exchange-server/pkg/logger"
+	"github.com/HellSoft-Col/stock-market/internal/config"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/repository/mongodb"
+	"github.com/HellSoft-Col/stock-market/pkg/logger"
 )
 
 func main() {

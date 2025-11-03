@@ -1,0 +1,2005 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🥑 Intercambio de Aguacates - Trading Platform</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥑</text></svg>">
+    
+    <!-- Meta tags -->
+    <meta name="description" content="Modern trading platform for avocados with real-time simulation and advanced analytics">
+    <meta name="theme-color" content="#059669">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace']
+                    },
+                    colors: {
+                        primary: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#059669',
+                            600: '#047857',
+                            700: '#065f46',
+                            900: '#064e3b'
+                        }
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+    </script>
+    
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+        
+        .glass-effect {
+            backdrop-filter: blur(16px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-connected { background: #10b981; }
+        .status-connecting { background: #f59e0b; }
+        .status-disconnected { background: #ef4444; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .tab-active {
+            border-bottom: 2px solid #059669;
+            color: #059669;
+        }
+        
+        .sidebar-tab-active {
+            background: #ecfdf5;
+            border-left: 4px solid #059669;
+            color: #059669;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900 font-sans">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="text-2xl">🥑</div>
+                    <div>
+                        <h1 class="text-xl font-bold">Intercambio de Aguacates</h1>
+                        <p class="text-sm text-green-100">Trading Platform</p>
+                    </div>
+                </div>
+                
+                <!-- Status & Controls -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center bg-white/10 rounded-lg px-3 py-1">
+                        <span id="status-dot" class="status-dot status-disconnected"></span>
+                        <span id="status-text" class="text-sm font-medium">Disconnected</span>
+                    </div>
+                    <button onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                        <i id="theme-icon" class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                    <!-- Sidebar Tabs -->
+                    <div class="border-b border-gray-200 dark:border-gray-700">
+                        <nav class="flex space-x-0">
+                            <button onclick="switchSidebarTab('auth')" class="sidebar-tab flex-1 py-3 px-4 text-sm font-medium border-r border-gray-200 dark:border-gray-700 sidebar-tab-active" id="auth-tab">
+                                <i class="fas fa-key mr-2"></i>Auth
+                            </button>
+                            <button onclick="switchSidebarTab('simulator')" class="sidebar-tab flex-1 py-3 px-4 text-sm font-medium border-r border-gray-200 dark:border-gray-700" id="simulator-tab">
+                                <i class="fas fa-rocket mr-2"></i>Sim
+                            </button>
+                            <button onclick="switchSidebarTab('debug')" class="sidebar-tab flex-1 py-3 px-4 text-sm font-medium" id="debug-tab">
+                                <i class="fas fa-bug mr-2"></i>Debug
+                            </button>
+                        </nav>
+                    </div>
+                    
+                    <!-- Auth Content -->
+                    <div id="auth-content" class="p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Authentication</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Team Token</label>
+                                <input type="text" id="token" placeholder="TK-XXXX" 
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: TK-XXXX</p>
+                            </div>
+                            
+                            <div class="flex space-x-2">
+                                <button onclick="toggleConnection()" id="connect-btn" 
+                                        class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                                    <i class="fas fa-plug mr-2"></i>Connect
+                                </button>
+                                <button onclick="login()" id="login-btn" disabled
+                                        class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                                    <i class="fas fa-sign-in-alt mr-2"></i>Login
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Team Info -->
+                        <div id="team-info" class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg" style="display: none;">
+                            <div id="team-details" class="text-sm text-green-800 dark:text-green-200"></div>
+                        </div>
+                        
+                        <!-- Inventory -->
+                        <div class="mt-6">
+                            <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Inventory</h4>
+                            <div id="inventory-grid" class="grid grid-cols-2 gap-2">
+                                <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">No data</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Simulator Content -->
+                    <div id="simulator-content" class="p-6" style="display: none;">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Market Simulator</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                                    <select id="sim-side" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                        <option value="BUY">🟢 Buy</option>
+                                        <option value="SELL">🔴 Sell</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+                                    <select id="sim-product" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                        <option value="FOSFO">FOSFO</option>
+                                        <option value="PITA">PITA</option>
+                                        <option value="PALTA-OIL">PALTA-OIL</option>
+                                        <option value="GUACA">GUACA</option>
+                                        <option value="SEBO">SEBO</option>
+                                        <option value="H-GUACA">H-GUACA</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+                                    <input type="number" id="sim-qty" placeholder="10" min="1" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price</label>
+                                    <input type="number" id="sim-price" placeholder="15.50" step="0.01" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                </div>
+                            </div>
+                            
+                            <button onclick="createMarketOrder()" id="create-order-btn" disabled
+                                    class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                                <i class="fas fa-chart-line mr-2"></i>Create Market Order
+                            </button>
+                            
+                            <div class="grid grid-cols-2 gap-2 mt-4">
+                                <button onclick="toggleAutoMarketMaker()" id="auto-mm-btn" disabled
+                                        class="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    <i class="fas fa-robot mr-1"></i>Auto MM
+                                </button>
+                                <button onclick="clearAllOrders()" id="clear-all-btn" disabled
+                                        class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    <i class="fas fa-trash mr-1"></i>Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Debug Content -->
+                    <div id="debug-content" class="p-6" style="display: none;">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Debug Tools</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Error Injection</h4>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="injectError('INSUFFICIENT_BALANCE')" id="err-balance-btn" disabled
+                                            class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Balance
+                                    </button>
+                                    <button onclick="injectError('UNAUTHORIZED_PRODUCT')" id="err-product-btn" disabled
+                                            class="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Product
+                                    </button>
+                                    <button onclick="injectError('DISCONNECT_CLIENT')" id="err-disconnect-btn" disabled
+                                            class="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Disconnect
+                                    </button>
+                                    <button onclick="injectError('OFFER_EXPIRED')" id="err-expire-btn" disabled
+                                            class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Expire
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Production Test</h4>
+                                <div class="space-y-2">
+                                    <select id="prod-product" class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white">
+                                        <option value="FOSFO">FOSFO</option>
+                                        <option value="PITA">PITA</option>
+                                        <option value="PALTA-OIL">PALTA-OIL</option>
+                                        <option value="GUACA">GUACA</option>
+                                        <option value="SEBO">SEBO</option>
+                                        <option value="H-GUACA">H-GUACA</option>
+                                    </select>
+                                    <input type="number" id="prod-qty" placeholder="Quantity" min="1" 
+                                           class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white">
+                                    <button onclick="testProduction()" id="prod-btn" disabled
+                                            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-sm transition-colors">
+                                        Test Production
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tools</h4>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button onclick="sendPing()" id="ping-btn" disabled
+                                            class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Ping
+                                    </button>
+                                    <button onclick="requestResync()" id="resync-btn" disabled
+                                            class="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Resync
+                                    </button>
+                                    <button onclick="requestAllOrders()" id="all-orders-btn" disabled
+                                            class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Orders
+                                    </button>
+                                    <button onclick="requestConnectedSessions()" id="sessions-btn" disabled
+                                            class="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Sessions
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Performance</h4>
+                                <div class="grid grid-cols-1 gap-1">
+                                    <button onclick="requestTeamPerformanceReport()" id="team-perf-btn" disabled
+                                            class="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        My Performance
+                                    </button>
+                                    <button onclick="requestGlobalPerformanceReport()" id="global-perf-btn" disabled
+                                            class="bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Global Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="lg:col-span-3">
+                <!-- Main Tabs -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="border-b border-gray-200 dark:border-gray-700">
+                        <nav class="flex space-x-0 overflow-x-auto">
+                            <button onclick="switchMainTab('dashboard')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 tab-active whitespace-nowrap" id="dashboard-tab">
+                                <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                            </button>
+                            <button onclick="switchMainTab('trading')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="trading-tab">
+                                <i class="fas fa-exchange-alt mr-2"></i>Trading
+                            </button>
+                            <button onclick="switchMainTab('ticker')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="ticker-tab">
+                                <i class="fas fa-chart-area mr-2"></i>Ticker
+                            </button>
+                            <button onclick="switchMainTab('orderbook')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="orderbook-tab">
+                                <i class="fas fa-list-alt mr-2"></i>Order Book
+                            </button>
+                            <button onclick="switchMainTab('transactions')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="transactions-tab">
+                                <i class="fas fa-history mr-2"></i>History
+                            </button>
+                            <button onclick="switchMainTab('docs')" class="main-tab px-6 py-3 text-sm font-medium whitespace-nowrap" id="docs-tab">
+                                <i class="fas fa-book mr-2"></i>Docs
+                            </button>
+                        </nav>
+                    </div>
+                    
+                    <!-- Dashboard Content -->
+                    <div id="dashboard-content" class="p-6">
+                        <!-- Stats Cards -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white card-hover">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-green-100 text-sm">Balance</p>
+                                        <p class="text-2xl font-bold" id="dashboard-balance">$--</p>
+                                    </div>
+                                    <div class="bg-white/20 rounded-lg p-3">
+                                        <i class="fas fa-wallet text-xl"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white card-hover">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-blue-100 text-sm">P&L</p>
+                                        <p class="text-2xl font-bold" id="dashboard-profit">$--</p>
+                                    </div>
+                                    <div class="bg-white/20 rounded-lg p-3">
+                                        <i class="fas fa-chart-line text-xl"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white card-hover">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-purple-100 text-sm">Active Orders</p>
+                                        <p class="text-2xl font-bold" id="dashboard-orders">--</p>
+                                    </div>
+                                    <div class="bg-white/20 rounded-lg p-3">
+                                        <i class="fas fa-list text-xl"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white card-hover">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-orange-100 text-sm">Fills</p>
+                                        <p class="text-2xl font-bold" id="dashboard-fills">--</p>
+                                    </div>
+                                    <div class="bg-white/20 rounded-lg p-3">
+                                        <i class="fas fa-check-circle text-xl"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Market Activity -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                <i class="fas fa-chart-line mr-2 text-primary-600"></i>Market Activity
+                            </h3>
+                            <div id="market-activity" class="space-y-3">
+                                <div class="flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    Connect to see real-time market activity
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Trading Content -->
+                    <div id="trading-content" class="p-6" style="display: none;">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Order Form -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                    <i class="fas fa-plus-circle mr-2 text-primary-600"></i>New Order
+                                </h3>
+                                
+                                <div class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Side</label>
+                                            <select id="side" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white">
+                                                <option value="BUY">🟢 Buy</option>
+                                                <option value="SELL">🔴 Sell</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                                            <select id="mode" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white">
+                                                <option value="MARKET">Market</option>
+                                                <option value="LIMIT">Limit</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+                                        <select id="product" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white">
+                                            <option value="FOSFO">FOSFO</option>
+                                            <option value="PITA">PITA</option>
+                                            <option value="PALTA-OIL">PALTA-OIL</option>
+                                            <option value="GUACA">GUACA</option>
+                                            <option value="SEBO">SEBO</option>
+                                            <option value="H-GUACA">H-GUACA</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+                                            <input type="number" id="qty" placeholder="10" min="1" 
+                                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price</label>
+                                            <input type="number" id="price" placeholder="15.50" step="0.01" 
+                                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white">
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message (optional)</label>
+                                        <textarea id="message" placeholder="Optional message" rows="2" 
+                                                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white"></textarea>
+                                    </div>
+                                    
+                                    <button onclick="placeOrder()" id="place-order-btn" disabled
+                                            class="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg font-medium transition-colors">
+                                        <i class="fas fa-paper-plane mr-2"></i>Place Order
+                                    </button>
+                                    
+                                    <!-- Quick Actions -->
+                                    <div class="grid grid-cols-2 gap-2 pt-2">
+                                        <button onclick="quickTrade('BUY', 'FOSFO', 5)" id="quick-buy-fosfo" disabled
+                                                class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                                            Quick Buy FOSFO
+                                        </button>
+                                        <button onclick="quickTrade('SELL', 'FOSFO', 5)" id="quick-sell-fosfo" disabled
+                                                class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                                            Quick Sell FOSFO
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Orders & Messages -->
+                            <div>
+                                <div class="flex border-b border-gray-200 dark:border-gray-600 mb-4">
+                                    <button onclick="switchTradingTab('orders')" class="trading-tab px-4 py-2 text-sm font-medium tab-active" id="trading-orders-tab">
+                                        <i class="fas fa-list mr-2"></i>My Orders
+                                    </button>
+                                    <button onclick="switchTradingTab('messages')" class="trading-tab px-4 py-2 text-sm font-medium" id="trading-messages-tab">
+                                        <i class="fas fa-comments mr-2"></i>Messages
+                                    </button>
+                                </div>
+                                
+                                <!-- Orders Tab -->
+                                <div id="trading-orders-content">
+                                    <div class="flex space-x-2 mb-4">
+                                        <button onclick="refreshMyOrders()" id="refresh-orders-btn" disabled
+                                                class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                                            <i class="fas fa-sync mr-1"></i>Refresh
+                                        </button>
+                                        <button onclick="cancelAllOrders()" id="cancel-all-btn" disabled
+                                                class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                                            <i class="fas fa-times mr-1"></i>Cancel All
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="my-orders-list" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-80 overflow-y-auto">
+                                        <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                                            <i class="fas fa-info-circle mr-2"></i>No active orders
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Messages Tab -->
+                                <div id="trading-messages-content" style="display: none;">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white">System Messages</h4>
+                                        <button onclick="clearMessages()" 
+                                                class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                                            <i class="fas fa-trash mr-1"></i>Clear
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="message-list" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-80 overflow-y-auto font-mono text-sm">
+                                        <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                                            <i class="fas fa-info-circle mr-2"></i>No system messages
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ticker Content -->
+                    <div id="ticker-content" class="p-6" style="display: none;">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-chart-area mr-2 text-primary-600"></i>Live Market Ticker
+                        </h3>
+                        <div id="ticker-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                                <div class="flex items-center text-yellow-800 dark:text-yellow-200">
+                                    <i class="fas fa-exclamation-triangle mr-2"></i>No market data available
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Book Content -->
+                    <div id="orderbook-content" class="p-6" style="display: none;">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-list-alt mr-2 text-primary-600"></i>Order Book
+                            </h3>
+                            <select id="product-selector" onchange="updateOrderBook()" 
+                                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                                <option value="">Select Product</option>
+                                <option value="FOSFO">FOSFO</option>
+                                <option value="PITA">PITA</option>
+                                <option value="PALTA-OIL">PALTA-OIL</option>
+                                <option value="GUACA">GUACA</option>
+                                <option value="SEBO">SEBO</option>
+                                <option value="H-GUACA">H-GUACA</option>
+                            </select>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <!-- Buy Orders -->
+                            <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                                <h4 class="text-green-800 dark:text-green-200 font-semibold mb-3">
+                                    <i class="fas fa-arrow-up mr-2"></i>Buy Orders
+                                </h4>
+                                <div id="buy-orders" class="space-y-2 h-64 overflow-y-auto">
+                                    <div class="text-green-600 dark:text-green-400 text-sm">Select a product</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Sell Orders -->
+                            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                                <h4 class="text-red-800 dark:text-red-200 font-semibold mb-3">
+                                    <i class="fas fa-arrow-down mr-2"></i>Sell Orders
+                                </h4>
+                                <div id="sell-orders" class="space-y-2 h-64 overflow-y-auto">
+                                    <div class="text-red-600 dark:text-red-400 text-sm">Select a product</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- All Orders -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-gray-900 dark:text-white font-semibold mb-3">
+                                <i class="fas fa-list mr-2"></i>All Orders
+                            </h4>
+                            <div id="all-orders-list" class="h-40 overflow-y-auto">
+                                <div class="text-gray-500 dark:text-gray-400 text-sm">
+                                    <i class="fas fa-info-circle mr-2"></i>No orders available
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transactions Content -->
+                    <div id="transactions-content" class="p-6" style="display: none;">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            <i class="fas fa-history mr-2 text-primary-600"></i>Transaction History
+                        </h3>
+                        <div id="transactions-list" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-96 overflow-y-auto">
+                            <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-info-circle mr-2"></i>No transactions yet
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documentation Content -->
+                    <div id="docs-content" class="p-6" style="display: none;">
+                        <div class="max-w-4xl mx-auto">
+                            <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                                <i class="fas fa-book mr-3 text-primary-600"></i>📚 Documentación de la Plataforma
+                            </h3>
+                            
+                            <!-- Quick Start Guide -->
+                            <div class="bg-gradient-to-r from-primary-50 to-green-50 dark:from-primary-900/20 dark:to-green-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-6 mb-8">
+                                <h4 class="text-xl font-semibold text-primary-800 dark:text-primary-200 mb-4">
+                                    🚀 Guía de Inicio Rápido
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-3">
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Conectar al Servidor</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Haz clic en "Conectar" en la pestaña de Autenticación para establecer conexión</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Autenticarse</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Ingresa tu token de equipo (formato: TK-XXXX) y haz clic en "Login"</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Verificar Estado</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Confirma que tu inventario y balance aparezcan correctamente</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-primary-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">4</div>
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900 dark:text-white">Comenzar a Operar</h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">Usa las pestañas Trading o Simulador para realizar órdenes</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Simulator vs Trading Comparison -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+                                <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                                    <i class="fas fa-balance-scale mr-2 text-blue-600"></i>⚖️ Simulador vs Trading Real
+                                </h4>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <!-- Simulator -->
+                                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                        <h5 class="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-3">
+                                            <i class="fas fa-rocket mr-2"></i>🎯 Simulador de Mercado
+                                        </h5>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <h6 class="font-medium text-blue-900 dark:text-blue-100">Propósito:</h6>
+                                                <p class="text-sm text-blue-700 dark:text-blue-300">Crear órdenes de prueba y simular condiciones de mercado sin riesgo real</p>
+                                            </div>
+                                            <div>
+                                                <h6 class="font-medium text-blue-900 dark:text-blue-100">Características:</h6>
+                                                <ul class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                                                    <li>• Solo órdenes LIMIT con precio fijo</li>
+                                                    <li>• Auto Market Maker automático</li>
+                                                    <li>• Limpieza masiva de órdenes</li>
+                                                    <li>• Control de precios de mercado</li>
+                                                    <li>• Sin impacto en balance real</li>
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <h6 class="font-medium text-blue-900 dark:text-blue-100">Ideal para:</h6>
+                                                <ul class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                                                    <li>• Probar estrategias de trading</li>
+                                                    <li>• Crear liquidez artificial</li>
+                                                    <li>• Entrenar nuevos usuarios</li>
+                                                    <li>• Debugging de algoritmos</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Real Trading -->
+                                    <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                                        <h5 class="text-lg font-semibold text-green-800 dark:text-green-200 mb-3">
+                                            <i class="fas fa-chart-line mr-2"></i>📈 Trading Real
+                                        </h5>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <h6 class="font-medium text-green-900 dark:text-green-100">Propósito:</h6>
+                                                <p class="text-sm text-green-700 dark:text-green-300">Realizar operaciones reales que afectan tu balance e inventario</p>
+                                            </div>
+                                            <div>
+                                                <h6 class="font-medium text-green-900 dark:text-green-100">Características:</h6>
+                                                <ul class="text-sm text-green-700 dark:text-green-300 space-y-1">
+                                                    <li>• Órdenes MARKET y LIMIT</li>
+                                                    <li>• Mensajes personalizados</li>
+                                                    <li>• Validación de fondos real</li>
+                                                    <li>• Ejecución inmediata</li>
+                                                    <li>• Impacto directo en P&L</li>
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <h6 class="font-medium text-green-900 dark:text-green-100">Ideal para:</h6>
+                                                <ul class="text-sm text-green-700 dark:text-green-300 space-y-1">
+                                                    <li>• Operaciones de producción</li>
+                                                    <li>• Trading competitivo</li>
+                                                    <li>• Generación de ganancias reales</li>
+                                                    <li>• Arbitraje de precios</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Main Features -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                <!-- Trading Features -->
+                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                        <i class="fas fa-chart-line mr-2 text-green-600"></i>Características de Trading
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🎯 Simulador</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Crear órdenes de prueba, ajustar precios de mercado y usar Auto Market Maker</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📈 Trading en Vivo</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Realizar órdenes de mercado y límite con mensajes personalizados</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📊 Libro de Órdenes</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Ver órdenes de compra/venta en tiempo real por producto</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📋 Historial</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Rastrear todas las transacciones y ejecuciones de órdenes</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Debug Tools -->
+                                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                        <i class="fas fa-bug mr-2 text-orange-600"></i>Herramientas de Debug
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🚨 Inyección de Errores</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Simular errores de balance, productos no autorizados, desconexiones</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🏭 Pruebas de Producción</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Validar algoritmos de producción y bonificaciones premium</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">🔧 Utilidades</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Ping al servidor, resincronizar datos, ver sesiones conectadas</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📡 Monitoreo</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Estado de conexión en tiempo real y salud del sistema</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Server Interactions Documentation -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+                                <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                                    <i class="fas fa-server mr-2 text-purple-600"></i>🖥️ Interacciones con el Servidor
+                                </h4>
+                                
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                    <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                                        <h5 class="text-lg font-semibold text-purple-800 dark:text-purple-200 mb-3">
+                                            <i class="fas fa-plug mr-2"></i>Conexión WebSocket
+                                        </h5>
+                                        <ul class="text-sm text-purple-700 dark:text-purple-300 space-y-2">
+                                            <li>• <strong>Conexión persistente:</strong> Mantiene comunicación bidireccional en tiempo real</li>
+                                            <li>• <strong>Autenticación:</strong> Validación segura con tokens de equipo</li>
+                                            <li>• <strong>Heartbeat:</strong> Ping automático para verificar conectividad</li>
+                                            <li>• <strong>Reconexión:</strong> Manejo automático de desconexiones</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+                                        <h5 class="text-lg font-semibold text-indigo-800 dark:text-indigo-200 mb-3">
+                                            <i class="fas fa-exchange-alt mr-2"></i>Tipos de Mensajes
+                                        </h5>
+                                        <ul class="text-sm text-indigo-700 dark:text-indigo-300 space-y-2">
+                                            <li>• <strong>ORDER:</strong> Creación de órdenes de compra/venta</li>
+                                            <li>• <strong>CANCEL:</strong> Cancelación de órdenes específicas</li>
+                                            <li>• <strong>PING:</strong> Verificación de conectividad</li>
+                                            <li>• <strong>RESYNC:</strong> Sincronización completa de datos</li>
+                                            <li>• <strong>PRODUCTION:</strong> Simulación de producción</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                                    <h5 class="font-semibold text-gray-900 dark:text-white mb-3">
+                                        <i class="fas fa-code mr-2 text-gray-600"></i>Estructura de Mensajes JSON
+                                    </h5>
+                                    <div class="font-mono text-sm bg-gray-800 text-green-400 p-3 rounded">
+{<br>
+&nbsp;&nbsp;"type": "ORDER",<br>
+&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"side": "BUY",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"product": "FOSFO",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"quantity": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"price": 15.50,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"mode": "LIMIT"<br>
+&nbsp;&nbsp;}<br>
+}
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                                    <h5 class="font-semibold text-yellow-800 dark:text-yellow-200 mb-3">
+                                        <i class="fas fa-flask mr-2"></i>Utilidad para Testing de Clientes
+                                    </h5>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <h6 class="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Casos de Prueba:</h6>
+                                            <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                                <li>• Validar manejo de errores de conexión</li>
+                                                <li>• Probar reconexión automática</li>
+                                                <li>• Verificar parseo de mensajes JSON</li>
+                                                <li>• Testear timeout de órdenes</li>
+                                                <li>• Simular pérdida de paquetes</li>
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <h6 class="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Beneficios:</h6>
+                                            <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                                <li>• Debugging en tiempo real</li>
+                                                <li>• Validación de protocolos</li>
+                                                <li>• Simulación de escenarios edge-case</li>
+                                                <li>• Monitoreo de performance</li>
+                                                <li>• Testing de load balancing</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Keyboard Shortcuts -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+                                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                    <i class="fas fa-keyboard mr-2 text-purple-600"></i>⌨️ Atajos de Teclado
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h5 class="font-medium text-gray-900 dark:text-white mb-3">Navegación</h5>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Pestaña Debug</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + Alt + D</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Pestaña Simulador</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + Alt + S</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Pestaña Trading</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + Alt + T</kbd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-medium text-gray-900 dark:text-white mb-3">Acciones de Trading</h5>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Compra Rápida FOSFO</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + B</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Venta Rápida FOSFO</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + S</kbd>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-sm text-gray-600 dark:text-gray-300">Actualizar Órdenes</span>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + R</kbd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Products Guide -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+                                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                    <i class="fas fa-leaf mr-2 text-green-600"></i>🥑 Productos Disponibles
+                                </h4>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">FOSFO</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Producto Básico</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">PITA</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Intermedio</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">PALTA-OIL</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Producto Refinado</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">GUACA</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Producto Premium</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">SEBO</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Subproducto</div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                                        <div class="font-mono font-bold text-gray-900 dark:text-white">H-GUACA</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300">Alta Calidad</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tips & Best Practices -->
+                            <div class="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-4">
+                                    <i class="fas fa-lightbulb mr-2"></i>💡 Consejos y Mejores Prácticas
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h5 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">⚠️ Notas Importantes</h5>
+                                        <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                            <li>• Siempre verifica tu balance antes de órdenes grandes</li>
+                                            <li>• Usa el simulador para probar estrategias de forma segura</li>
+                                            <li>• Monitorea el ticker para oportunidades de arbitraje</li>
+                                            <li>• Auto Market Maker crea órdenes automáticamente</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">🎯 Mejores Prácticas</h5>
+                                        <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                            <li>• Usa mensajes descriptivos en las órdenes</li>
+                                            <li>• Revisa el libro de órdenes antes de límites</li>
+                                            <li>• Ping regular para verificar conectividad</li>
+                                            <li>• Monitorea algoritmos de producción para bonos</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production Results Modal (hidden) -->
+    <div id="production-result" class="hidden"></div>
+    <div id="offer-response" class="hidden"></div>
+    <div id="sessions-list" class="hidden"></div>
+
+    <!-- JavaScript placeholder for existing functionality -->
+    <script>
+        // Global variables and state
+        let socket = null;
+        let isConnected = false;
+        let isAuthenticated = false;
+        let currentTeam = null;
+        let currentSidebarTab = 'auth';
+        let currentMainTab = 'dashboard';
+        let currentTradingTab = 'orders';
+        let autoMarketMaker = false;
+        let isDarkMode = false;
+        
+        // Theme management
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').className = 'fas fa-sun';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon').className = 'fas fa-moon';
+            }
+        }
+        
+        // Tab switching functions
+        function switchSidebarTab(tab) {
+            // Hide all sidebar content
+            document.getElementById('auth-content').style.display = 'none';
+            document.getElementById('simulator-content').style.display = 'none';
+            document.getElementById('debug-content').style.display = 'none';
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.sidebar-tab').forEach(t => {
+                t.classList.remove('sidebar-tab-active');
+            });
+            
+            // Show selected content and mark tab active
+            document.getElementById(tab + '-content').style.display = 'block';
+            document.getElementById(tab + '-tab').classList.add('sidebar-tab-active');
+            
+            currentSidebarTab = tab;
+        }
+        
+        function switchMainTab(tab) {
+            // Hide all main content
+            document.getElementById('dashboard-content').style.display = 'none';
+            document.getElementById('trading-content').style.display = 'none';
+            document.getElementById('ticker-content').style.display = 'none';
+            document.getElementById('orderbook-content').style.display = 'none';
+            document.getElementById('transactions-content').style.display = 'none';
+            document.getElementById('docs-content').style.display = 'none';
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.main-tab').forEach(t => {
+                t.classList.remove('tab-active');
+            });
+            
+            // Show selected content and mark tab active
+            document.getElementById(tab + '-content').style.display = 'block';
+            document.getElementById(tab + '-tab').classList.add('tab-active');
+            
+            currentMainTab = tab;
+        }
+        
+        function switchTradingTab(tab) {
+            // Hide all trading content
+            document.getElementById('trading-orders-content').style.display = 'none';
+            document.getElementById('trading-messages-content').style.display = 'none';
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.trading-tab').forEach(t => {
+                t.classList.remove('tab-active');
+            });
+            
+            // Show selected content and mark tab active
+            document.getElementById('trading-' + tab + '-content').style.display = 'block';
+            document.getElementById('trading-' + tab + '-tab').classList.add('tab-active');
+            
+            currentTradingTab = tab;
+        }
+        
+        // Connection functions
+        function toggleConnection() {
+            if (!isConnected) {
+                connect();
+            } else {
+                disconnect();
+            }
+        }
+        
+        function connect() {
+            console.log('Connecting...');
+            updateStatus('connecting', 'Connecting...');
+            
+            // Create WebSocket connection
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function(event) {
+                    console.log('WebSocket connected');
+                    isConnected = true;
+                    updateStatus('connected', 'Connected');
+                    document.getElementById('connect-btn').innerHTML = '<i class="fas fa-unlink mr-2"></i>Disconnect';
+                    document.getElementById('login-btn').disabled = false;
+                    enableButtons();
+                };
+                
+                socket.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleServerMessage(message);
+                    } catch (e) {
+                        console.error('Failed to parse message:', event.data, e);
+                    }
+                };
+                
+                socket.onclose = function(event) {
+                    console.log('WebSocket disconnected');
+                    isConnected = false;
+                    isAuthenticated = false;
+                    updateStatus('disconnected', 'Disconnected');
+                    document.getElementById('connect-btn').innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
+                    document.getElementById('login-btn').disabled = true;
+                    document.getElementById('team-info').style.display = 'none';
+                    disableButtons();
+                    socket = null;
+                };
+                
+                socket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateStatus('disconnected', 'Connection Error');
+                };
+                
+            } catch (error) {
+                console.error('Failed to create WebSocket connection:', error);
+                updateStatus('disconnected', 'Connection Failed');
+            }
+        }
+        
+        function disconnect() {
+            console.log('Disconnecting...');
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+            isConnected = false;
+            isAuthenticated = false;
+            updateStatus('disconnected', 'Disconnected');
+            document.getElementById('connect-btn').innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
+            document.getElementById('login-btn').disabled = true;
+            document.getElementById('team-info').style.display = 'none';
+            disableButtons();
+        }
+        
+        function login() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                alert('Please enter a team token');
+                return;
+            }
+            
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert('Please connect to the server first');
+                return;
+            }
+            
+            console.log('Logging in with token:', token);
+            
+            // Send authentication message
+            const authMessage = {
+                type: "LOGIN",
+                token: token
+            };
+            
+            sendMessage(authMessage);
+        }
+        
+        function updateStatus(status, text) {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            statusDot.className = `status-dot status-${status}`;
+            statusText.textContent = text;
+        }
+        
+        function showTeamInfo(teamName) {
+            const teamInfo = document.getElementById('team-info');
+            const teamDetails = document.getElementById('team-details');
+            
+            const balance = currentTeam ? currentTeam.currentBalance : 0;
+            const species = currentTeam ? currentTeam.species : 'Unknown';
+            
+            teamDetails.innerHTML = `
+                <p><strong>Team:</strong> ${teamName}</p>
+                <p><strong>Species:</strong> ${species}</p>
+                <p><strong>Balance:</strong> $${balance.toFixed(2)}</p>
+                <p><strong>Status:</strong> Active</p>
+            `;
+            
+            teamInfo.style.display = 'block';
+            updateInventory(currentTeam ? currentTeam.inventory : null);
+        }
+        
+        function updateInventory(inventory = null) {
+            const inventoryGrid = document.getElementById('inventory-grid');
+            
+            if (!inventory) {
+                // Default empty state
+                inventoryGrid.innerHTML = `
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">No data</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const inventoryItems = Object.entries(inventory).map(([product, quantity]) => ({
+                product,
+                quantity
+            }));
+            
+            if (inventoryItems.length === 0) {
+                inventoryGrid.innerHTML = `
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">No inventory</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            inventoryGrid.innerHTML = inventoryItems.map(item => `
+                <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                    <div class="text-xs font-medium text-gray-900 dark:text-white">${item.product}</div>
+                    <div class="text-lg font-bold text-primary-600">${item.quantity}</div>
+                </div>
+            `).join('');
+        }
+        
+        function updateInventoryDisplay(inventory) {
+            updateInventory(inventory);
+        }
+        
+        function updateBalanceDisplay(balance) {
+            document.getElementById('dashboard-balance').textContent = `$${balance.toFixed(2)}`;
+        }
+        
+        function updateDashboard(team) {
+            if (team.currentBalance !== undefined) {
+                updateBalanceDisplay(team.currentBalance);
+            }
+            if (team.inventory) {
+                updateInventoryDisplay(team.inventory);
+            }
+        }
+        
+        function updateDashboardAfterTrade(fillMessage) {
+            // This would ideally update from server data, but we can make basic updates
+            const fillsElement = document.getElementById('dashboard-fills');
+            const currentFills = parseInt(fillsElement.textContent) || 0;
+            fillsElement.textContent = (currentFills + 1).toString();
+        }
+        
+        function addTransactionToList(fillMessage) {
+            const transactionsList = document.getElementById('transactions-list');
+            
+            // Create transaction entry
+            const transactionElement = document.createElement('div');
+            transactionElement.className = 'p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 mb-2';
+            transactionElement.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                            ${fillMessage.side} ${fillMessage.fillQty} ${fillMessage.product}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            Price: $${fillMessage.fillPrice.toFixed(2)} | Total: $${(fillMessage.fillPrice * fillMessage.fillQty).toFixed(2)}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            Counterparty: ${fillMessage.counterparty}
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        ${new Date(fillMessage.serverTime).toLocaleTimeString()}
+                    </div>
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = transactionsList.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            // Add to top of list
+            transactionsList.insertBefore(transactionElement, transactionsList.firstChild);
+        }
+        
+        function addMessageToLog(message) {
+            const messageList = document.getElementById('message-list');
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'p-2 bg-gray-100 dark:bg-gray-600 rounded text-xs mb-1';
+            messageElement.innerHTML = `
+                <span class="text-gray-500 dark:text-gray-400">[${new Date().toLocaleTimeString()}]</span>
+                <span class="text-gray-900 dark:text-white">${message}</span>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = messageList.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            messageList.insertBefore(messageElement, messageList.firstChild);
+            
+            // Keep only last 100 messages
+            while (messageList.children.length > 100) {
+                messageList.removeChild(messageList.lastChild);
+            }
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Simple notification - could be enhanced with a proper notification system
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // Show in market activity
+            const marketActivity = document.getElementById('market-activity');
+            const notificationElement = document.createElement('div');
+            notificationElement.className = `p-3 rounded-lg mb-2 ${
+                type === 'success' ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' :
+                type === 'error' ? 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200' :
+                'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200'
+            }`;
+            notificationElement.innerHTML = `
+                <div class="text-sm">${message}</div>
+                <div class="text-xs opacity-75">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(notificationElement, marketActivity.firstChild);
+            
+            // Keep only last 10 notifications
+            while (marketActivity.children.length > 10) {
+                marketActivity.removeChild(marketActivity.lastChild);
+            }
+        }
+        
+        function enableButtons() {
+            const buttons = [
+                'create-order-btn', 'auto-mm-btn', 'clear-all-btn', 'place-order-btn',
+                'refresh-orders-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
+                'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
+                'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
+                'team-perf-btn', 'global-perf-btn'
+            ];
+            
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = false;
+            });
+        }
+        
+        function disableButtons() {
+            const buttons = [
+                'create-order-btn', 'auto-mm-btn', 'clear-all-btn', 'place-order-btn',
+                'refresh-orders-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
+                'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
+                'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
+                'team-perf-btn', 'global-perf-btn'
+            ];
+            
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = true;
+            });
+        }
+        
+        // Message handling
+        function sendMessage(message) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(message));
+                console.log('Sent message:', message);
+            } else {
+                console.error('WebSocket not connected');
+                alert('Not connected to server');
+            }
+        }
+        
+        function handleServerMessage(message) {
+            console.log('Received message:', message);
+            
+            switch (message.type) {
+                case 'LOGIN_OK':
+                    handleAuthSuccess(message);
+                    break;
+                case 'PONG':
+                    addMessageToLog('Pong received');
+                    break;
+                case 'ERROR':
+                    if (message.code && message.code.includes('AUTH')) {
+                        handleAuthFailure(message);
+                    } else {
+                        handleError(message);
+                    }
+                    break;
+                case 'FILL':
+                    handleFillMessage(message);
+                    break;
+                case 'ORDER_ACK':
+                    handleOrderAck(message);
+                    break;
+                case 'TICKER':
+                    handleTickerUpdate(message);
+                    break;
+                case 'MARKET_STATE':
+                    handleMarketStateUpdate(message);
+                    break;
+                case 'CONNECTED_SESSIONS':
+                    handleSessionsResponse(message);
+                    break;
+                case 'INVENTORY_UPDATE':
+                    handleInventoryUpdate(message);
+                    break;
+                case 'BALANCE_UPDATE':
+                    handleBalanceUpdate(message);
+                    break;
+                case 'PERFORMANCE_REPORT':
+                    handlePerformanceReport(message);
+                    break;
+                case 'GLOBAL_PERFORMANCE_REPORT':
+                    handleGlobalPerformanceReport(message);
+                    break;
+                case 'ERROR':
+                    handleError(message);
+                    break;
+                default:
+                    console.log('Unknown message type:', message.type);
+            }
+        }
+        
+        function handleAuthSuccess(message) {
+            isAuthenticated = true;
+            currentTeam = {
+                teamName: message.team,
+                species: message.species,
+                currentBalance: message.currentBalance,
+                inventory: message.inventory,
+                authorizedProducts: message.authorizedProducts
+            };
+            updateStatus('authenticated', 'Authenticated');
+            showTeamInfo(message.team);
+            enableButtons();
+            
+            // Update dashboard with team data
+            updateDashboard(currentTeam);
+        }
+        
+        function handleAuthFailure(message) {
+            alert('Authentication failed: ' + (message.reason || 'Invalid token'));
+        }
+        
+        function handleFillMessage(message) {
+            // Add transaction to the transactions list
+            addTransactionToList(message);
+            
+            // Update dashboard stats
+            updateDashboardAfterTrade(message);
+            
+            // Show notification
+            showNotification(`Trade executed: ${message.side} ${message.fillQty} ${message.product} @ $${message.fillPrice.toFixed(2)}`, 'success');
+        }
+        
+        function handleOrderAck(message) {
+            addMessageToLog(`Order ${message.clOrdID} acknowledged: ${message.status}`);
+        }
+        
+        function handleTickerUpdate(message) {
+            updateTickerDisplay(message);
+        }
+        
+        function handleMarketStateUpdate(message) {
+            updateMarketStateDisplay(message);
+        }
+        
+        function updateTickerDisplay(ticker) {
+            const tickerList = document.getElementById('ticker-list');
+            
+            // Find existing ticker for this product or create new one
+            let tickerElement = document.querySelector(`[data-product="${ticker.product}"]`);
+            
+            if (!tickerElement) {
+                tickerElement = document.createElement('div');
+                tickerElement.className = 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4';
+                tickerElement.setAttribute('data-product', ticker.product);
+                
+                // Remove "no data" message if it exists
+                const noDataElement = tickerList.querySelector('.bg-yellow-50');
+                if (noDataElement) {
+                    noDataElement.remove();
+                }
+                
+                tickerList.appendChild(tickerElement);
+            }
+            
+            const bidText = ticker.bestBid ? `$${ticker.bestBid.toFixed(2)}` : 'N/A';
+            const askText = ticker.bestAsk ? `$${ticker.bestAsk.toFixed(2)}` : 'N/A';
+            const midText = ticker.mid ? `$${ticker.mid.toFixed(2)}` : 'N/A';
+            const spreadText = (ticker.bestBid && ticker.bestAsk) ? 
+                `$${(ticker.bestAsk - ticker.bestBid).toFixed(2)}` : 'N/A';
+            
+            tickerElement.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white">${ticker.product}</h4>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${new Date(ticker.serverTime).toLocaleTimeString()}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Bid:</span>
+                        <span class="font-medium text-green-600 dark:text-green-400 ml-1">${bidText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Ask:</span>
+                        <span class="font-medium text-red-600 dark:text-red-400 ml-1">${askText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Mid:</span>
+                        <span class="font-medium text-blue-600 dark:text-blue-400 ml-1">${midText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Spread:</span>
+                        <span class="font-medium text-gray-900 dark:text-white ml-1">${spreadText}</span>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    24h Volume: ${ticker.volume24h}
+                </div>
+            `;
+        }
+        
+        function updateMarketStateDisplay(marketState) {
+            // Update the market activity with real-time market information
+            const marketActivity = document.getElementById('market-activity');
+            
+            const stateElement = document.createElement('div');
+            stateElement.className = 'p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-2';
+            stateElement.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            Market Update: ${marketState.product}
+                        </div>
+                        <div class="text-xs text-blue-700 dark:text-blue-300">
+                            ${marketState.bestBid ? `Bid: $${marketState.bestBid.toFixed(2)}` : 'No Bid'} | 
+                            ${marketState.bestAsk ? `Ask: $${marketState.bestAsk.toFixed(2)}` : 'No Ask'}
+                            ${marketState.lastTradePrice ? ` | Last: $${marketState.lastTradePrice.toFixed(2)}` : ''}
+                        </div>
+                    </div>
+                    <div class="text-xs text-blue-600 dark:text-blue-400">
+                        ${new Date(marketState.updatedAt).toLocaleTimeString()}
+                    </div>
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(stateElement, marketActivity.firstChild);
+            
+            // Keep only last 10 market updates
+            while (marketActivity.children.length > 10) {
+                marketActivity.removeChild(marketActivity.lastChild);
+            }
+        }
+        
+        function handleSessionsResponse(message) {
+            displaySessions(message.sessions);
+        }
+        
+        function handleInventoryUpdate(message) {
+            updateInventoryDisplay(message.inventory);
+        }
+        
+        function handleBalanceUpdate(message) {
+            updateBalanceDisplay(message.balance);
+        }
+        
+        function handleError(message) {
+            console.error('Server error:', message);
+            alert('Server error: ' + message.reason);
+            addMessageToLog(`ERROR: ${message.reason}`);
+        }
+        
+        function handlePerformanceReport(message) {
+            displayPerformanceReport(message);
+        }
+        
+        function handleGlobalPerformanceReport(message) {
+            displayGlobalPerformanceReport(message);
+        }
+        
+        function displayPerformanceReport(report) {
+            const marketActivity = document.getElementById('market-activity');
+            
+            const reportElement = document.createElement('div');
+            reportElement.className = 'p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-2';
+            reportElement.innerHTML = `
+                <h4 class="font-semibold text-green-800 dark:text-green-200 mb-3">
+                    <i class="fas fa-chart-bar mr-2"></i>Performance Report - ${report.teamName}
+                </h4>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <div class="text-green-900 dark:text-green-100">
+                            <strong>P&L:</strong> $${report.profitLoss.toFixed(2)} (${report.roi.toFixed(1)}% ROI)
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Balance:</strong> $${report.startBalance.toFixed(2)} → $${report.finalBalance.toFixed(2)}
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Total Trades:</strong> ${report.totalTrades}
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Volume:</strong> $${report.totalVolume.toFixed(2)}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Buy/Sell:</strong> ${report.buyTrades}/${report.sellTrades}
+                        </div>
+                        <div class="text-green-700 dark:text-green-300">
+                            <strong>Avg Trade:</strong> $${report.avgTradeSize.toFixed(2)}
+                        </div>
+                        ${report.rank ? `<div class="text-green-700 dark:text-green-300">
+                            <strong>Rank:</strong> ${report.rank}/${report.totalTeams}
+                        </div>` : ''}
+                    </div>
+                </div>
+                <div class="text-xs text-green-600 dark:text-green-400 mt-2">
+                    Generated: ${new Date(report.serverTime).toLocaleTimeString()}
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(reportElement, marketActivity.firstChild);
+        }
+        
+        function displayGlobalPerformanceReport(report) {
+            const marketActivity = document.getElementById('market-activity');
+            
+            const reportElement = document.createElement('div');
+            reportElement.className = 'p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg mb-2';
+            reportElement.innerHTML = `
+                <h4 class="font-semibold text-purple-800 dark:text-purple-200 mb-3">
+                    <i class="fas fa-globe mr-2"></i>Global Performance Report
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <div class="text-purple-900 dark:text-purple-100">
+                            <strong>Duration:</strong> ${report.duration}
+                        </div>
+                        <div class="text-purple-700 dark:text-purple-300">
+                            <strong>Total Trades:</strong> ${report.totalTrades}
+                        </div>
+                        <div class="text-purple-700 dark:text-purple-300">
+                            <strong>Total Volume:</strong> $${report.totalVolume.toFixed(2)}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-purple-700 dark:text-purple-300">
+                            <strong>Top Traders:</strong>
+                        </div>
+                        <div class="mt-1 space-y-1">
+                            ${report.topTraders.slice(0, 3).map((trader, index) => `
+                                <div class="text-xs text-purple-600 dark:text-purple-400">
+                                    ${index + 1}. ${trader.teamName}: ${trader.roi.toFixed(1)}% ROI
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                    Generated: ${new Date(report.serverTime).toLocaleTimeString()}
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(reportElement, marketActivity.firstChild);
+        }
+        
+        function requestTeamPerformanceReport() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_PERFORMANCE_REPORT",
+                scope: "team"
+            };
+            
+            sendMessage(message);
+            addMessageToLog('Requested team performance report');
+        }
+        
+        function requestGlobalPerformanceReport() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_PERFORMANCE_REPORT",
+                scope: "global"
+            };
+            
+            sendMessage(message);
+            addMessageToLog('Requested global performance report');
+        }
+
+        // Trading functions (placeholder implementations)
+        function createMarketOrder() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const side = document.getElementById('sim-side').value;
+            const product = document.getElementById('sim-product').value;
+            const qty = parseInt(document.getElementById('sim-qty').value);
+            const price = parseFloat(document.getElementById('sim-price').value);
+            
+            if (!product || !qty || qty <= 0 || !price || price <= 0) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            // Generate unique order ID
+            const timestamp = Date.now();
+            const clOrdID = `SIM-${currentTeam.teamName}-${timestamp}`;
+            
+            const orderMessage = {
+                type: "ORDER",
+                clOrdID: clOrdID,
+                side: side,
+                mode: "LIMIT",
+                product: product,
+                qty: qty,
+                limitPrice: price,
+                message: "Simulator order",
+                debugMode: "AUTO_ACCEPT"
+            };
+            
+            sendMessage(orderMessage);
+            addMessageToLog(`Simulator order sent: ${side} ${qty} ${product} @ $${price.toFixed(2)}`);
+        }
+        
+        function placeOrder() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const side = document.getElementById('side').value;
+            const mode = document.getElementById('mode').value;
+            const product = document.getElementById('product').value;
+            const qty = parseInt(document.getElementById('qty').value);
+            const price = parseFloat(document.getElementById('price').value);
+            const message = document.getElementById('message').value.trim();
+            
+            if (!product || !qty || qty <= 0) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            if (mode === 'LIMIT' && (!price || price <= 0)) {
+                alert('LIMIT orders require a positive price');
+                return;
+            }
+            
+            // Generate unique order ID
+            const timestamp = Date.now();
+            const clOrdID = `WEB-${currentTeam.teamName}-${timestamp}`;
+            
+            const orderMessage = {
+                type: "ORDER",
+                clOrdID: clOrdID,
+                side: side,
+                mode: mode,
+                product: product,
+                qty: qty,
+                limitPrice: mode === 'LIMIT' ? price : null,
+                message: message || ''
+            };
+            
+            sendMessage(orderMessage);
+            addMessageToLog(`Order sent: ${side} ${qty} ${product} @ ${mode === 'LIMIT' ? '$' + price.toFixed(2) : 'MARKET'}`);
+        }
+        
+        function quickTrade(side, product, quantity) {
+            console.log(`Quick trade: ${side} ${quantity} ${product}`);
+        }
+        
+        function toggleAutoMarketMaker() {
+            autoMarketMaker = !autoMarketMaker;
+            const btn = document.getElementById('auto-mm-btn');
+            if (autoMarketMaker) {
+                btn.innerHTML = '<i class="fas fa-robot mr-1"></i>🔴 Stop MM';
+                btn.className = btn.className.replace('bg-yellow-600', 'bg-red-600').replace('hover:bg-yellow-700', 'hover:bg-red-700');
+            } else {
+                btn.innerHTML = '<i class="fas fa-robot mr-1"></i>Auto MM';
+                btn.className = btn.className.replace('bg-red-600', 'bg-yellow-600').replace('hover:bg-red-700', 'hover:bg-yellow-700');
+            }
+        }
+        
+        function clearAllOrders() {
+            console.log('Clearing all orders...');
+        }
+        
+        function refreshMyOrders() {
+            console.log('Refreshing orders...');
+        }
+        
+        function cancelAllOrders() {
+            console.log('Canceling all orders...');
+        }
+        
+        function clearMessages() {
+            document.getElementById('message-list').innerHTML = `
+                <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                    <i class="fas fa-info-circle mr-2"></i>No system messages
+                </div>
+            `;
+        }
+        
+        // Debug functions
+        function injectError(errorType) {
+            console.log('Injecting error:', errorType);
+        }
+        
+        function testProduction() {
+            console.log('Testing production...');
+        }
+        
+        function sendPing() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert('Not connected to server');
+                return;
+            }
+            
+            const pingMessage = {
+                type: "PING"
+            };
+            
+            sendMessage(pingMessage);
+            addMessageToLog('Ping sent');
+        }
+        
+        function requestResync() {
+            console.log('Requesting resync...');
+        }
+        
+        function requestAllOrders() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_ALL_ORDERS"
+            };
+            
+            sendMessage(message);
+            addMessageToLog('Requested all orders');
+        }
+        
+        function requestConnectedSessions() {
+            console.log('Requesting connected sessions...');
+            if (!isAuthenticated) {
+                alert('Please authenticate first');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_CONNECTED_SESSIONS"
+            };
+            sendMessage(message);
+        }
+        
+        function handleSessionsResponse(message) {
+            displaySessions(message.sessions);
+        }
+        
+        function displaySessions(sessions) {
+            // Show sessions in a modal or in the market activity area
+            const marketActivity = document.getElementById('market-activity');
+            
+            const sessionsElement = document.createElement('div');
+            sessionsElement.className = 'p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-2';
+            sessionsElement.innerHTML = `
+                <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-3">
+                    <i class="fas fa-users mr-2"></i>Connected Sessions (${sessions.length})
+                </h4>
+                <div class="space-y-2">
+                    ${sessions.map(session => `
+                        <div class="flex justify-between items-center text-sm">
+                            <div>
+                                <span class="font-medium text-blue-900 dark:text-blue-100">${session.teamName}</span>
+                                <span class="text-blue-600 dark:text-blue-300">(${session.clientType})</span>
+                            </div>
+                            <div class="text-blue-600 dark:text-blue-400">
+                                ${session.authenticated ? '✓ Auth' : '- Not Auth'}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                    Updated: ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+            
+            // Remove empty state if exists
+            const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            marketActivity.insertBefore(sessionsElement, marketActivity.firstChild);
+        }
+        
+        function updateOrderBook() {
+            const product = document.getElementById('product-selector').value;
+            console.log('Updating order book for:', product);
+        }
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial state
+            updateStatus('disconnected', 'Disconnected');
+            disableButtons();
+            
+            // Add keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.altKey) {
+                    switch(e.key) {
+                        case 'd':
+                            e.preventDefault();
+                            switchSidebarTab('debug');
+                            break;
+                        case 's':
+                            e.preventDefault();
+                            switchSidebarTab('simulator');
+                            break;
+                        case 't':
+                            e.preventDefault();
+                            switchMainTab('trading');
+                            break;
+                    }
+                }
+                
+                if (e.ctrlKey) {
+                    switch(e.key) {
+                        case 'b':
+                            e.preventDefault();
+                            if (!document.getElementById('quick-buy-fosfo').disabled) {
+                                quickTrade('BUY', 'FOSFO', 5);
+                            }
+                            break;
+                        case 's':
+                            e.preventDefault();
+                            if (!document.getElementById('quick-sell-fosfo').disabled) {
+                                quickTrade('SELL', 'FOSFO', 5);
+                            }
+                            break;
+                        case 'r':
+                            e.preventDefault();
+                            if (!document.getElementById('refresh-orders-btn').disabled) {
+                                refreshMyOrders();
+                            }
+                            break;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

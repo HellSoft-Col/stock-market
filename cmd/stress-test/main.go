@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yourusername/avocado-exchange-server/internal/client"
+	"github.com/HellSoft-Col/stock-market/internal/client"
 )
 
 type TestResult struct {

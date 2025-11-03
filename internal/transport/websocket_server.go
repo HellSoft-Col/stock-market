@@ -10,9 +10,9 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	"github.com/yourusername/avocado-exchange-server/internal/config"
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
-	"github.com/yourusername/avocado-exchange-server/internal/service"
+	"github.com/HellSoft-Col/stock-market/internal/config"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/service"
 )
 
 var upgrader = websocket.Upgrader{

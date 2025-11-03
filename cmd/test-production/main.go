@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/yourusername/avocado-exchange-server/internal/client"
+	"github.com/HellSoft-Col/stock-market/internal/client"
 )
 
 func main() {

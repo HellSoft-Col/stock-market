@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-	"github.com/yourusername/avocado-exchange-server/internal/config"
-	"github.com/yourusername/avocado-exchange-server/internal/domain"
+	"github.com/HellSoft-Col/stock-market/internal/config"
+	"github.com/HellSoft-Col/stock-market/internal/domain"
 )
 
 type ActiveOffer struct {
