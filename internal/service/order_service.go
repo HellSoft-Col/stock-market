@@ -62,9 +62,11 @@ func (s *OrderService) ProcessOrder(ctx context.Context, teamName string, orderM
 	}
 
 	// Check for duplicate order ID
-	if _, err := s.orderRepo.GetByClOrdID(ctx, orderMsg.ClOrdID); err == nil {
+	existingOrder, err := s.orderRepo.GetByClOrdID(ctx, orderMsg.ClOrdID)
+	if err == nil && existingOrder != nil {
 		return fmt.Errorf("duplicate order ID: %s", orderMsg.ClOrdID)
-	} else if err != domain.ErrOrderNotFound {
+	}
+	if err != nil && err != domain.ErrOrderNotFound {
 		return fmt.Errorf("failed to check order ID: %w", err)
 	}
 

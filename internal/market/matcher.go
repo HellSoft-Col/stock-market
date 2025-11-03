@@ -64,10 +64,11 @@ func (m *Matcher) processBuyOrder(buyOrder *domain.Order) (*MatchResult, error) 
 			logEvent := log.Info().
 				Str("buyTeam", buyOrder.TeamName).
 				Str("product", buyOrder.Product)
+			if buyOrder.Price == nil {
+				logEvent = logEvent.Str("price", "MARKET")
+			}
 			if buyOrder.Price != nil {
 				logEvent = logEvent.Float64("price", *buyOrder.Price)
-			} else {
-				logEvent = logEvent.Str("price", "MARKET")
 			}
 			logEvent.Int("qty", buyOrder.Quantity).
 				Msg("Buyer has insufficient balance")
@@ -237,17 +238,16 @@ func (m *Matcher) canBuy(buyOrder *domain.Order) (bool, error) {
 	if buyOrder.Price != nil {
 		// LIMIT order: use limit price
 		requiredCost = *buyOrder.Price * float64(buyOrder.Quantity)
-	} else {
-		// MARKET order: estimate using current market price or default
-		marketState, _ := m.getMarketPrice(buyOrder.Product)
-		var estimatedPrice float64
-		if marketState != nil && marketState.Mid != nil {
-			estimatedPrice = *marketState.Mid
-		} else {
-			estimatedPrice = 15.0 // Conservative default price for market orders
-		}
-		requiredCost = estimatedPrice * float64(buyOrder.Quantity)
+		return team.CurrentBalance >= requiredCost, nil
 	}
+
+	// MARKET order: estimate using current market price or default
+	marketState, _ := m.getMarketPrice(buyOrder.Product)
+	estimatedPrice := 15.0 // Conservative default price for market orders
+	if marketState != nil && marketState.Mid != nil {
+		estimatedPrice = *marketState.Mid
+	}
+	requiredCost = estimatedPrice * float64(buyOrder.Quantity)
 
 	return team.CurrentBalance >= requiredCost, nil
 }
@@ -288,20 +288,7 @@ func (m *Matcher) processSellOrder(sellOrder *domain.Order) (*MatchResult, error
 		tradeQty := min(buyRemainingQty, sellRemainingQty)
 
 		// Determine trade price (buyer's price wins)
-		var tradePrice float64
-		if buyOrder.Price != nil {
-			tradePrice = *buyOrder.Price
-		} else if sellOrder.Price != nil {
-			tradePrice = *sellOrder.Price
-		} else {
-			// Both are market orders - use mid price or default
-			marketState, _ := m.getMarketPrice(sellOrder.Product)
-			if marketState != nil && marketState.Mid != nil {
-				tradePrice = *marketState.Mid
-			} else {
-				tradePrice = 10.0 // Default price
-			}
-		}
+		tradePrice := m.determineTradePrice(buyOrder, sellOrder)
 
 		log.Debug().
 			Str("buyClOrdID", buyOrder.ClOrdID).
@@ -381,6 +368,22 @@ The order matching system now follows these educational principles:
 
 For debugging: Check team inventories, monitor offer broadcasts, and verify trades update inventories correctly.
 */
+
+func (m *Matcher) determineTradePrice(buyOrder, sellOrder *domain.Order) float64 {
+	if buyOrder.Price != nil {
+		return *buyOrder.Price
+	}
+	if sellOrder.Price != nil {
+		return *sellOrder.Price
+	}
+
+	// Both are market orders - use mid price or default
+	marketState, _ := m.getMarketPrice(sellOrder.Product)
+	if marketState != nil && marketState.Mid != nil {
+		return *marketState.Mid
+	}
+	return 10.0 // Default price
+}
 
 func min(a, b int) int {
 	if a < b {
