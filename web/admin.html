@@ -701,41 +701,142 @@
         }
 
         function displayPerformance(data) {
-            // Placeholder for performance display
+            const container = document.getElementById('performance-list');
+            
+            if (!data || !data.teamName) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No performance data</p></div>';
+                return;
+            }
+
+            const pnl = data.profitLoss || 0;
+            const pnlClass = pnl >= 0 ? 'text-green-600' : 'text-red-600';
+            const roi = data.roi || 0;
+            
+            container.innerHTML = `
+                <div class="border border-gray-200 rounded-lg p-4 mb-3">
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">${data.teamName}</h3>
+                            <p class="text-sm text-gray-500">${data.totalTrades || 0} trades</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg font-bold ${pnlClass}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</p>
+                            <p class="text-sm text-gray-500">P&L (${roi.toFixed(1)}% ROI)</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                            <span class="text-gray-600">Start:</span>
+                            <span class="font-medium ml-1">$${data.startBalance?.toFixed(2) || '0.00'}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Final:</span>
+                            <span class="font-medium ml-1">$${data.finalBalance?.toFixed(2) || '0.00'}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Buy Trades:</span>
+                            <span class="font-medium ml-1">${data.buyTrades || 0}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Sell Trades:</span>
+                            <span class="font-medium ml-1">${data.sellTrades || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
             showToast('Performance data updated', 'info');
         }
 
         function displayGlobalPerformance(data) {
             const container = document.getElementById('performance-list');
-            if (!data.teams || data.teams.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No performance data</p></div>';
+            
+            if (!data || !data.topTraders || data.topTraders.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No performance data available</p></div>';
                 return;
             }
 
-            container.innerHTML = data.teams.map(team => {
-                const pnl = team.totalPnL || 0;
+            document.getElementById('stat-trades').textContent = data.totalTrades || 0;
+
+            container.innerHTML = data.topTraders.map((team, index) => {
+                const pnl = team.profitLoss || 0;
                 const pnlClass = pnl >= 0 ? 'text-green-600' : 'text-red-600';
+                const roi = team.roi || 0;
+                const rankBadge = index < 3 ? ['🥇', '🥈', '🥉'][index] : `#${index + 1}`;
                 
                 return `
                     <div class="border border-gray-200 rounded-lg p-4 mb-3">
                         <div class="flex justify-between items-center">
-                            <div>
-                                <h3 class="font-semibold text-gray-900">${team.teamName}</h3>
-                                <p class="text-sm text-gray-500">${team.totalTrades || 0} trades</p>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">${rankBadge}</span>
+                                <div>
+                                    <h3 class="font-semibold text-gray-900">${team.teamName}</h3>
+                                    <p class="text-sm text-gray-500">${team.totalTrades || 0} trades · ${roi.toFixed(1)}% ROI</p>
+                                </div>
                             </div>
                             <div class="text-right">
                                 <p class="text-lg font-bold ${pnlClass}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</p>
-                                <p class="text-sm text-gray-500">P&L</p>
+                                <p class="text-xs text-gray-500">Balance: $${team.finalBalance?.toFixed(2) || '0.00'}</p>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+            
+            showToast(`Performance data loaded: ${data.topTraders.length} teams`, 'success');
         }
 
         function updateMarketData(ticker) {
-            // Update market overview with ticker data
-            console.log('Ticker update:', ticker);
+            const container = document.getElementById('market-overview');
+            
+            // Create or update ticker card
+            let tickerCard = container.querySelector(`[data-product="${ticker.product}"]`);
+            
+            if (!tickerCard) {
+                // Remove loading message
+                const loading = container.querySelector('.text-center');
+                if (loading) {
+                    container.innerHTML = '';
+                }
+                
+                tickerCard = document.createElement('div');
+                tickerCard.className = 'border border-gray-200 rounded-lg p-4 mb-3';
+                tickerCard.setAttribute('data-product', ticker.product);
+                container.appendChild(tickerCard);
+            }
+            
+            const bidText = ticker.bestBid ? `$${ticker.bestBid.toFixed(2)}` : 'N/A';
+            const askText = ticker.bestAsk ? `$${ticker.bestAsk.toFixed(2)}` : 'N/A';
+            const midText = ticker.mid ? `$${ticker.mid.toFixed(2)}` : 'N/A';
+            const spreadText = (ticker.bestBid && ticker.bestAsk) ? 
+                `$${(ticker.bestAsk - ticker.bestBid).toFixed(2)}` : 'N/A';
+            
+            tickerCard.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-lg font-semibold text-gray-900">${ticker.product}</h3>
+                    <span class="text-xs text-gray-500">${new Date(ticker.serverTime).toLocaleTimeString()}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                        <span class="text-gray-600">Bid:</span>
+                        <span class="font-medium text-green-600 ml-1">${bidText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Ask:</span>
+                        <span class="font-medium text-red-600 ml-1">${askText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Mid:</span>
+                        <span class="font-medium text-blue-600 ml-1">${midText}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Spread:</span>
+                        <span class="font-medium text-gray-900 ml-1">${spreadText}</span>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500">
+                    24h Volume: ${ticker.volume24h || 0}
+                </div>
+            `;
         }
 
         function cancelAllOrders() {
