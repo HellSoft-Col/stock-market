@@ -109,6 +109,18 @@ type ResetTeamProductionMessage struct {
 	TeamName string `json:"teamName"`
 }
 
+type ResetTournamentConfigMessage struct {
+	Type        string                 `json:"type"`
+	Balance     float64                `json:"balance"`
+	TeamConfigs []TeamTournamentConfig `json:"teamConfigs"`
+}
+
+type TeamTournamentConfig struct {
+	TeamName     string `json:"teamName"`
+	BaseProduct  string `json:"baseProduct"`
+	BaseQuantity int    `json:"baseQuantity"`
+}
+
 // Server to Client Messages
 
 type LoginOKMessage struct {
@@ -359,6 +371,15 @@ type TeamUpdatedResponse struct {
 	Success    bool   `json:"success"`
 	Message    string `json:"message"`
 	ServerTime string `json:"serverTime"`
+}
+
+type TournamentResetCompleteResponse struct {
+	Type           string `json:"type"`
+	Success        bool   `json:"success"`
+	TeamsReset     int    `json:"teamsReset"`
+	OrdersCanceled int    `json:"ordersCanceled"`
+	Message        string `json:"message"`
+	ServerTime     string `json:"serverTime"`
 }
 
 // Base message for parsing

@@ -236,6 +236,9 @@
                     <button onclick="exportData()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors">
                         <i class="fas fa-download mr-2"></i>Export Data
                     </button>
+                    <button onclick="showTournamentResetModal()" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-trophy mr-2"></i>Reset Tournament
+                    </button>
                 </div>
             </div>
         </div>
@@ -401,6 +404,66 @@
         </div>
     </div>
 
+    <!-- Tournament Reset Modal -->
+    <div id="tournament-reset-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 my-8">
+            <div class="p-6 border-b border-gray-200">
+                <h3 class="text-xl font-semibold text-gray-900">
+                    <i class="fas fa-trophy text-purple-600 mr-2"></i>Reset Tournament Configuration
+                </h3>
+                <p class="text-sm text-gray-600 mt-2">Configure initial state for all teams in the tournament</p>
+            </div>
+            <div class="p-6 space-y-6 max-h-96 overflow-y-auto">
+                <!-- Global Settings -->
+                <div class="border border-purple-200 rounded-lg p-4 bg-purple-50">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-globe text-purple-600 mr-2"></i>Global Settings
+                    </h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Initial Balance (all teams)</label>
+                            <input type="number" id="tournament-balance" class="w-full px-3 py-2 border border-gray-300 rounded-lg" step="0.01" value="1000.00">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Base Product Quantity</label>
+                            <input type="number" id="tournament-base-qty" class="w-full px-3 py-2 border border-gray-300 rounded-lg" min="0" value="10">
+                            <p class="text-xs text-gray-500 mt-1">Each team will receive this amount of their assigned base product</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Team Product Assignments -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-box text-blue-600 mr-2"></i>Team Base Product Assignments
+                    </h4>
+                    <p class="text-xs text-gray-600 mb-3">Assign a base product to each team. Teams will start with the base quantity of their assigned product.</p>
+                    <div id="tournament-team-assignments" class="space-y-2">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Warning -->
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mr-2 mt-1"></i>
+                        <div class="text-sm text-yellow-800">
+                            <strong>Warning:</strong> This will reset ALL teams' balances and inventories. All active orders will be cancelled. This action cannot be undone.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button onclick="closeTournamentResetModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmTournamentReset()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors">
+                    <i class="fas fa-trophy mr-2"></i>Reset Tournament
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notifications -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
 
@@ -517,6 +580,12 @@
                 case 'TEAM_UPDATED':
                     showToast('Team updated successfully', 'success');
                     refreshTeams();
+                    break;
+                    
+                case 'TOURNAMENT_RESET_COMPLETE':
+                    showToast(`🏆 Tournament reset complete! ${message.teamsReset} teams configured`, 'success', 5000);
+                    refreshTeams();
+                    refreshAll();
                     break;
                     
                 case 'ORDER_ACK':
@@ -1174,6 +1243,80 @@
             });
 
             showToast('Resetting production...', 'info');
+        }
+
+        // Tournament Reset
+        function showTournamentResetModal() {
+            const modal = document.getElementById('tournament-reset-modal');
+            
+            // Load teams and populate assignments
+            if (allTeamsData.length === 0) {
+                showToast('Please load teams first (go to Team Management tab)', 'warning');
+                return;
+            }
+
+            const container = document.getElementById('tournament-team-assignments');
+            const products = ['FOSFO', 'GUACA', 'SEBO', 'PALTA-OIL', 'PITA', 'H-GUACA'];
+            
+            container.innerHTML = allTeamsData.map((team, index) => {
+                const defaultProduct = products[index % products.length];
+                return `
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                        <span class="font-medium text-gray-900">${team.teamName}</span>
+                        <select id="team-product-${team.teamName}" class="px-3 py-1 border border-gray-300 rounded text-sm">
+                            ${products.map(p => 
+                                `<option value="${p}" ${p === defaultProduct ? 'selected' : ''}>${p}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                `;
+            }).join('');
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeTournamentResetModal() {
+            document.getElementById('tournament-reset-modal').classList.add('hidden');
+        }
+
+        function confirmTournamentReset() {
+            if (!confirm('⚠️ This will reset ALL teams!\n\nAll balances will be reset.\nAll inventories will be cleared.\nAll active orders will be cancelled.\n\nAre you absolutely sure?')) {
+                return;
+            }
+
+            const balance = parseFloat(document.getElementById('tournament-balance').value);
+            const baseQty = parseInt(document.getElementById('tournament-base-qty').value);
+            
+            if (isNaN(balance) || balance < 0) {
+                showToast('Invalid balance', 'error');
+                return;
+            }
+
+            if (isNaN(baseQty) || baseQty < 0) {
+                showToast('Invalid base quantity', 'error');
+                return;
+            }
+
+            const teamConfigs = [];
+            allTeamsData.forEach(team => {
+                const productSelect = document.getElementById(`team-product-${team.teamName}`);
+                if (productSelect) {
+                    teamConfigs.push({
+                        teamName: team.teamName,
+                        baseProduct: productSelect.value,
+                        baseQuantity: baseQty
+                    });
+                }
+            });
+
+            sendMessage({
+                type: "RESET_TOURNAMENT_CONFIG",
+                balance: balance,
+                teamConfigs: teamConfigs
+            });
+
+            showToast('Resetting tournament configuration...', 'info');
+            closeTournamentResetModal();
         }
     </script>
 </body>

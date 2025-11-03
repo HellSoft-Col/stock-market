@@ -109,6 +109,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleResetTeamInventory(ctx, rawMessage, client)
 	case "RESET_TEAM_PRODUCTION":
 		return r.handleResetTeamProduction(ctx, rawMessage, client)
+	case "RESET_TOURNAMENT_CONFIG":
+		return r.handleResetTournamentConfig(ctx, rawMessage, client)
 	default:
 		return r.handleEcho(ctx, baseMsg, client)
 	}
@@ -1370,6 +1372,119 @@ func (r *MessageRouter) handleResetTeamProduction(ctx context.Context, rawMessag
 		Str("admin", client.GetTeamName()).
 		Str("targetTeam", resetMsg.TeamName).
 		Msg("Admin requested production reset (not implemented)")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleResetTournamentConfig(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var tournamentMsg domain.ResetTournamentConfigMessage
+	if err := json.Unmarshal([]byte(rawMessage), &tournamentMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid RESET_TOURNAMENT_CONFIG message format", "")
+	}
+
+	if tournamentMsg.Balance < 0 {
+		return r.sendError(client, domain.ErrInvalidMessage, "Balance cannot be negative", "")
+	}
+
+	if len(tournamentMsg.TeamConfigs) == 0 {
+		return r.sendError(client, domain.ErrInvalidMessage, "No team configurations provided", "")
+	}
+
+	teamRepo, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	// Cancel all active orders first
+	ordersCanceled := 0
+	if r.orderRepo != nil {
+		allOrders, err := r.orderRepo.GetPendingOrders(ctx)
+		if err == nil {
+			for _, order := range allOrders {
+				if order != nil {
+					if err := r.orderRepo.Cancel(ctx, order.ClOrdID); err != nil {
+						log.Warn().Err(err).Str("clOrdID", order.ClOrdID).Msg("Failed to cancel order during tournament reset")
+					} else {
+						ordersCanceled++
+						// Remove from order book
+						if r.orderBook != nil {
+							r.orderBook.RemoveOrder(order.Product, order.Side, order.ClOrdID)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Reset each team
+	teamsReset := 0
+	for _, teamConfig := range tournamentMsg.TeamConfigs {
+		if teamConfig.TeamName == "" || teamConfig.TeamName == "admin" {
+			continue
+		}
+
+		// Set balance
+		if err := teamRepo.ResetTeamBalance(ctx, teamConfig.TeamName); err != nil {
+			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to reset team balance")
+			continue
+		}
+
+		// Update to tournament balance
+		if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, nil); err != nil {
+			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set tournament balance")
+			continue
+		}
+
+		// Set inventory with base product
+		inventory := make(map[string]int)
+		products := []string{"FOSFO", "GUACA", "SEBO", "PALTA-OIL", "PITA", "H-GUACA"}
+		for _, product := range products {
+			if product == teamConfig.BaseProduct {
+				inventory[product] = teamConfig.BaseQuantity
+			} else {
+				inventory[product] = 0
+			}
+		}
+
+		if err := teamRepo.ResetTeamInventory(ctx, teamConfig.TeamName); err != nil {
+			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to reset inventory")
+			continue
+		}
+
+		if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, inventory); err != nil {
+			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set team inventory")
+			continue
+		}
+
+		teamsReset++
+
+		log.Info().
+			Str("team", teamConfig.TeamName).
+			Str("baseProduct", teamConfig.BaseProduct).
+			Int("baseQty", teamConfig.BaseQuantity).
+			Float64("balance", tournamentMsg.Balance).
+			Msg("Team configured for tournament")
+	}
+
+	response := &domain.TournamentResetCompleteResponse{
+		Type:           "TOURNAMENT_RESET_COMPLETE",
+		Success:        true,
+		TeamsReset:     teamsReset,
+		OrdersCanceled: ordersCanceled,
+		Message:        fmt.Sprintf("Tournament reset: %d teams configured, %d orders cancelled", teamsReset, ordersCanceled),
+		ServerTime:     time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Int("teamsReset", teamsReset).
+		Int("ordersCanceled", ordersCanceled).
+		Float64("balance", tournamentMsg.Balance).
+		Msg("Tournament configuration reset completed")
 
 	return client.SendMessage(response)
 }
