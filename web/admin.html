@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔴 Admin Dashboard - Stock Exchange</title>
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔴</text></svg>">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace']
+                    },
+                    colors: {
+                        admin: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            900: '#7f1d1d'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .admin-gradient {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-connected { background: #10b981; }
+        .status-disconnected { background: #ef4444; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50 font-sans">
+    <!-- Header -->
+    <header class="admin-gradient text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <span class="text-3xl">🔴</span>
+                    <div>
+                        <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+                        <p class="text-sm text-red-100">Stock Exchange Control Center</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="connection-status" class="flex items-center">
+                        <span class="status-dot status-disconnected"></span>
+                        <span id="status-text">Disconnected</span>
+                    </div>
+                    <button onclick="logout()" class="bg-red-800 hover:bg-red-900 px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-6">
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Active Users</p>
+                        <p id="stat-users" class="text-3xl font-bold text-gray-900">0</p>
+                    </div>
+                    <div class="text-4xl text-red-600">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Active Orders</p>
+                        <p id="stat-orders" class="text-3xl font-bold text-gray-900">0</p>
+                    </div>
+                    <div class="text-4xl text-blue-600">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Total Volume</p>
+                        <p id="stat-volume" class="text-3xl font-bold text-gray-900">$0</p>
+                    </div>
+                    <div class="text-4xl text-green-600">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Total Trades</p>
+                        <p id="stat-trades" class="text-3xl font-bold text-gray-900">0</p>
+                    </div>
+                    <div class="text-4xl text-purple-600">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Connected Users -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-users text-red-600 mr-2"></i>Connected Users
+                    </h2>
+                    <button onclick="refreshSessions()" class="text-sm text-red-600 hover:text-red-700">
+                        <i class="fas fa-sync-alt mr-1"></i>Refresh
+                    </button>
+                </div>
+                <div id="users-list" class="p-4 max-h-96 overflow-y-auto">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p>No users connected</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team P&L -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-chart-pie text-red-600 mr-2"></i>Team Performance
+                    </h2>
+                    <button onclick="refreshPerformance()" class="text-sm text-red-600 hover:text-red-700">
+                        <i class="fas fa-sync-alt mr-1"></i>Refresh
+                    </button>
+                </div>
+                <div id="performance-list" class="p-4 max-h-96 overflow-y-auto">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-chart-line text-4xl mb-2"></i>
+                        <p>Loading performance data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Market Overview -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-chart-bar text-red-600 mr-2"></i>Market Overview
+                    </h2>
+                    <button onclick="refreshMarket()" class="text-sm text-red-600 hover:text-red-700">
+                        <i class="fas fa-sync-alt mr-1"></i>Refresh
+                    </button>
+                </div>
+                <div id="market-overview" class="p-4">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-chart-area text-4xl mb-2"></i>
+                        <p>Loading market data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Controls -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-cog text-red-600 mr-2"></i>Admin Controls
+                    </h2>
+                </div>
+                <div class="p-4 space-y-3">
+                    <button onclick="showCreateOrderModal()" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-plus-circle mr-2"></i>Create Order
+                    </button>
+                    <button onclick="cancelAllOrders()" class="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-times-circle mr-2"></i>Cancel All Orders
+                    </button>
+                    <button onclick="broadcastMessage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-bullhorn mr-2"></i>Broadcast Message
+                    </button>
+                    <button onclick="exportData()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-2"></i>Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Book -->
+        <div class="mt-6 bg-white rounded-lg shadow">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-list text-red-600 mr-2"></i>All Active Orders
+                </h2>
+                <button onclick="refreshAllOrders()" class="text-sm text-red-600 hover:text-red-700">
+                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                </button>
+            </div>
+            <div id="all-orders-list" class="p-4 max-h-96 overflow-y-auto">
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-file-invoice text-4xl mb-2"></i>
+                    <p>Loading orders...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Order Modal -->
+    <div id="create-order-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b border-gray-200">
+                <h3 class="text-xl font-semibold text-gray-900">Create Admin Order</h3>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Team</label>
+                    <select id="admin-order-team" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="">Select team...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Side</label>
+                    <select id="admin-order-side" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="BUY">BUY</option>
+                        <option value="SELL">SELL</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Product</label>
+                    <select id="admin-order-product" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="FOSFO">FOSFO</option>
+                        <option value="GUACA">GUACA</option>
+                        <option value="SEBO">SEBO</option>
+                        <option value="PALTA-OIL">PALTA-OIL</option>
+                        <option value="PITA">PITA</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                    <input type="number" id="admin-order-qty" class="w-full px-3 py-2 border border-gray-300 rounded-lg" min="1" value="10">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Mode</label>
+                    <select id="admin-order-mode" class="w-full px-3 py-2 border border-gray-300 rounded-lg" onchange="togglePriceField()">
+                        <option value="MARKET">MARKET</option>
+                        <option value="LIMIT">LIMIT</option>
+                    </select>
+                </div>
+                <div id="price-field" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Limit Price</label>
+                    <input type="number" id="admin-order-price" class="w-full px-3 py-2 border border-gray-300 rounded-lg" step="0.01" value="10.00">
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button onclick="closeCreateOrderModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="submitAdminOrder()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                    Create Order
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+    <script>
+        // WebSocket connection
+        let socket = null;
+        let isConnected = false;
+        let teams = [];
+
+        // Auto-connect on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+            connect(token);
+            startAutoRefresh();
+        });
+
+        function connect(token) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = () => {
+                isConnected = true;
+                updateConnectionStatus(true);
+                login(token);
+            };
+            
+            socket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleMessage(message);
+                } catch (e) {
+                    console.error('Failed to parse message:', e);
+                }
+            };
+            
+            socket.onclose = () => {
+                isConnected = false;
+                updateConnectionStatus(false);
+                setTimeout(() => connect(token), 5000);
+            };
+        }
+
+        function login(token) {
+            sendMessage({
+                type: "LOGIN",
+                token: token
+            });
+        }
+
+        function handleMessage(message) {
+            switch (message.type) {
+                case 'LOGIN_OK':
+                    if (message.team !== 'admin') {
+                        showToast('Access denied: Admin only', 'error');
+                        logout();
+                        return;
+                    }
+                    showToast('Admin authenticated', 'success');
+                    refreshAll();
+                    break;
+                    
+                case 'CONNECTED_SESSIONS':
+                    displayUsers(message.sessions);
+                    document.getElementById('stat-users').textContent = message.sessions.length;
+                    break;
+                    
+                case 'ALL_ORDERS':
+                    displayAllOrders(message.orders);
+                    document.getElementById('stat-orders').textContent = message.orders.length;
+                    break;
+                    
+                case 'PERFORMANCE_REPORT':
+                    displayPerformance(message);
+                    break;
+                    
+                case 'GLOBAL_PERFORMANCE_REPORT':
+                    displayGlobalPerformance(message);
+                    break;
+                    
+                case 'TICKER':
+                    updateMarketData(message);
+                    break;
+                    
+                case 'ERROR':
+                    showToast(`Error: ${message.reason}`, 'error');
+                    break;
+            }
+        }
+
+        function displayUsers(sessions) {
+            const container = document.getElementById('users-list');
+            if (!sessions || sessions.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No users connected</p></div>';
+                return;
+            }
+
+            const teamMap = {};
+            sessions.forEach(session => {
+                if (!teamMap[session.teamName]) {
+                    teamMap[session.teamName] = [];
+                }
+                teamMap[session.teamName].push(session);
+            });
+
+            teams = Object.keys(teamMap);
+            updateTeamSelector();
+
+            container.innerHTML = Object.entries(teamMap).map(([teamName, sessions]) => `
+                <div class="border border-gray-200 rounded-lg p-4 mb-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-gray-900">${teamName}</h3>
+                        <span class="text-sm text-gray-500">${sessions.length} session(s)</span>
+                    </div>
+                    ${sessions.map(s => `
+                        <div class="text-sm text-gray-600 ml-4">
+                            <span class="status-dot status-connected"></span>
+                            ${s.clientType || 'Unknown'} - ${s.remoteAddr}
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        function displayAllOrders(orders) {
+            const container = document.getElementById('all-orders-list');
+            if (!orders || orders.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No active orders</p></div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Team</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Side</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Product</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Price</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Mode</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        ${orders.map(order => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 text-sm">${order.teamName}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <span class="px-2 py-1 rounded text-xs font-medium ${
+                                        order.side === 'BUY' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }">${order.side}</span>
+                                </td>
+                                <td class="px-4 py-3 text-sm font-mono">${order.product}</td>
+                                <td class="px-4 py-3 text-sm">${order.quantity}</td>
+                                <td class="px-4 py-3 text-sm">${order.price ? '$' + order.price.toFixed(2) : 'MARKET'}</td>
+                                <td class="px-4 py-3 text-sm">${order.mode}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function updateTeamSelector() {
+            const select = document.getElementById('admin-order-team');
+            select.innerHTML = '<option value="">Select team...</option>' + 
+                teams.map(team => `<option value="${team}">${team}</option>`).join('');
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDot = document.querySelector('.status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            if (connected) {
+                statusDot.classList.remove('status-disconnected');
+                statusDot.classList.add('status-connected');
+                statusText.textContent = 'Connected';
+            } else {
+                statusDot.classList.remove('status-connected');
+                statusDot.classList.add('status-disconnected');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        function sendMessage(message) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(message));
+            }
+        }
+
+        function refreshSessions() {
+            sendMessage({ type: "REQUEST_CONNECTED_SESSIONS" });
+        }
+
+        function refreshAllOrders() {
+            sendMessage({ type: "REQUEST_ALL_ORDERS" });
+        }
+
+        function refreshPerformance() {
+            sendMessage({ 
+                type: "REQUEST_PERFORMANCE_REPORT",
+                scope: "global"
+            });
+        }
+
+        function refreshMarket() {
+            showToast('Market refresh requested', 'info');
+        }
+
+        function refreshAll() {
+            refreshSessions();
+            refreshAllOrders();
+            refreshPerformance();
+        }
+
+        function startAutoRefresh() {
+            setInterval(refreshAll, 5000);
+        }
+
+        function showCreateOrderModal() {
+            document.getElementById('create-order-modal').classList.remove('hidden');
+        }
+
+        function closeCreateOrderModal() {
+            document.getElementById('create-order-modal').classList.add('hidden');
+        }
+
+        function togglePriceField() {
+            const mode = document.getElementById('admin-order-mode').value;
+            const priceField = document.getElementById('price-field');
+            
+            if (mode === 'LIMIT') {
+                priceField.classList.remove('hidden');
+            } else {
+                priceField.classList.add('hidden');
+            }
+        }
+
+        function submitAdminOrder() {
+            const team = document.getElementById('admin-order-team').value;
+            const side = document.getElementById('admin-order-side').value;
+            const product = document.getElementById('admin-order-product').value;
+            const qty = parseInt(document.getElementById('admin-order-qty').value);
+            const mode = document.getElementById('admin-order-mode').value;
+            const price = parseFloat(document.getElementById('admin-order-price').value);
+
+            if (!team) {
+                showToast('Please select a team', 'warning');
+                return;
+            }
+
+            const order = {
+                type: "ORDER",
+                clOrdID: `ADMIN-${Date.now()}`,
+                side: side,
+                mode: mode,
+                product: product,
+                qty: qty,
+                message: "Admin order"
+            };
+
+            if (mode === 'LIMIT') {
+                order.limitPrice = price;
+            }
+
+            sendMessage(order);
+            closeCreateOrderModal();
+            showToast(`Order created for ${team}`, 'success');
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            if (socket) {
+                socket.close();
+            }
+            window.location.href = '/';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function displayPerformance(data) {
+            // Placeholder for performance display
+            showToast('Performance data updated', 'info');
+        }
+
+        function displayGlobalPerformance(data) {
+            const container = document.getElementById('performance-list');
+            if (!data.teams || data.teams.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No performance data</p></div>';
+                return;
+            }
+
+            container.innerHTML = data.teams.map(team => {
+                const pnl = team.totalPnL || 0;
+                const pnlClass = pnl >= 0 ? 'text-green-600' : 'text-red-600';
+                
+                return `
+                    <div class="border border-gray-200 rounded-lg p-4 mb-3">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">${team.teamName}</h3>
+                                <p class="text-sm text-gray-500">${team.totalTrades || 0} trades</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-bold ${pnlClass}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</p>
+                                <p class="text-sm text-gray-500">P&L</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateMarketData(ticker) {
+            // Update market overview with ticker data
+            console.log('Ticker update:', ticker);
+        }
+
+        function cancelAllOrders() {
+            if (!confirm('Are you sure you want to cancel ALL orders in the system?')) {
+                return;
+            }
+            showToast('This feature requires backend implementation', 'warning');
+        }
+
+        function broadcastMessage() {
+            const message = prompt('Enter message to broadcast to all users:');
+            if (message) {
+                showToast('Broadcast feature requires backend implementation', 'warning');
+            }
+        }
+
+        function exportData() {
+            showToast('Exporting data...', 'info');
+            // Implement data export functionality
+        }
+    </script>
+</body>
+</html>

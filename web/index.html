@@ -1722,6 +1722,14 @@
         }
         
         function handleAuthSuccess(message) {
+            // Check if admin user
+            if (message.team === 'admin') {
+                const token = document.getElementById('token').value;
+                localStorage.setItem('adminToken', token);
+                window.location.href = '/admin.html';
+                return;
+            }
+            
             isAuthenticated = true;
             currentTeam = {
                 teamName: message.team,
