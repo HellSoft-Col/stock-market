@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
 	"github.com/HellSoft-Col/stock-market/internal/market"
 	"github.com/HellSoft-Col/stock-market/internal/service"
+	"github.com/rs/zerolog/log"
 )
 
 type MessageRouter struct {
@@ -111,7 +111,10 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 	}
 
 	// Create session for this client
-	userAgent := "" // TODO: Extract from HTTP headers if available
+	userAgent := ""
+	if wsClient, ok := client.(*WebSocketClientHandler); ok {
+		userAgent = wsClient.GetUserAgent()
+	}
 	authService, ok := r.authService.(*service.AuthService)
 	if ok {
 		authService.CreateSession(team.TeamName, loginMsg.Token, client.GetRemoteAddr(), userAgent)

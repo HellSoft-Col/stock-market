@@ -6,26 +6,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
 )
 
 type WebSocketClientHandler struct {
-	conn     *websocket.Conn
-	config   *config.Config
-	server   *WebSocketServer
-	router   *MessageRouter
-	teamName string
+	conn      *websocket.Conn
+	config    *config.Config
+	server    *WebSocketServer
+	router    *MessageRouter
+	teamName  string
+	userAgent string
 }
 
-func NewWebSocketClientHandler(conn *websocket.Conn, config *config.Config, server *WebSocketServer, router *MessageRouter) *WebSocketClientHandler {
+func NewWebSocketClientHandler(conn *websocket.Conn, config *config.Config, server *WebSocketServer, router *MessageRouter, userAgent string) *WebSocketClientHandler {
 	return &WebSocketClientHandler{
-		conn:   conn,
-		config: config,
-		server: server,
-		router: router,
+		conn:      conn,
+		config:    config,
+		server:    server,
+		router:    router,
+		userAgent: userAgent,
 	}
 }
 
@@ -130,6 +132,10 @@ func (c *WebSocketClientHandler) SetTeamName(teamName string) {
 
 func (c *WebSocketClientHandler) GetRemoteAddr() string {
 	return c.conn.RemoteAddr().String()
+}
+
+func (c *WebSocketClientHandler) GetUserAgent() string {
+	return c.userAgent
 }
 
 func (c *WebSocketClientHandler) RegisterWithServer(teamName string) {

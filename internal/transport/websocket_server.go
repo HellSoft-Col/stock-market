@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
 	"github.com/HellSoft-Col/stock-market/internal/service"
+	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
 )
 
 var upgrader = websocket.Upgrader{
@@ -96,11 +96,13 @@ func (s *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 
 	clientAddr := r.RemoteAddr
+	userAgent := r.Header.Get("User-Agent")
 	log.Info().
 		Str("clientAddr", clientAddr).
+		Str("userAgent", userAgent).
 		Msg("New WebSocket client connected")
 
-	client := NewWebSocketClientHandler(conn, s.config, s, s.router)
+	client := NewWebSocketClientHandler(conn, s.config, s, s.router, userAgent)
 
 	s.clientsMu.Lock()
 	s.clients[clientAddr] = client

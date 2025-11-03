@@ -524,6 +524,10 @@
                                                 class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm transition-colors">
                                             <i class="fas fa-sync mr-1"></i>Refresh
                                         </button>
+                                        <button onclick="cancelAutoMMOrders()" id="cancel-mm-btn" disabled
+                                                class="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                                            <i class="fas fa-robot mr-1"></i>Cancel MM Orders
+                                        </button>
                                         <button onclick="cancelAllOrders()" id="cancel-all-btn" disabled
                                                 class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm transition-colors">
                                             <i class="fas fa-times mr-1"></i>Cancel All
@@ -1604,7 +1608,7 @@
         function enableButtons() {
             const buttons = [
                 'create-order-btn', 'auto-mm-btn', 'clear-all-btn', 'place-order-btn',
-                'refresh-orders-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
+                'refresh-orders-btn', 'cancel-mm-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
                 'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
                 'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
                 'team-perf-btn', 'global-perf-btn'
@@ -1619,7 +1623,7 @@
         function disableButtons() {
             const buttons = [
                 'create-order-btn', 'auto-mm-btn', 'clear-all-btn', 'place-order-btn',
-                'refresh-orders-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
+                'refresh-orders-btn', 'cancel-mm-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
                 'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
                 'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
                 'team-perf-btn', 'global-perf-btn'
@@ -2107,8 +2111,8 @@
             showToast('Global performance report loaded', 'success');
         }
 
-        // Trading functions
-        function createMarketOrder() {
+        // Performance report functions
+        function requestTeamPerformanceReport() {
             if (!isAuthenticated) {
                 showToast('Please authenticate first', 'warning');
                 return;
@@ -2229,6 +2233,11 @@
         function quickTrade(side, product, quantity) {
             if (!isAuthenticated) {
                 showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            if (!currentTeam || !currentTeam.teamName) {
+                showToast('Team information not available', 'error');
                 return;
             }
             
@@ -2362,6 +2371,40 @@
             sendMessage(message);
             addMessageToLog('Requested all orders');
             showToast('Refreshing orders...', 'info', 1500);
+        }
+        
+        function cancelAutoMMOrders() {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const mmOrders = myActiveOrders.filter(order => order.clOrdID && order.clOrdID.startsWith('MM-'));
+            
+            if (mmOrders.length === 0) {
+                showToast('No Auto MM orders to cancel', 'info');
+                return;
+            }
+            
+            if (!confirm(`Cancel ${mmOrders.length} Auto Market Maker order(s)?`)) {
+                return;
+            }
+            
+            let cancelled = 0;
+            mmOrders.forEach(order => {
+                const cancelMessage = {
+                    type: "CANCEL",
+                    clOrdID: order.clOrdID
+                };
+                sendMessage(cancelMessage);
+                cancelled++;
+            });
+            
+            showToast(`Cancelling ${cancelled} Auto MM orders...`, 'info');
+            
+            setTimeout(() => {
+                refreshMyOrders();
+            }, 500);
         }
         
         function cancelAllOrders() {
