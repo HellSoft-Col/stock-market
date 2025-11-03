@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type ProductionService struct {
@@ -24,6 +24,25 @@ func NewProductionService(teamRepo domain.TeamRepository, inventoryService domai
 }
 
 func (s *ProductionService) ProcessProduction(ctx context.Context, teamName string, prodMsg *domain.ProductionUpdateMessage) error {
+	// Null checks
+	if s == nil {
+		return fmt.Errorf("production service is nil")
+	}
+	if prodMsg == nil {
+		return fmt.Errorf("production message is nil")
+	}
+	if teamName == "" {
+		return fmt.Errorf("team name is required")
+	}
+	if s.teamRepo == nil {
+		log.Error().Msg("TeamRepository is nil")
+		return fmt.Errorf("team repository unavailable")
+	}
+	if s.inventoryService == nil {
+		log.Error().Msg("InventoryService is nil")
+		return fmt.Errorf("inventory service unavailable")
+	}
+
 	// Validate message
 	if err := s.validateProduction(prodMsg); err != nil {
 		return err

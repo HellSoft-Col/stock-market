@@ -156,7 +156,7 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 
 func (r *MessageRouter) handleOrder(ctx context.Context, rawMessage string, client MessageClient) error {
 	// Check authentication
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
@@ -169,6 +169,26 @@ func (r *MessageRouter) handleOrder(ctx context.Context, rawMessage string, clie
 	var orderMsg domain.OrderMessage
 	if err := json.Unmarshal([]byte(rawMessage), &orderMsg); err != nil {
 		return r.sendError(client, domain.ErrInvalidMessage, "Invalid ORDER message format", "")
+	}
+
+	// Validate order message fields
+	if orderMsg.ClOrdID == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Order ID (clOrdID) is required", "")
+	}
+	if orderMsg.Product == "" {
+		return r.sendError(client, domain.ErrInvalidProduct, "Product is required", orderMsg.ClOrdID)
+	}
+	if orderMsg.Side != "BUY" && orderMsg.Side != "SELL" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Side must be BUY or SELL", orderMsg.ClOrdID)
+	}
+	if orderMsg.Qty <= 0 {
+		return r.sendError(client, domain.ErrInvalidQuantity, "Quantity must be positive", orderMsg.ClOrdID)
+	}
+	if orderMsg.Mode != "MARKET" && orderMsg.Mode != "LIMIT" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Mode must be MARKET or LIMIT", orderMsg.ClOrdID)
+	}
+	if orderMsg.Mode == "LIMIT" && (orderMsg.LimitPrice == nil || *orderMsg.LimitPrice <= 0) {
+		return r.sendError(client, domain.ErrInvalidMessage, "Limit price must be positive for LIMIT orders", orderMsg.ClOrdID)
 	}
 
 	// Process order
@@ -222,7 +242,7 @@ func findSubstring(s, substr string) bool {
 
 func (r *MessageRouter) handleProductionUpdate(ctx context.Context, rawMessage string, client MessageClient) error {
 	// Check authentication
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
@@ -230,6 +250,14 @@ func (r *MessageRouter) handleProductionUpdate(ctx context.Context, rawMessage s
 	var prodMsg domain.ProductionUpdateMessage
 	if err := json.Unmarshal([]byte(rawMessage), &prodMsg); err != nil {
 		return r.sendError(client, domain.ErrInvalidMessage, "Invalid PRODUCTION_UPDATE message format", "")
+	}
+
+	// Validate production message
+	if prodMsg.Product == "" {
+		return r.sendError(client, domain.ErrInvalidProduct, "Product is required", "")
+	}
+	if prodMsg.Quantity <= 0 {
+		return r.sendError(client, domain.ErrInvalidQuantity, "Quantity must be positive", "")
 	}
 
 	// Process production update
@@ -267,7 +295,7 @@ func (r *MessageRouter) getProductionErrorCode(err error) string {
 
 func (r *MessageRouter) handleAcceptOffer(ctx context.Context, rawMessage string, client MessageClient) error {
 	// Check authentication
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
@@ -275,6 +303,11 @@ func (r *MessageRouter) handleAcceptOffer(ctx context.Context, rawMessage string
 	var acceptMsg domain.AcceptOfferMessage
 	if err := json.Unmarshal([]byte(rawMessage), &acceptMsg); err != nil {
 		return r.sendError(client, domain.ErrInvalidMessage, "Invalid ACCEPT_OFFER message format", "")
+	}
+
+	// Validate accept offer message
+	if acceptMsg.OfferID == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Offer ID is required", "")
 	}
 
 	// Get market engine and offer generator
@@ -312,7 +345,7 @@ func (r *MessageRouter) getOfferErrorCode(err error, offerID string) string {
 
 func (r *MessageRouter) handleResync(ctx context.Context, rawMessage string, client MessageClient) error {
 	// Check if client is authenticated
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
@@ -354,7 +387,7 @@ func (r *MessageRouter) handleResync(ctx context.Context, rawMessage string, cli
 }
 
 func (r *MessageRouter) handleCancelOrder(ctx context.Context, rawMessage string, client MessageClient) error {
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
@@ -365,6 +398,12 @@ func (r *MessageRouter) handleCancelOrder(ctx context.Context, rawMessage string
 
 	if cancelMsg.ClOrdID == "" {
 		return r.sendError(client, domain.ErrInvalidMessage, "ClOrdID is required", "")
+	}
+
+	// Check if orderRepo is available
+	if r.orderRepo == nil {
+		log.Error().Msg("OrderRepository is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Order service unavailable", cancelMsg.ClOrdID)
 	}
 
 	// Get the order to verify ownership
@@ -446,8 +485,13 @@ func (r *MessageRouter) handlePing(ctx context.Context, client MessageClient) er
 }
 
 func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client MessageClient) error {
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	if r.orderRepo == nil {
+		log.Error().Msg("OrderRepository is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Order service unavailable", "")
 	}
 
 	orders, err := r.orderRepo.GetPendingOrders(ctx)
@@ -458,6 +502,9 @@ func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client Messa
 
 	orderSummaries := make([]*domain.OrderSummary, 0, len(orders))
 	for _, order := range orders {
+		if order == nil {
+			continue
+		}
 		summary := &domain.OrderSummary{
 			ClOrdID:   order.ClOrdID,
 			TeamName:  order.TeamName,
@@ -483,7 +530,7 @@ func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client Messa
 }
 
 func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage string, client MessageClient) error {
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
 
@@ -498,6 +545,11 @@ func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage s
 
 	if request.Product == "" {
 		return r.sendError(client, domain.ErrInvalidMessage, "Product is required", "")
+	}
+
+	if r.orderBook == nil {
+		log.Error().Msg("OrderBook is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Order book service unavailable", "")
 	}
 
 	buyOrders := r.orderBook.GetBuyOrders(request.Product)
@@ -549,8 +601,13 @@ func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage s
 }
 
 func (r *MessageRouter) handleRequestConnectedSessions(ctx context.Context, client MessageClient) error {
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	if r.authService == nil {
+		log.Error().Msg("AuthService is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Session service unavailable", "")
 	}
 
 	// Get detailed session information from auth service
@@ -561,12 +618,21 @@ func (r *MessageRouter) handleRequestConnectedSessions(ctx context.Context, clie
 	}
 
 	activeSessions := authService.GetActiveSessions()
+	if activeSessions == nil {
+		activeSessions = make(map[string][]*service.Session)
+	}
 
 	sessions := make([]*domain.SessionInfo, 0)
 	totalConnections := 0
 
 	for _, teamSessions := range activeSessions {
+		if teamSessions == nil {
+			continue
+		}
 		for _, session := range teamSessions {
+			if session == nil {
+				continue
+			}
 			sessionInfo := &domain.SessionInfo{
 				TeamName:      session.TeamName,
 				RemoteAddr:    session.RemoteAddr,
@@ -646,8 +712,13 @@ func (r *MessageRouter) handleRequestConnectedSessionsFallback(ctx context.Conte
 }
 
 func (r *MessageRouter) handleRequestPerformanceReport(ctx context.Context, rawMessage string, client MessageClient) error {
-	if client.GetTeamName() == "" {
+	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	if r.performanceService == nil {
+		log.Error().Msg("PerformanceService is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Performance service unavailable", "")
 	}
 
 	var request struct {
@@ -659,6 +730,10 @@ func (r *MessageRouter) handleRequestPerformanceReport(ctx context.Context, rawM
 
 	if err := json.Unmarshal([]byte(rawMessage), &request); err != nil {
 		return r.sendError(client, domain.ErrInvalidMessage, "Invalid REQUEST_PERFORMANCE_REPORT message format", "")
+	}
+
+	if request.Scope == "" {
+		request.Scope = "team" // Default to team scope
 	}
 
 	// Parse start time or default to 24 hours ago
@@ -702,6 +777,14 @@ func (r *MessageRouter) handleRequestPerformanceReport(ctx context.Context, rawM
 }
 
 func (r *MessageRouter) sendError(client MessageClient, code, reason, clOrdID string) error {
+	if client == nil {
+		log.Error().
+			Str("code", code).
+			Str("reason", reason).
+			Msg("Cannot send error: client is nil")
+		return fmt.Errorf("client is nil")
+	}
+
 	errorMsg := &domain.ErrorMessage{
 		Type:      "ERROR",
 		Code:      code,

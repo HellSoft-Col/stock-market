@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/HellSoft-Col/stock-market/internal/domain"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-	"github.com/HellSoft-Col/stock-market/internal/domain"
 )
 
 var validProducts = map[string]bool{
@@ -37,6 +37,25 @@ func NewOrderService(orderRepo domain.OrderRepository, marketSvc domain.MarketSe
 }
 
 func (s *OrderService) ProcessOrder(ctx context.Context, teamName string, orderMsg *domain.OrderMessage) error {
+	// Null checks
+	if s == nil {
+		return fmt.Errorf("order service is nil")
+	}
+	if orderMsg == nil {
+		return fmt.Errorf("order message is nil")
+	}
+	if teamName == "" {
+		return fmt.Errorf("team name is required")
+	}
+	if s.orderRepo == nil {
+		log.Error().Msg("OrderRepository is nil")
+		return fmt.Errorf("order repository unavailable")
+	}
+	if s.marketSvc == nil {
+		log.Error().Msg("MarketService is nil")
+		return fmt.Errorf("market service unavailable")
+	}
+
 	// Validate order message
 	if err := s.validateOrder(orderMsg); err != nil {
 		return err
