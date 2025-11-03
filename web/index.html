@@ -1401,14 +1401,6 @@
                 heartbeatInterval = null;
             }
         }
-            isConnected = false;
-            isAuthenticated = false;
-            updateStatus('disconnected', 'Disconnected');
-            document.getElementById('connect-btn').innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
-            document.getElementById('login-btn').disabled = true;
-            document.getElementById('team-info').style.display = 'none';
-            disableButtons();
-        }
         
         function login() {
             const token = document.getElementById('token').value.trim();
