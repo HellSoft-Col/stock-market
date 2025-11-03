@@ -1439,33 +1439,25 @@ func (r *MessageRouter) handleResetTournamentConfig(ctx context.Context, rawMess
 			continue
 		}
 
-		// Set inventory with base product
-		inventory := make(map[string]int)
-		products := []string{"FOSFO", "GUACA", "SEBO", "PALTA-OIL", "PITA", "H-GUACA"}
-		for _, product := range products {
-			if product == teamConfig.BaseProduct {
-				inventory[product] = teamConfig.BaseQuantity
-			} else {
-				inventory[product] = 0
-			}
-		}
-
+		// Reset inventory
 		if err := teamRepo.ResetTeamInventory(ctx, teamConfig.TeamName); err != nil {
 			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to reset inventory")
 			continue
 		}
 
-		if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, inventory); err != nil {
-			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set team inventory")
-			continue
+		// Set inventory from config
+		if teamConfig.Inventory != nil && len(teamConfig.Inventory) > 0 {
+			if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, teamConfig.Inventory); err != nil {
+				log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set team inventory")
+				continue
+			}
 		}
 
 		teamsReset++
 
 		log.Info().
 			Str("team", teamConfig.TeamName).
-			Str("baseProduct", teamConfig.BaseProduct).
-			Int("baseQty", teamConfig.BaseQuantity).
+			Interface("inventory", teamConfig.Inventory).
 			Float64("balance", tournamentMsg.Balance).
 			Msg("Team configured for tournament")
 	}

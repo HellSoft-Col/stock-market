@@ -116,9 +116,8 @@ type ResetTournamentConfigMessage struct {
 }
 
 type TeamTournamentConfig struct {
-	TeamName     string `json:"teamName"`
-	BaseProduct  string `json:"baseProduct"`
-	BaseQuantity int    `json:"baseQuantity"`
+	TeamName  string         `json:"teamName"`
+	Inventory map[string]int `json:"inventory"`
 }
 
 // Server to Client Messages
