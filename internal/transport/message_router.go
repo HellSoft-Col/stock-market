@@ -512,9 +512,13 @@ func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client Messa
 		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get orders", "")
 	}
 
-	orderSummaries := make([]*domain.OrderSummary, 0, len(orders))
+	teamName := client.GetTeamName()
+	orderSummaries := make([]*domain.OrderSummary, 0)
 	for _, order := range orders {
 		if order == nil {
+			continue
+		}
+		if order.TeamName != teamName {
 			continue
 		}
 		summary := &domain.OrderSummary{
