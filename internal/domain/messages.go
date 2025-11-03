@@ -47,6 +47,33 @@ type CancelMessage struct {
 	ClOrdID string `json:"clOrdID"`
 }
 
+type AdminCancelAllOrdersMessage struct {
+	Type string `json:"type"`
+}
+
+type AdminBroadcastMessage struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+type AdminCreateOrderMessage struct {
+	Type       string   `json:"type"`
+	TeamName   string   `json:"teamName"`
+	Side       string   `json:"side"`
+	Mode       string   `json:"mode"`
+	Product    string   `json:"product"`
+	Qty        int      `json:"qty"`
+	LimitPrice *float64 `json:"limitPrice,omitempty"`
+	Message    string   `json:"message,omitempty"`
+}
+
+type ExportDataMessage struct {
+	Type      string `json:"type"`
+	DataType  string `json:"dataType"` // "orders", "fills", "teams", "all"
+	StartDate string `json:"startDate,omitempty"`
+	EndDate   string `json:"endDate,omitempty"`
+}
+
 // Server to Client Messages
 
 type LoginOKMessage struct {
@@ -216,6 +243,30 @@ type ProductStats struct {
 	MinPrice    float64 `json:"minPrice"`
 	MaxPrice    float64 `json:"maxPrice"`
 	LastPrice   float64 `json:"lastPrice"`
+}
+
+type BroadcastNotificationMessage struct {
+	Type       string `json:"type"`
+	Message    string `json:"message"`
+	Sender     string `json:"sender"` // "admin"
+	ServerTime string `json:"serverTime"`
+}
+
+type ExportDataResponse struct {
+	Type       string      `json:"type"`
+	DataType   string      `json:"dataType"`
+	Data       interface{} `json:"data"`
+	Count      int         `json:"count"`
+	ServerTime string      `json:"serverTime"`
+}
+
+type AdminActionResponse struct {
+	Type       string `json:"type"`
+	Action     string `json:"action"`
+	Success    bool   `json:"success"`
+	Message    string `json:"message"`
+	Count      int    `json:"count,omitempty"`
+	ServerTime string `json:"serverTime"`
 }
 
 // Base message for parsing

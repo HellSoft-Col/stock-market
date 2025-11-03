@@ -87,6 +87,14 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleRequestPerformanceReport(ctx, rawMessage, client)
 	case "PING":
 		return r.handlePing(ctx, client)
+	case "ADMIN_CANCEL_ALL_ORDERS":
+		return r.handleAdminCancelAllOrders(ctx, client)
+	case "ADMIN_BROADCAST":
+		return r.handleAdminBroadcast(ctx, rawMessage, client)
+	case "ADMIN_CREATE_ORDER":
+		return r.handleAdminCreateOrder(ctx, rawMessage, client)
+	case "EXPORT_DATA":
+		return r.handleExportData(ctx, rawMessage, client)
 	default:
 		return r.handleEcho(ctx, baseMsg, client)
 	}
@@ -794,4 +802,233 @@ func (r *MessageRouter) sendError(client MessageClient, code, reason, clOrdID st
 	}
 
 	return client.SendMessage(errorMsg)
+}
+
+func (r *MessageRouter) handleAdminCancelAllOrders(ctx context.Context, client MessageClient) error {
+	// Check if client is admin
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	if r.orderRepo == nil {
+		log.Error().Msg("OrderRepository is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Order service unavailable", "")
+	}
+
+	// Get all pending orders
+	orders, err := r.orderRepo.GetPendingOrders(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get pending orders for cancellation")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get orders", "")
+	}
+
+	// Cancel all orders
+	cancelledCount := 0
+	for _, order := range orders {
+		if order == nil {
+			continue
+		}
+		if err := r.orderRepo.Cancel(ctx, order.ClOrdID); err != nil {
+			log.Warn().
+				Err(err).
+				Str("clOrdID", order.ClOrdID).
+				Msg("Failed to cancel order")
+			continue
+		}
+		// Remove from order book
+		if r.orderBook != nil {
+			r.orderBook.RemoveOrder(order.Product, order.Side, order.ClOrdID)
+		}
+		cancelledCount++
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Int("cancelledCount", cancelledCount).
+		Msg("Admin cancelled all orders")
+
+	response := &domain.AdminActionResponse{
+		Type:       "ADMIN_ACTION_RESPONSE",
+		Action:     "CANCEL_ALL_ORDERS",
+		Success:    true,
+		Message:    fmt.Sprintf("Successfully cancelled %d orders", cancelledCount),
+		Count:      cancelledCount,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleAdminBroadcast(ctx context.Context, rawMessage string, client MessageClient) error {
+	// Check if client is admin
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var broadcastMsg domain.AdminBroadcastMessage
+	if err := json.Unmarshal([]byte(rawMessage), &broadcastMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid ADMIN_BROADCAST message format", "")
+	}
+
+	if broadcastMsg.Message == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Message is required", "")
+	}
+
+	if r.broadcaster == nil {
+		log.Error().Msg("Broadcaster is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Broadcast service unavailable", "")
+	}
+
+	// Create broadcast notification
+	notification := &domain.BroadcastNotificationMessage{
+		Type:       "BROADCAST_NOTIFICATION",
+		Message:    broadcastMsg.Message,
+		Sender:     "admin",
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	// Broadcast to all connected clients
+	if err := r.broadcaster.BroadcastToAll(notification); err != nil {
+		log.Error().Err(err).Msg("Failed to broadcast message")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to broadcast message", "")
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("message", broadcastMsg.Message).
+		Msg("Admin broadcast message")
+
+	response := &domain.AdminActionResponse{
+		Type:       "ADMIN_ACTION_RESPONSE",
+		Action:     "BROADCAST",
+		Success:    true,
+		Message:    "Message broadcast to all users",
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleAdminCreateOrder(ctx context.Context, rawMessage string, client MessageClient) error {
+	// Check if client is admin
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var adminOrderMsg domain.AdminCreateOrderMessage
+	if err := json.Unmarshal([]byte(rawMessage), &adminOrderMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid ADMIN_CREATE_ORDER message format", "")
+	}
+
+	// Validate required fields
+	if adminOrderMsg.TeamName == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "TeamName is required", "")
+	}
+
+	// Generate order ID
+	timestamp := time.Now().Unix()
+	clOrdID := fmt.Sprintf("ADMIN-%s-%d", adminOrderMsg.TeamName, timestamp)
+
+	// Create order message
+	orderMsg := &domain.OrderMessage{
+		Type:       "ORDER",
+		ClOrdID:    clOrdID,
+		Side:       adminOrderMsg.Side,
+		Mode:       adminOrderMsg.Mode,
+		Product:    adminOrderMsg.Product,
+		Qty:        adminOrderMsg.Qty,
+		LimitPrice: adminOrderMsg.LimitPrice,
+		Message:    fmt.Sprintf("Admin order: %s", adminOrderMsg.Message),
+	}
+
+	// Process order using order service
+	if err := r.orderService.ProcessOrder(ctx, adminOrderMsg.TeamName, orderMsg); err != nil {
+		log.Warn().
+			Str("admin", client.GetTeamName()).
+			Str("targetTeam", adminOrderMsg.TeamName).
+			Err(err).
+			Msg("Admin order creation failed")
+		return r.sendError(client, domain.ErrInvalidOrder, err.Error(), clOrdID)
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("targetTeam", adminOrderMsg.TeamName).
+		Str("clOrdID", clOrdID).
+		Msg("Admin created order")
+
+	response := &domain.AdminActionResponse{
+		Type:       "ADMIN_ACTION_RESPONSE",
+		Action:     "CREATE_ORDER",
+		Success:    true,
+		Message:    fmt.Sprintf("Order %s created for team %s", clOrdID, adminOrderMsg.TeamName),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleExportData(ctx context.Context, rawMessage string, client MessageClient) error {
+	// Check if client is admin
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var exportMsg domain.ExportDataMessage
+	if err := json.Unmarshal([]byte(rawMessage), &exportMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid EXPORT_DATA message format", "")
+	}
+
+	dataType := exportMsg.DataType
+	if dataType == "" {
+		dataType = "all"
+	}
+
+	var data interface{}
+	var count int
+
+	switch dataType {
+	case "orders", "all":
+		if r.orderRepo == nil {
+			return r.sendError(client, domain.ErrServiceUnavailable, "Order repository unavailable", "")
+		}
+		orders, err := r.orderRepo.GetPendingOrders(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to export orders")
+			return r.sendError(client, domain.ErrServiceUnavailable, "Failed to export orders", "")
+		}
+		data = orders
+		count = len(orders)
+
+	case "sessions":
+		authService, ok := r.authService.(*service.AuthService)
+		if !ok {
+			return r.sendError(client, domain.ErrServiceUnavailable, "Auth service unavailable", "")
+		}
+		sessions := authService.GetActiveSessions()
+		data = sessions
+		count = 0
+		for _, teamSessions := range sessions {
+			count += len(teamSessions)
+		}
+
+	default:
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid dataType", "")
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("dataType", dataType).
+		Int("count", count).
+		Msg("Admin exported data")
+
+	response := &domain.ExportDataResponse{
+		Type:       "EXPORT_DATA_RESPONSE",
+		DataType:   dataType,
+		Data:       data,
+		Count:      count,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
 }

@@ -389,10 +389,47 @@
                     updateMarketData(message);
                     break;
                     
+                case 'ADMIN_ACTION_RESPONSE':
+                    handleAdminActionResponse(message);
+                    break;
+                    
+                case 'BROADCAST_NOTIFICATION':
+                    showToast(`📢 Admin: ${message.message}`, 'info');
+                    break;
+                    
+                case 'EXPORT_DATA_RESPONSE':
+                    handleExportDataResponse(message);
+                    break;
+                    
                 case 'ERROR':
                     showToast(`Error: ${message.reason}`, 'error');
                     break;
             }
+        }
+
+        function handleAdminActionResponse(message) {
+            if (message.success) {
+                showToast(message.message, 'success');
+                if (message.action === 'CANCEL_ALL_ORDERS') {
+                    refreshAllOrders();
+                }
+            } else {
+                showToast(`Action failed: ${message.message}`, 'error');
+            }
+        }
+
+        function handleExportDataResponse(message) {
+            const dataStr = JSON.stringify(message.data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-${message.dataType}-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`Exported ${message.count} ${message.dataType}`, 'success');
         }
 
         function displayUsers(sessions) {
@@ -557,13 +594,13 @@
             }
 
             const order = {
-                type: "ORDER",
-                clOrdID: `ADMIN-${Date.now()}`,
+                type: "ADMIN_CREATE_ORDER",
+                teamName: team,
                 side: side,
                 mode: mode,
                 product: product,
                 qty: qty,
-                message: "Admin order"
+                message: "Created via admin dashboard"
             };
 
             if (mode === 'LIMIT') {
@@ -572,7 +609,7 @@
 
             sendMessage(order);
             closeCreateOrderModal();
-            showToast(`Order created for ${team}`, 'success');
+            showToast(`Creating order for ${team}...`, 'info');
         }
 
         function logout() {
@@ -646,19 +683,32 @@
             if (!confirm('Are you sure you want to cancel ALL orders in the system?')) {
                 return;
             }
-            showToast('This feature requires backend implementation', 'warning');
+            
+            sendMessage({
+                type: "ADMIN_CANCEL_ALL_ORDERS"
+            });
+            showToast('Cancelling all orders...', 'info');
         }
 
         function broadcastMessage() {
             const message = prompt('Enter message to broadcast to all users:');
-            if (message) {
-                showToast('Broadcast feature requires backend implementation', 'warning');
+            if (!message) {
+                return;
             }
+            
+            sendMessage({
+                type: "ADMIN_BROADCAST",
+                message: message
+            });
+            showToast('Broadcasting message...', 'info');
         }
 
         function exportData() {
+            sendMessage({
+                type: "EXPORT_DATA",
+                dataType: "orders"
+            });
             showToast('Exporting data...', 'info');
-            // Implement data export functionality
         }
     </script>
 </body>
