@@ -512,6 +512,9 @@
                                     <button onclick="switchTradingTab('orders')" class="trading-tab px-4 py-2 text-sm font-medium tab-active" id="trading-orders-tab">
                                         <i class="fas fa-list mr-2"></i>My Orders
                                     </button>
+                                    <button onclick="switchTradingTab('offers')" class="trading-tab px-4 py-2 text-sm font-medium" id="trading-offers-tab">
+                                        <i class="fas fa-handshake mr-2"></i>Offers <span id="offer-count" class="bg-red-500 text-white text-xs rounded-full px-2 ml-1" style="display: none;">0</span>
+                                    </button>
                                     <button onclick="switchTradingTab('messages')" class="trading-tab px-4 py-2 text-sm font-medium" id="trading-messages-tab">
                                         <i class="fas fa-comments mr-2"></i>Messages
                                     </button>
@@ -537,6 +540,24 @@
                                     <div id="my-orders-list" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-80 overflow-y-auto">
                                         <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                                             <i class="fas fa-info-circle mr-2"></i>No active orders
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Offers Tab -->
+                                <div id="trading-offers-content" style="display: none;">
+                                    <div class="mb-4">
+                                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                            <i class="fas fa-bell mr-2 text-yellow-500"></i>Incoming Offers
+                                        </h4>
+                                        <p class="text-xs text-gray-600 dark:text-gray-400">
+                                            Teams with your products will send you buy offers. Accept to sell immediately.
+                                        </p>
+                                    </div>
+                                    
+                                    <div id="offers-list" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-80 overflow-y-auto space-y-3">
+                                        <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                                            <i class="fas fa-info-circle mr-2"></i>No pending offers
                                         </div>
                                     </div>
                                 </div>
@@ -1149,6 +1170,7 @@
         let autoMarketMakerInterval = null;
         let isDarkMode = false;
         let myActiveOrders = [];
+        let activeOffers = [];
         let heartbeatInterval = null;
         let reconnectAttempts = 0;
         let maxReconnectAttempts = 5;
@@ -1264,6 +1286,7 @@
         function switchTradingTab(tab) {
             // Hide all trading content
             document.getElementById('trading-orders-content').style.display = 'none';
+            document.getElementById('trading-offers-content').style.display = 'none';
             document.getElementById('trading-messages-content').style.display = 'none';
             
             // Remove active class from all tabs
@@ -1696,6 +1719,9 @@
                 case 'EVENT_DELTA':
                     handleEventDelta(message);
                     break;
+                case 'OFFER':
+                    handleOfferMessage(message);
+                    break;
                 default:
                     console.log('Unknown message type:', message.type);
                     addMessageToLog(`Unknown message: ${message.type}`);
@@ -1718,6 +1744,185 @@
                 if (isAuthenticated) {
                     setTimeout(() => refreshMyOrders(), 500);
                 }
+            }
+        }
+        
+        function handleOfferMessage(message) {
+            console.log('Received offer:', message);
+            
+            // Add to active offers
+            activeOffers.push(message);
+            
+            // Update offer count badge
+            updateOfferCount();
+            
+            // Display offers
+            displayOffers();
+            
+            // Show toast notification
+            showToast(`📬 New offer: ${message.quantityRequested} ${message.product} from ${message.buyer} @ $${message.maxPrice.toFixed(2)}`, 'info', 5000);
+            
+            // Log message
+            addMessageToLog(`OFFER: ${message.buyer} wants ${message.quantityRequested} ${message.product} @ $${message.maxPrice.toFixed(2)}`);
+        }
+        
+        function displayOffers() {
+            const offersList = document.getElementById('offers-list');
+            
+            if (!activeOffers || activeOffers.length === 0) {
+                offersList.innerHTML = `
+                    <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-info-circle mr-2"></i>No pending offers
+                    </div>
+                `;
+                return;
+            }
+            
+            offersList.innerHTML = activeOffers.map(offer => {
+                const expiresIn = offer.expiresIn ? `Expires in ${Math.floor(offer.expiresIn / 1000)}s` : 'No expiry';
+                
+                return `
+                    <div class="p-4 bg-white dark:bg-gray-800 rounded-lg border-2 border-yellow-400 dark:border-yellow-600 shadow-lg">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <i class="fas fa-handshake text-yellow-500 mr-2"></i>
+                                    <span class="font-semibold text-gray-900 dark:text-white">
+                                        ${offer.buyer} wants to buy
+                                    </span>
+                                </div>
+                                <div class="text-lg font-bold text-primary-600 dark:text-primary-400">
+                                    ${offer.quantityRequested} ${offer.product}
+                                </div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">
+                                    Offering up to: <span class="font-semibold text-green-600 dark:text-green-400">$${offer.maxPrice.toFixed(2)}</span> per unit
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                    <i class="fas fa-clock mr-1"></i>${expiresIn}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Quantity to sell</label>
+                                <input type="number" id="qty-${offer.offerId}" 
+                                       value="${offer.quantityRequested}" 
+                                       min="1" 
+                                       max="${offer.quantityRequested}"
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Your price</label>
+                                <input type="number" id="price-${offer.offerId}" 
+                                       value="${offer.maxPrice.toFixed(2)}" 
+                                       step="0.01"
+                                       max="${offer.maxPrice}"
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="acceptOffer('${offer.offerId}')" 
+                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                <i class="fas fa-check mr-1"></i>Accept
+                            </button>
+                            <button onclick="rejectOffer('${offer.offerId}')" 
+                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                <i class="fas fa-times mr-1"></i>Reject
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateOfferCount() {
+            const badge = document.getElementById('offer-count');
+            if (activeOffers.length > 0) {
+                badge.textContent = activeOffers.length;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        function acceptOffer(offerId) {
+            const offer = activeOffers.find(o => o.offerId === offerId);
+            if (!offer) {
+                showToast('Offer not found', 'error');
+                return;
+            }
+            
+            const qtyInput = document.getElementById(`qty-${offerId}`);
+            const priceInput = document.getElementById(`price-${offerId}`);
+            
+            const qty = parseInt(qtyInput.value);
+            const price = parseFloat(priceInput.value);
+            
+            if (!qty || qty <= 0) {
+                showToast('Invalid quantity', 'warning');
+                return;
+            }
+            
+            if (!price || price <= 0) {
+                showToast('Invalid price', 'warning');
+                return;
+            }
+            
+            if (price > offer.maxPrice) {
+                showToast(`Price cannot exceed $${offer.maxPrice.toFixed(2)}`, 'warning');
+                return;
+            }
+            
+            // Send accept message
+            const acceptMsg = {
+                type: "ACCEPT_OFFER",
+                offerId: offerId,
+                accept: true,
+                quantityOffered: qty,
+                priceOffered: price
+            };
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(acceptMsg));
+                showToast(`Accepting offer: ${qty} ${offer.product} @ $${price.toFixed(2)}`, 'success');
+                
+                // Remove from active offers
+                activeOffers = activeOffers.filter(o => o.offerId !== offerId);
+                updateOfferCount();
+                displayOffers();
+            } else {
+                showToast('Not connected to server', 'error');
+            }
+        }
+        
+        function rejectOffer(offerId) {
+            const offer = activeOffers.find(o => o.offerId === offerId);
+            if (!offer) {
+                showToast('Offer not found', 'error');
+                return;
+            }
+            
+            // Send reject message
+            const rejectMsg = {
+                type: "ACCEPT_OFFER",
+                offerId: offerId,
+                accept: false,
+                quantityOffered: 0,
+                priceOffered: 0
+            };
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(rejectMsg));
+                showToast(`Rejected offer from ${offer.buyer}`, 'info');
+                
+                // Remove from active offers
+                activeOffers = activeOffers.filter(o => o.offerId !== offerId);
+                updateOfferCount();
+                displayOffers();
+            } else {
+                showToast('Not connected to server', 'error');
             }
         }
         

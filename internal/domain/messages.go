@@ -74,6 +74,15 @@ type ExportDataMessage struct {
 	EndDate   string `json:"endDate,omitempty"`
 }
 
+type GetAvailableTeamsMessage struct {
+	Type string `json:"type"`
+}
+
+type GetTeamActivityMessage struct {
+	Type     string `json:"type"`
+	TeamName string `json:"teamName,omitempty"`
+}
+
 // Server to Client Messages
 
 type LoginOKMessage struct {
@@ -267,6 +276,39 @@ type AdminActionResponse struct {
 	Message    string `json:"message"`
 	Count      int    `json:"count,omitempty"`
 	ServerTime string `json:"serverTime"`
+}
+
+type AvailableTeamsResponse struct {
+	Type       string     `json:"type"`
+	Teams      []TeamInfo `json:"teams"`
+	Count      int        `json:"count"`
+	ServerTime string     `json:"serverTime"`
+}
+
+type TeamInfo struct {
+	TeamName           string   `json:"teamName"`
+	Species            string   `json:"species"`
+	Connected          bool     `json:"connected"`
+	Balance            float64  `json:"balance"`
+	ActiveOrders       int      `json:"activeOrders"`
+	AuthorizedProducts []string `json:"authorizedProducts,omitempty"`
+}
+
+type TeamActivityResponse struct {
+	Type       string           `json:"type"`
+	TeamName   string           `json:"teamName"`
+	Activities []ActivityRecord `json:"activities"`
+	Count      int              `json:"count"`
+	ServerTime string           `json:"serverTime"`
+}
+
+type ActivityRecord struct {
+	Timestamp string  `json:"timestamp"`
+	Action    string  `json:"action"` // "ORDER", "FILL", "CANCEL", "PRODUCTION", "LOGIN", "LOGOUT"
+	Details   string  `json:"details"`
+	Product   string  `json:"product,omitempty"`
+	Quantity  int     `json:"quantity,omitempty"`
+	Price     float64 `json:"price,omitempty"`
 }
 
 // Base message for parsing

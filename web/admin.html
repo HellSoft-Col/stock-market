@@ -401,9 +401,56 @@
                     handleExportDataResponse(message);
                     break;
                     
+                case 'AVAILABLE_TEAMS':
+                    handleAvailableTeams(message);
+                    break;
+                    
+                case 'TEAM_ACTIVITY':
+                    handleTeamActivity(message);
+                    break;
+                    
+                case 'ORDER_ACK':
+                    // Real-time order acknowledgment
+                    showToast(`Order ${message.status}: ${message.clOrdID}`, 'info');
+                    refreshAllOrders();
+                    break;
+                    
+                case 'FILL':
+                    // Real-time fill notification
+                    showToast(`Fill: ${message.fillQty} ${message.product} @ $${message.fillPrice}`, 'success');
+                    refreshAllOrders();
+                    refreshPerformance();
+                    break;
+                    
+                case 'ORDER_BOOK_UPDATE':
+                    // Real-time order book update
+                    updateMarketOverview(message);
+                    break;
+                    
                 case 'ERROR':
                     showToast(`Error: ${message.reason}`, 'error');
                     break;
+            }
+        }
+
+        function handleAvailableTeams(message) {
+            teams = message.teams.map(t => t.teamName);
+            updateTeamSelector();
+            
+            // Update stats
+            document.getElementById('stat-users').textContent = message.count;
+        }
+
+        function handleTeamActivity(message) {
+            console.log('Team activity:', message);
+            // Could display in a modal or panel
+        }
+
+        function updateMarketOverview(message) {
+            // Update market overview with order book changes
+            if (message.product) {
+                console.log('Order book update:', message.product);
+                // Refresh market data
             }
         }
 
@@ -555,6 +602,18 @@
             refreshSessions();
             refreshAllOrders();
             refreshPerformance();
+            refreshAvailableTeams();
+        }
+
+        function refreshAvailableTeams() {
+            sendMessage({ type: "GET_AVAILABLE_TEAMS" });
+        }
+
+        function getTeamActivity(teamName) {
+            sendMessage({ 
+                type: "GET_TEAM_ACTIVITY",
+                teamName: teamName
+            });
         }
 
         function startAutoRefresh() {

@@ -95,6 +95,10 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleAdminCreateOrder(ctx, rawMessage, client)
 	case "EXPORT_DATA":
 		return r.handleExportData(ctx, rawMessage, client)
+	case "GET_AVAILABLE_TEAMS":
+		return r.handleGetAvailableTeams(ctx, client)
+	case "GET_TEAM_ACTIVITY":
+		return r.handleGetTeamActivity(ctx, rawMessage, client)
 	default:
 		return r.handleEcho(ctx, baseMsg, client)
 	}
@@ -957,6 +961,16 @@ func (r *MessageRouter) handleAdminCreateOrder(ctx context.Context, rawMessage s
 		Str("clOrdID", clOrdID).
 		Msg("Admin created order")
 
+	ackMsg := &domain.OrderAckMessage{
+		Type:       "ORDER_ACK",
+		ClOrdID:    clOrdID,
+		Status:     "PENDING",
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+	if r.broadcaster != nil {
+		_ = r.broadcaster.SendToClient("admin", ackMsg)
+	}
+
 	response := &domain.AdminActionResponse{
 		Type:       "ADMIN_ACTION_RESPONSE",
 		Action:     "CREATE_ORDER",
@@ -1029,6 +1043,119 @@ func (r *MessageRouter) handleExportData(ctx context.Context, rawMessage string,
 		Count:      count,
 		ServerTime: time.Now().Format(time.RFC3339),
 	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleGetAvailableTeams(ctx context.Context, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	if r.orderRepo == nil {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Order repository unavailable", "")
+	}
+
+	authService, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Auth service unavailable", "")
+	}
+
+	activeSessions := authService.GetActiveSessions()
+	connectedTeams := make(map[string]bool)
+	for teamName := range activeSessions {
+		connectedTeams[teamName] = true
+	}
+
+	teams := make([]domain.TeamInfo, 0)
+
+	allOrders, err := r.orderRepo.GetPendingOrders(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to get orders for team info")
+	}
+
+	orderCounts := make(map[string]int)
+	for _, order := range allOrders {
+		if order != nil {
+			orderCounts[order.TeamName]++
+		}
+	}
+
+	for teamName := range connectedTeams {
+		teams = append(teams, domain.TeamInfo{
+			TeamName:     teamName,
+			Connected:    true,
+			ActiveOrders: orderCounts[teamName],
+		})
+	}
+
+	response := &domain.AvailableTeamsResponse{
+		Type:       "AVAILABLE_TEAMS",
+		Teams:      teams,
+		Count:      len(teams),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Int("teamCount", len(teams)).
+		Msg("Admin requested available teams")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleGetTeamActivity(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var activityMsg domain.GetTeamActivityMessage
+	if err := json.Unmarshal([]byte(rawMessage), &activityMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid GET_TEAM_ACTIVITY message format", "")
+	}
+
+	teamName := activityMsg.TeamName
+	if teamName == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "TeamName is required", "")
+	}
+
+	activities := make([]domain.ActivityRecord, 0)
+
+	if r.orderRepo != nil {
+		orders, err := r.orderRepo.GetPendingOrders(ctx)
+		if err == nil {
+			for _, order := range orders {
+				if order != nil && order.TeamName == teamName {
+					price := 0.0
+					if order.Price != nil {
+						price = *order.Price
+					}
+					activities = append(activities, domain.ActivityRecord{
+						Timestamp: order.CreatedAt.Format(time.RFC3339),
+						Action:    "ORDER",
+						Details:   fmt.Sprintf("%s %s %d %s", order.Mode, order.Side, order.Quantity, order.Product),
+						Product:   order.Product,
+						Quantity:  order.Quantity,
+						Price:     price,
+					})
+				}
+			}
+		}
+	}
+
+	response := &domain.TeamActivityResponse{
+		Type:       "TEAM_ACTIVITY",
+		TeamName:   teamName,
+		Activities: activities,
+		Count:      len(activities),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("targetTeam", teamName).
+		Int("activityCount", len(activities)).
+		Msg("Admin requested team activity")
 
 	return client.SendMessage(response)
 }

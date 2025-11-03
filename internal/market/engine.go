@@ -280,6 +280,9 @@ func (m *MarketEngine) executeTrade(result *MatchResult) error {
 	// Broadcast market state update
 	m.broadcastMarketStateUpdate(buyOrder.Product)
 
+	// Broadcast order book update to admin
+	m.broadcastOrderBookUpdate(buyOrder.Product)
+
 	log.Info().
 		Str("fillID", result.FillID).
 		Str("buyer", buyOrder.TeamName).
@@ -464,6 +467,11 @@ func (m *MarketEngine) broadcastFill(result *MatchResult, buyOrder, sellOrder *d
 			Str("fillID", result.FillID).
 			Msg("FILL sent to seller")
 	}
+
+	_ = m.broadcaster.SendToClient("admin", buyerFillMsg)
+	if buyOrder.TeamName != sellOrder.TeamName {
+		_ = m.broadcaster.SendToClient("admin", sellerFillMsg)
+	}
 }
 
 func (m *MarketEngine) broadcastMarketStateUpdate(product string) {
@@ -587,6 +595,71 @@ func (m *MarketEngine) broadcastInventoryUpdate(teamName string) {
 		Str("teamName", teamName).
 		Interface("inventory", inventory).
 		Msg("Inventory update broadcasted")
+}
+
+func (m *MarketEngine) broadcastOrderBookUpdate(product string) {
+	if m.broadcaster == nil {
+		return
+	}
+
+	buyOrders := m.orderBook.GetBuyOrders(product)
+	sellOrders := m.orderBook.GetSellOrders(product)
+
+	buySummaries := make([]*domain.OrderSummary, 0, len(buyOrders))
+	for _, order := range buyOrders {
+		if order == nil {
+			continue
+		}
+		summary := &domain.OrderSummary{
+			ClOrdID:   order.ClOrdID,
+			TeamName:  order.TeamName,
+			Side:      order.Side,
+			Mode:      order.Mode,
+			Product:   order.Product,
+			Quantity:  order.Quantity,
+			Price:     order.Price,
+			FilledQty: order.FilledQty,
+			Message:   order.Message,
+			CreatedAt: order.CreatedAt.Format(time.RFC3339),
+		}
+		buySummaries = append(buySummaries, summary)
+	}
+
+	sellSummaries := make([]*domain.OrderSummary, 0, len(sellOrders))
+	for _, order := range sellOrders {
+		if order == nil {
+			continue
+		}
+		summary := &domain.OrderSummary{
+			ClOrdID:   order.ClOrdID,
+			TeamName:  order.TeamName,
+			Side:      order.Side,
+			Mode:      order.Mode,
+			Product:   order.Product,
+			Quantity:  order.Quantity,
+			Price:     order.Price,
+			FilledQty: order.FilledQty,
+			Message:   order.Message,
+			CreatedAt: order.CreatedAt.Format(time.RFC3339),
+		}
+		sellSummaries = append(sellSummaries, summary)
+	}
+
+	updateMsg := &domain.OrderBookUpdateMessage{
+		Type:       "ORDER_BOOK_UPDATE",
+		Product:    product,
+		BuyOrders:  buySummaries,
+		SellOrders: sellSummaries,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	_ = m.broadcaster.SendToClient("admin", updateMsg)
+
+	log.Debug().
+		Str("product", product).
+		Int("buyOrders", len(buySummaries)).
+		Int("sellOrders", len(sellSummaries)).
+		Msg("Order book update sent to admin")
 }
 
 var _ domain.MarketService = (*MarketEngine)(nil)
