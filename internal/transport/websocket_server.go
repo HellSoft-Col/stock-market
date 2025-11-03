@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yourusername/avocado-exchange-server/internal/config"
 	"github.com/yourusername/avocado-exchange-server/internal/domain"
+	"github.com/yourusername/avocado-exchange-server/internal/service"
 )
 
 var upgrader = websocket.Upgrader{
@@ -122,6 +123,11 @@ func (s *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Request
 			delete(s.clients, client.teamName)
 		}
 		s.clientsMu.Unlock()
+
+		// Remove session from auth service
+		if authSvc, ok := s.router.authService.(*service.AuthService); ok && clientAddr != "" {
+			authSvc.RemoveSession(clientAddr)
+		}
 
 		log.Info().
 			Str("clientAddr", clientAddr).

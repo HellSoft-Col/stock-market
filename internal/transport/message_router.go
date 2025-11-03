@@ -75,6 +75,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleAcceptOffer(ctx, rawMessage, client)
 	case "RESYNC":
 		return r.handleResync(ctx, rawMessage, client)
+	case "CANCEL":
+		return r.handleCancelOrder(ctx, rawMessage, client)
 	case "REQUEST_ALL_ORDERS":
 		return r.handleRequestAllOrders(ctx, client)
 	case "REQUEST_ORDER_BOOK":
@@ -348,6 +350,77 @@ func (r *MessageRouter) handleResync(ctx context.Context, rawMessage string, cli
 	return client.SendMessage(eventDelta)
 }
 
+func (r *MessageRouter) handleCancelOrder(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client.GetTeamName() == "" {
+		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	var cancelMsg domain.CancelMessage
+	if err := json.Unmarshal([]byte(rawMessage), &cancelMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid CANCEL message format", "")
+	}
+
+	if cancelMsg.ClOrdID == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "ClOrdID is required", "")
+	}
+
+	// Get the order to verify ownership
+	order, err := r.orderRepo.GetByClOrdID(ctx, cancelMsg.ClOrdID)
+	if err != nil || order == nil {
+		log.Warn().
+			Str("clOrdID", cancelMsg.ClOrdID).
+			Str("teamName", client.GetTeamName()).
+			Msg("Order not found for cancellation")
+		return r.sendError(client, domain.ErrInvalidOrder, "Order not found", cancelMsg.ClOrdID)
+	}
+
+	// Verify the order belongs to this team
+	if order.TeamName != client.GetTeamName() {
+		log.Warn().
+			Str("clOrdID", cancelMsg.ClOrdID).
+			Str("orderTeam", order.TeamName).
+			Str("requestingTeam", client.GetTeamName()).
+			Msg("Team attempted to cancel another team's order")
+		return r.sendError(client, domain.ErrAuthFailed, "Cannot cancel another team's order", cancelMsg.ClOrdID)
+	}
+
+	// Check if order is already filled or cancelled
+	if order.Status == "FILLED" {
+		return r.sendError(client, domain.ErrInvalidOrder, "Cannot cancel filled order", cancelMsg.ClOrdID)
+	}
+	if order.Status == "CANCELLED" {
+		return r.sendError(client, domain.ErrInvalidOrder, "Order already cancelled", cancelMsg.ClOrdID)
+	}
+
+	// Cancel the order
+	if err := r.orderRepo.Cancel(ctx, cancelMsg.ClOrdID); err != nil {
+		log.Error().
+			Err(err).
+			Str("clOrdID", cancelMsg.ClOrdID).
+			Msg("Failed to cancel order")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to cancel order", cancelMsg.ClOrdID)
+	}
+
+	// Remove from order book if it's there
+	r.orderBook.RemoveOrder(order.Product, order.Side, cancelMsg.ClOrdID)
+
+	// Send acknowledgment
+	ack := &domain.OrderAckMessage{
+		Type:       "ORDER_ACK",
+		ClOrdID:    cancelMsg.ClOrdID,
+		Status:     "CANCELLED",
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("clOrdID", cancelMsg.ClOrdID).
+		Str("teamName", client.GetTeamName()).
+		Str("product", order.Product).
+		Msg("Order cancelled successfully")
+
+	return client.SendMessage(ack)
+}
+
 func (r *MessageRouter) handleEcho(ctx context.Context, baseMsg domain.BaseMessage, client MessageClient) error {
 	// Echo back for testing unknown message types
 	response := map[string]any{
@@ -387,6 +460,7 @@ func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client Messa
 			TeamName:  order.TeamName,
 			Side:      order.Side,
 			Mode:      order.Mode,
+			Product:   order.Product,
 			Quantity:  order.Quantity,
 			Price:     order.Price,
 			FilledQty: order.FilledQty,
@@ -433,6 +507,7 @@ func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage s
 			TeamName:  order.TeamName,
 			Side:      order.Side,
 			Mode:      order.Mode,
+			Product:   order.Product,
 			Quantity:  order.Quantity,
 			Price:     order.Price,
 			FilledQty: order.FilledQty,
@@ -449,6 +524,7 @@ func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage s
 			TeamName:  order.TeamName,
 			Side:      order.Side,
 			Mode:      order.Mode,
+			Product:   order.Product,
 			Quantity:  order.Quantity,
 			Price:     order.Price,
 			FilledQty: order.FilledQty,

@@ -1145,6 +1145,9 @@
         let autoMarketMakerInterval = null;
         let isDarkMode = false;
         let myActiveOrders = [];
+        let heartbeatInterval = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
         
         // Toast notification system
         function showToast(message, type = 'info', duration = 3000) {
@@ -1295,11 +1298,13 @@
                 socket.onopen = function(event) {
                     console.log('WebSocket connected');
                     isConnected = true;
+                    reconnectAttempts = 0;
                     updateStatus('connected', 'Connected');
                     document.getElementById('connect-btn').innerHTML = '<i class="fas fa-unlink mr-2"></i>Disconnect';
                     document.getElementById('login-btn').disabled = false;
                     showToast('Connected to server successfully!', 'success');
                     enableButtons();
+                    startHeartbeat();
                 };
                 
                 socket.onmessage = function(event) {
@@ -1312,21 +1317,38 @@
                 };
                 
                 socket.onclose = function(event) {
-                    console.log('WebSocket disconnected');
+                    console.log('WebSocket disconnected', event.code, event.reason);
                     isConnected = false;
-                    isAuthenticated = false;
                     updateStatus('disconnected', 'Disconnected');
                     document.getElementById('connect-btn').innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
                     document.getElementById('login-btn').disabled = true;
                     document.getElementById('team-info').style.display = 'none';
-                    showToast('Disconnected from server', 'warning');
                     disableButtons();
+                    stopHeartbeat();
                     if (autoMarketMakerInterval) {
                         clearInterval(autoMarketMakerInterval);
                         autoMarketMakerInterval = null;
                         autoMarketMaker = false;
                     }
                     socket = null;
+                    
+                    // Attempt reconnection if it wasn't a manual disconnect
+                    if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+                        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                        reconnectAttempts++;
+                        showToast(`Reconnecting in ${delay/1000}s... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`, 'warning', delay);
+                        setTimeout(() => {
+                            if (!isConnected) {
+                                connect();
+                            }
+                        }, delay);
+                    } else if (reconnectAttempts >= maxReconnectAttempts) {
+                        showToast('Max reconnection attempts reached. Please reconnect manually.', 'error', 5000);
+                        isAuthenticated = false;
+                    } else {
+                        showToast('Disconnected from server', 'warning');
+                        isAuthenticated = false;
+                    }
                 };
                 
                 socket.onerror = function(error) {
@@ -1344,10 +1366,41 @@
         
         function disconnect() {
             console.log('Disconnecting...');
+            reconnectAttempts = maxReconnectAttempts; // Prevent auto-reconnect
+            stopHeartbeat();
             if (socket) {
-                socket.close();
+                socket.close(1000, 'Manual disconnect'); // Normal closure
                 socket = null;
             }
+            isConnected = false;
+            isAuthenticated = false;
+            updateStatus('disconnected', 'Disconnected');
+            document.getElementById('connect-btn').innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
+            document.getElementById('login-btn').disabled = true;
+            document.getElementById('team-info').style.display = 'none';
+            disableButtons();
+            stopAutoMarketMaker();
+        }
+        
+        function startHeartbeat() {
+            stopHeartbeat();
+            heartbeatInterval = setInterval(() => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    const pingMessage = {
+                        type: "PING"
+                    };
+                    socket.send(JSON.stringify(pingMessage));
+                    console.log('Heartbeat ping sent');
+                }
+            }, 30000); // Send ping every 30 seconds
+        }
+        
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+        }
             isConnected = false;
             isAuthenticated = false;
             updateStatus('disconnected', 'Disconnected');
@@ -1644,9 +1697,31 @@
                 case 'GLOBAL_PERFORMANCE_REPORT':
                     handleGlobalPerformanceReport(message);
                     break;
+                case 'EVENT_DELTA':
+                    handleEventDelta(message);
+                    break;
                 default:
                     console.log('Unknown message type:', message.type);
                     addMessageToLog(`Unknown message: ${message.type}`);
+            }
+        }
+        
+        function handleEventDelta(message) {
+            const eventCount = message.events ? message.events.length : 0;
+            showToast(`Resync complete: ${eventCount} events received`, 'success');
+            addMessageToLog(`Resync: Processed ${eventCount} events`);
+            
+            if (message.events && message.events.length > 0) {
+                message.events.forEach(event => {
+                    if (event.type === 'FILL') {
+                        addTransactionToList(event);
+                    }
+                });
+                
+                // Refresh orders and inventory after resync
+                if (isAuthenticated) {
+                    setTimeout(() => refreshMyOrders(), 500);
+                }
             }
         }
         
@@ -1905,7 +1980,16 @@
         
         function handleInventoryUpdate(message) {
             updateInventoryDisplay(message.inventory);
-            showToast('Inventory updated', 'success', 2000);
+            
+            // Show which products changed
+            const products = Object.keys(message.inventory);
+            if (products.length > 0) {
+                const summary = products.map(p => `${p}: ${message.inventory[p]}`).join(', ');
+                showToast(`Inventory updated: ${summary}`, 'success', 3000);
+                addMessageToLog(`Inventory update: ${summary}`);
+            } else {
+                showToast('Inventory updated', 'success', 2000);
+            }
         }
         
         function handleBalanceUpdate(message) {
@@ -2244,8 +2328,33 @@
                 return;
             }
             
-            showToast('Order cancellation not yet implemented on server', 'info');
-            addMessageToLog('Clear all orders - feature pending server implementation');
+            if (myActiveOrders.length === 0) {
+                showToast('No active orders to clear', 'info');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to cancel all ${myActiveOrders.length} active orders?`)) {
+                return;
+            }
+            
+            let cancelledCount = 0;
+            let errors = 0;
+            
+            myActiveOrders.forEach(order => {
+                const cancelMessage = {
+                    type: "CANCEL",
+                    clOrdID: order.clOrdID
+                };
+                try {
+                    sendMessage(cancelMessage);
+                    cancelledCount++;
+                } catch (e) {
+                    errors++;
+                }
+            });
+            
+            showToast(`Cancelling ${cancelledCount} orders...`, 'success');
+            setTimeout(() => refreshMyOrders(), 1500);
         }
         
         function refreshMyOrders() {
@@ -2269,8 +2378,11 @@
                 return;
             }
             
-            showToast('Order cancellation not yet implemented on server', 'info');
-            addMessageToLog('Cancel all orders - feature pending server implementation');
+            if (!confirm('Are you sure you want to cancel ALL your active orders?')) {
+                return;
+            }
+            
+            clearAllOrders();
         }
         
         function cancelOrder(clOrdID) {
@@ -2279,8 +2391,14 @@
                 return;
             }
             
-            showToast('Order cancellation not yet implemented on server', 'info');
-            addMessageToLog(`Cancel order ${clOrdID} - feature pending server implementation`);
+            const cancelMessage = {
+                type: "CANCEL",
+                clOrdID: clOrdID
+            };
+            
+            sendMessage(cancelMessage);
+            showToast(`Cancelling order...`, 'info');
+            setTimeout(() => refreshMyOrders(), 500);
         }
         
         function clearMessages() {
@@ -2302,19 +2420,59 @@
             const timestamp = Date.now();
             const clOrdID = `ERR-${currentTeam.teamName}-${timestamp}`;
             
-            const errorOrder = {
-                type: "ORDER",
-                clOrdID: clOrdID,
-                side: "BUY",
-                mode: "MARKET",
-                product: "FOSFO",
-                qty: 1000000,
-                debugMode: errorType
-            };
+            // Different error types require different test scenarios
+            let errorOrder;
+            
+            switch(errorType) {
+                case 'INSUFFICIENT_BALANCE':
+                    // Try to buy with very high price to exceed balance
+                    errorOrder = {
+                        type: "ORDER",
+                        clOrdID: clOrdID,
+                        side: "BUY",
+                        mode: "LIMIT",
+                        product: "FOSFO",
+                        qty: 1000,
+                        limitPrice: 999999.99
+                    };
+                    break;
+                    
+                case 'UNAUTHORIZED_PRODUCT':
+                    // Try to trade a product team doesn't have access to
+                    errorOrder = {
+                        type: "ORDER",
+                        clOrdID: clOrdID,
+                        side: "SELL",
+                        mode: "MARKET",
+                        product: "INVALID_PRODUCT",
+                        qty: 1
+                    };
+                    break;
+                    
+                case 'DISCONNECT_CLIENT':
+                    // Manually disconnect the websocket
+                    showToast('Simulating disconnect...', 'warning');
+                    addMessageToLog('Simulating client disconnect');
+                    disconnect();
+                    setTimeout(() => {
+                        showToast('Reconnect manually or wait for auto-reconnect', 'info', 5000);
+                    }, 1000);
+                    return;
+                    
+                case 'OFFER_EXPIRED':
+                    // This would be for ACCEPT_OFFER message, not ORDER
+                    showToast('Offer expiry test not implemented for ORDER type', 'info');
+                    addMessageToLog('Offer expiry test requires ACCEPT_OFFER message type');
+                    return;
+                    
+                default:
+                    showToast(`Unknown error type: ${errorType}`, 'error');
+                    return;
+            }
             
             sendMessage(errorOrder);
-            showToast(`Injected error: ${errorType}`, 'warning');
-            addMessageToLog(`Error injection: ${errorType}`);
+            showToast(`Testing error scenario: ${errorType}`, 'warning');
+            addMessageToLog(`Error scenario test: ${errorType}`);
         }
         
         function testProduction() {

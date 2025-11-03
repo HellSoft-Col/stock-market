@@ -42,6 +42,11 @@ type ResyncMessage struct {
 	LastSync string `json:"lastSync"`
 }
 
+type CancelMessage struct {
+	Type    string `json:"type"`
+	ClOrdID string `json:"clOrdID"`
+}
+
 // Server to Client Messages
 
 type LoginOKMessage struct {
@@ -138,6 +143,7 @@ type OrderSummary struct {
 	TeamName  string   `json:"teamName"`
 	Side      string   `json:"side"`
 	Mode      string   `json:"mode"`
+	Product   string   `json:"product"`
 	Quantity  int      `json:"quantity"`
 	Price     *float64 `json:"price,omitempty"`
 	FilledQty int      `json:"filledQty"`
