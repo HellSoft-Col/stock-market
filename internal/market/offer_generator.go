@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 type ActiveOffer struct {
@@ -399,7 +399,21 @@ func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage
 func (og *OfferGenerator) executeOfferMatch(buyOrder, sellOrder *domain.Order) error {
 	// Calculate trade quantity and price
 	tradeQty := minInt(buyOrder.Quantity-buyOrder.FilledQty, sellOrder.Quantity)
-	tradePrice := *sellOrder.Price // Seller's price wins
+
+	// Determine trade price (seller's price wins if available)
+	var tradePrice float64
+	if sellOrder.Price != nil {
+		tradePrice = *sellOrder.Price
+	} else if buyOrder.Price != nil {
+		tradePrice = *buyOrder.Price
+	} else {
+		// Fallback to market price or default
+		tradePrice = 10.0
+		log.Warn().
+			Str("buyClOrdID", buyOrder.ClOrdID).
+			Str("sellClOrdID", sellOrder.ClOrdID).
+			Msg("Both orders have nil price in offer match, using default")
+	}
 
 	result := &MatchResult{
 		Matched:    true,

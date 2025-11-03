@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type MatchResult struct {
@@ -61,11 +61,15 @@ func (m *Matcher) processBuyOrder(buyOrder *domain.Order) (*MatchResult, error) 
 			return nil, fmt.Errorf("balance validation failed: %w", err)
 		}
 		if !canBuy {
-			log.Info().
+			logEvent := log.Info().
 				Str("buyTeam", buyOrder.TeamName).
-				Str("product", buyOrder.Product).
-				Float64("price", *buyOrder.Price).
-				Int("qty", buyOrder.Quantity).
+				Str("product", buyOrder.Product)
+			if buyOrder.Price != nil {
+				logEvent = logEvent.Float64("price", *buyOrder.Price)
+			} else {
+				logEvent = logEvent.Str("price", "MARKET")
+			}
+			logEvent.Int("qty", buyOrder.Quantity).
 				Msg("Buyer has insufficient balance")
 			return nil, fmt.Errorf("insufficient balance for buy order")
 		}

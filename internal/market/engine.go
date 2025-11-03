@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -123,6 +123,15 @@ func (m *MarketEngine) Stop() error {
 }
 
 func (m *MarketEngine) ProcessOrder(order *domain.Order, client domain.ClientConnection) {
+	if m == nil {
+		log.Error().Msg("MarketEngine is nil")
+		return
+	}
+	if order == nil {
+		log.Error().Msg("Order is nil")
+		return
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -166,6 +175,10 @@ func (m *MarketEngine) run() {
 
 func (m *MarketEngine) processOrderCommand(cmd OrderCommand) {
 	order := cmd.Order
+	if order == nil {
+		log.Error().Msg("Received nil order in processOrderCommand")
+		return
+	}
 
 	log.Debug().
 		Str("clOrdID", order.ClOrdID).
