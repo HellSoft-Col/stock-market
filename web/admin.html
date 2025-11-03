@@ -144,6 +144,22 @@
             </div>
         </div>
 
+        <!-- Tab Navigation -->
+        <div class="bg-white rounded-lg shadow mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="flex space-x-8 px-6" aria-label="Tabs">
+                    <button onclick="switchTab('overview')" id="tab-overview" class="admin-tab border-b-2 border-red-600 text-red-600 py-4 px-1 text-sm font-medium">
+                        <i class="fas fa-dashboard mr-2"></i>Overview
+                    </button>
+                    <button onclick="switchTab('teams')" id="tab-teams" class="admin-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 text-sm font-medium">
+                        <i class="fas fa-users-cog mr-2"></i>Team Management
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Overview Tab Content -->
+        <div id="content-overview" class="tab-content">
         <!-- Main Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Connected Users -->
@@ -241,6 +257,29 @@
                 </div>
             </div>
         </div>
+        </div>
+        <!-- End Overview Tab -->
+
+        <!-- Team Management Tab Content -->
+        <div id="content-teams" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-users-cog text-red-600 mr-2"></i>Manage Teams
+                    </h2>
+                    <button onclick="refreshTeams()" class="text-sm text-red-600 hover:text-red-700">
+                        <i class="fas fa-sync-alt mr-1"></i>Refresh
+                    </button>
+                </div>
+                <div id="teams-management-list" class="p-4">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p>Loading teams...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Team Management Tab -->
     </div>
 
     <!-- Create Order Modal -->
@@ -295,6 +334,68 @@
                 </button>
                 <button onclick="submitAdminOrder()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
                     Create Order
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Edit Modal -->
+    <div id="team-edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 my-8">
+            <div class="p-6 border-b border-gray-200">
+                <h3 class="text-xl font-semibold text-gray-900">
+                    <i class="fas fa-edit text-red-600 mr-2"></i>Edit Team: <span id="edit-team-name" class="text-red-600"></span>
+                </h3>
+            </div>
+            <div class="p-6 space-y-6 max-h-96 overflow-y-auto">
+                <!-- Balance Section -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-dollar-sign text-green-600 mr-2"></i>Balance
+                    </h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Current Balance</label>
+                            <input type="number" id="edit-balance" class="w-full px-3 py-2 border border-gray-300 rounded-lg" step="0.01" value="0">
+                        </div>
+                        <button onclick="resetBalance()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-undo mr-2"></i>Reset to Initial Balance
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Inventory Section -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-boxes text-blue-600 mr-2"></i>Inventory
+                    </h4>
+                    <div id="edit-inventory" class="space-y-2">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                    <button onclick="resetInventory()" class="w-full mt-3 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-undo mr-2"></i>Reset to Initial Inventory
+                    </button>
+                </div>
+
+                <!-- Production Section -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-industry text-purple-600 mr-2"></i>Production Capacity
+                    </h4>
+                    <div id="edit-production" class="space-y-2">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                    <button onclick="resetProduction()" class="w-full mt-3 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-undo mr-2"></i>Reset to Default Production
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button onclick="closeTeamEditModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="saveTeamChanges()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                    <i class="fas fa-save mr-2"></i>Save Changes
                 </button>
             </div>
         </div>
@@ -407,6 +508,15 @@
                     
                 case 'TEAM_ACTIVITY':
                     handleTeamActivity(message);
+                    break;
+                    
+                case 'ALL_TEAMS':
+                    displayTeamsList(message.teams);
+                    break;
+                    
+                case 'TEAM_UPDATED':
+                    showToast('Team updated successfully', 'success');
+                    refreshTeams();
                     break;
                     
                 case 'ORDER_ACK':
@@ -869,6 +979,201 @@
                 dataType: "orders"
             });
             showToast('Exporting data...', 'info');
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            document.querySelectorAll('.admin-tab').forEach(tab => {
+                tab.classList.remove('border-red-600', 'text-red-600');
+                tab.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('border-red-600', 'text-red-600');
+            document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500');
+            
+            if (tabName === 'teams') {
+                refreshTeams();
+            }
+        }
+
+        // Team management
+        let currentEditingTeam = null;
+        let allTeamsData = [];
+
+        function refreshTeams() {
+            sendMessage({ type: "GET_ALL_TEAMS" });
+        }
+
+        function displayTeamsList(teams) {
+            allTeamsData = teams;
+            const container = document.getElementById('teams-management-list');
+            
+            if (!teams || teams.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No teams found</p></div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Species</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Balance</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Inventory</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Connected</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${teams.map(team => {
+                                const connected = team.connected ? '🟢 Yes' : '🔴 No';
+                                const inventoryTotal = Object.values(team.inventory || {}).reduce((a, b) => a + b, 0);
+                                
+                                return `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3">
+                                            <div class="font-medium text-gray-900">${team.teamName}</div>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-600">${team.species || 'N/A'}</td>
+                                        <td class="px-4 py-3 text-sm font-mono">$${team.currentBalance?.toFixed(2) || '0.00'}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-600">${inventoryTotal} items</td>
+                                        <td class="px-4 py-3 text-sm">${connected}</td>
+                                        <td class="px-4 py-3 text-center">
+                                            <button onclick="openTeamEditModal('${team.teamName}')" 
+                                                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                                                <i class="fas fa-edit mr-1"></i>Edit
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function openTeamEditModal(teamName) {
+            currentEditingTeam = allTeamsData.find(t => t.teamName === teamName);
+            if (!currentEditingTeam) {
+                showToast('Team not found', 'error');
+                return;
+            }
+
+            document.getElementById('edit-team-name').textContent = teamName;
+            document.getElementById('edit-balance').value = currentEditingTeam.currentBalance || 0;
+
+            // Populate inventory
+            const inventoryContainer = document.getElementById('edit-inventory');
+            const products = ['FOSFO', 'GUACA', 'SEBO', 'PALTA-OIL', 'PITA', 'H-GUACA'];
+            inventoryContainer.innerHTML = products.map(product => {
+                const qty = currentEditingTeam.inventory?.[product] || 0;
+                return `
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium text-gray-700">${product}:</label>
+                        <input type="number" id="inv-${product}" value="${qty}" min="0" 
+                               class="w-24 px-2 py-1 border border-gray-300 rounded text-sm">
+                    </div>
+                `;
+            }).join('');
+
+            // Populate production (placeholder - will use recipes if available)
+            const productionContainer = document.getElementById('edit-production');
+            productionContainer.innerHTML = products.map(product => {
+                return `
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium text-gray-700">${product} capacity:</label>
+                        <input type="number" id="prod-${product}" value="10" min="0" 
+                               class="w-24 px-2 py-1 border border-gray-300 rounded text-sm">
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('team-edit-modal').classList.remove('hidden');
+        }
+
+        function closeTeamEditModal() {
+            document.getElementById('team-edit-modal').classList.add('hidden');
+            currentEditingTeam = null;
+        }
+
+        function saveTeamChanges() {
+            if (!currentEditingTeam) return;
+
+            const balance = parseFloat(document.getElementById('edit-balance').value);
+            const inventory = {};
+            const products = ['FOSFO', 'GUACA', 'SEBO', 'PALTA-OIL', 'PITA', 'H-GUACA'];
+            
+            products.forEach(product => {
+                const input = document.getElementById(`inv-${product}`);
+                if (input) {
+                    inventory[product] = parseInt(input.value) || 0;
+                }
+            });
+
+            sendMessage({
+                type: "UPDATE_TEAM",
+                teamName: currentEditingTeam.teamName,
+                balance: balance,
+                inventory: inventory
+            });
+
+            showToast('Saving team changes...', 'info');
+            closeTeamEditModal();
+        }
+
+        function resetBalance() {
+            if (!currentEditingTeam) return;
+            
+            if (!confirm(`Reset ${currentEditingTeam.teamName}'s balance to initial value?`)) {
+                return;
+            }
+
+            sendMessage({
+                type: "RESET_TEAM_BALANCE",
+                teamName: currentEditingTeam.teamName
+            });
+
+            showToast('Resetting balance...', 'info');
+            closeTeamEditModal();
+        }
+
+        function resetInventory() {
+            if (!currentEditingTeam) return;
+            
+            if (!confirm(`Reset ${currentEditingTeam.teamName}'s inventory to initial values?`)) {
+                return;
+            }
+
+            sendMessage({
+                type: "RESET_TEAM_INVENTORY",
+                teamName: currentEditingTeam.teamName
+            });
+
+            showToast('Resetting inventory...', 'info');
+            closeTeamEditModal();
+        }
+
+        function resetProduction() {
+            if (!currentEditingTeam) return;
+            
+            if (!confirm(`Reset ${currentEditingTeam.teamName}'s production capacity?`)) {
+                return;
+            }
+
+            sendMessage({
+                type: "RESET_TEAM_PRODUCTION",
+                teamName: currentEditingTeam.teamName
+            });
+
+            showToast('Resetting production...', 'info');
         }
     </script>
 </body>

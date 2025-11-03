@@ -99,6 +99,16 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleGetAvailableTeams(ctx, client)
 	case "GET_TEAM_ACTIVITY":
 		return r.handleGetTeamActivity(ctx, rawMessage, client)
+	case "GET_ALL_TEAMS":
+		return r.handleGetAllTeams(ctx, client)
+	case "UPDATE_TEAM":
+		return r.handleUpdateTeam(ctx, rawMessage, client)
+	case "RESET_TEAM_BALANCE":
+		return r.handleResetTeamBalance(ctx, rawMessage, client)
+	case "RESET_TEAM_INVENTORY":
+		return r.handleResetTeamInventory(ctx, rawMessage, client)
+	case "RESET_TEAM_PRODUCTION":
+		return r.handleResetTeamProduction(ctx, rawMessage, client)
 	default:
 		return r.handleEcho(ctx, baseMsg, client)
 	}
@@ -1160,6 +1170,206 @@ func (r *MessageRouter) handleGetTeamActivity(ctx context.Context, rawMessage st
 		Str("targetTeam", teamName).
 		Int("activityCount", len(activities)).
 		Msg("Admin requested team activity")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleGetAllTeams(ctx context.Context, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	teamRepo, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	allTeams, err := teamRepo.GetAllTeams(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get all teams")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get teams", "")
+	}
+
+	activeSessions := teamRepo.GetActiveSessions()
+	teamsData := make([]*domain.TeamData, 0, len(allTeams))
+
+	for _, team := range allTeams {
+		if team == nil {
+			continue
+		}
+		_, connected := activeSessions[team.TeamName]
+		teamsData = append(teamsData, &domain.TeamData{
+			TeamName:           team.TeamName,
+			Species:            team.Species,
+			InitialBalance:     team.InitialBalance,
+			CurrentBalance:     team.CurrentBalance,
+			Inventory:          team.Inventory,
+			AuthorizedProducts: team.AuthorizedProducts,
+			Connected:          connected,
+		})
+	}
+
+	response := &domain.AllTeamsResponse{
+		Type:       "ALL_TEAMS",
+		Teams:      teamsData,
+		Count:      len(teamsData),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Int("teamCount", len(teamsData)).
+		Msg("Admin requested all teams")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleUpdateTeam(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var updateMsg domain.UpdateTeamMessage
+	if err := json.Unmarshal([]byte(rawMessage), &updateMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid UPDATE_TEAM message format", "")
+	}
+
+	if updateMsg.TeamName == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Team name is required", "")
+	}
+
+	teamRepo, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	err := teamRepo.UpdateTeam(ctx, updateMsg.TeamName, updateMsg.Balance, updateMsg.Inventory)
+	if err != nil {
+		log.Error().Err(err).Str("team", updateMsg.TeamName).Msg("Failed to update team")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to update team", "")
+	}
+
+	response := &domain.TeamUpdatedResponse{
+		Type:       "TEAM_UPDATED",
+		Success:    true,
+		Message:    fmt.Sprintf("Team %s updated successfully", updateMsg.TeamName),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("targetTeam", updateMsg.TeamName).
+		Float64("balance", updateMsg.Balance).
+		Msg("Admin updated team")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleResetTeamBalance(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var resetMsg domain.ResetTeamBalanceMessage
+	if err := json.Unmarshal([]byte(rawMessage), &resetMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid RESET_TEAM_BALANCE message format", "")
+	}
+
+	if resetMsg.TeamName == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Team name is required", "")
+	}
+
+	teamRepo, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	err := teamRepo.ResetTeamBalance(ctx, resetMsg.TeamName)
+	if err != nil {
+		log.Error().Err(err).Str("team", resetMsg.TeamName).Msg("Failed to reset team balance")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to reset balance", "")
+	}
+
+	response := &domain.TeamUpdatedResponse{
+		Type:       "TEAM_UPDATED",
+		Success:    true,
+		Message:    fmt.Sprintf("Team %s balance reset successfully", resetMsg.TeamName),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("targetTeam", resetMsg.TeamName).
+		Msg("Admin reset team balance")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleResetTeamInventory(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var resetMsg domain.ResetTeamInventoryMessage
+	if err := json.Unmarshal([]byte(rawMessage), &resetMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid RESET_TEAM_INVENTORY message format", "")
+	}
+
+	if resetMsg.TeamName == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Team name is required", "")
+	}
+
+	teamRepo, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	err := teamRepo.ResetTeamInventory(ctx, resetMsg.TeamName)
+	if err != nil {
+		log.Error().Err(err).Str("team", resetMsg.TeamName).Msg("Failed to reset team inventory")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to reset inventory", "")
+	}
+
+	response := &domain.TeamUpdatedResponse{
+		Type:       "TEAM_UPDATED",
+		Success:    true,
+		Message:    fmt.Sprintf("Team %s inventory reset successfully", resetMsg.TeamName),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("targetTeam", resetMsg.TeamName).
+		Msg("Admin reset team inventory")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleResetTeamProduction(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var resetMsg domain.ResetTeamProductionMessage
+	if err := json.Unmarshal([]byte(rawMessage), &resetMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid RESET_TEAM_PRODUCTION message format", "")
+	}
+
+	if resetMsg.TeamName == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Team name is required", "")
+	}
+
+	response := &domain.TeamUpdatedResponse{
+		Type:       "TEAM_UPDATED",
+		Success:    true,
+		Message:    "Production reset is not yet implemented",
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("targetTeam", resetMsg.TeamName).
+		Msg("Admin requested production reset (not implemented)")
 
 	return client.SendMessage(response)
 }

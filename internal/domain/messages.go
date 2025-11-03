@@ -83,6 +83,32 @@ type GetTeamActivityMessage struct {
 	TeamName string `json:"teamName,omitempty"`
 }
 
+type GetAllTeamsMessage struct {
+	Type string `json:"type"`
+}
+
+type UpdateTeamMessage struct {
+	Type      string         `json:"type"`
+	TeamName  string         `json:"teamName"`
+	Balance   float64        `json:"balance"`
+	Inventory map[string]int `json:"inventory"`
+}
+
+type ResetTeamBalanceMessage struct {
+	Type     string `json:"type"`
+	TeamName string `json:"teamName"`
+}
+
+type ResetTeamInventoryMessage struct {
+	Type     string `json:"type"`
+	TeamName string `json:"teamName"`
+}
+
+type ResetTeamProductionMessage struct {
+	Type     string `json:"type"`
+	TeamName string `json:"teamName"`
+}
+
 // Server to Client Messages
 
 type LoginOKMessage struct {
@@ -309,6 +335,30 @@ type ActivityRecord struct {
 	Product   string  `json:"product,omitempty"`
 	Quantity  int     `json:"quantity,omitempty"`
 	Price     float64 `json:"price,omitempty"`
+}
+
+type AllTeamsResponse struct {
+	Type       string      `json:"type"`
+	Teams      []*TeamData `json:"teams"`
+	Count      int         `json:"count"`
+	ServerTime string      `json:"serverTime"`
+}
+
+type TeamData struct {
+	TeamName           string         `json:"teamName"`
+	Species            string         `json:"species"`
+	InitialBalance     float64        `json:"initialBalance"`
+	CurrentBalance     float64        `json:"currentBalance"`
+	Inventory          map[string]int `json:"inventory"`
+	AuthorizedProducts []string       `json:"authorizedProducts"`
+	Connected          bool           `json:"connected"`
+}
+
+type TeamUpdatedResponse struct {
+	Type       string `json:"type"`
+	Success    bool   `json:"success"`
+	Message    string `json:"message"`
+	ServerTime string `json:"serverTime"`
 }
 
 // Base message for parsing

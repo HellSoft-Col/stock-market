@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type Session struct {
@@ -198,3 +198,55 @@ func (s *AuthService) GetTeamSessionCount(teamName string) int {
 }
 
 var _ domain.AuthService = (*AuthService)(nil)
+
+func (s *AuthService) GetAllTeams(ctx context.Context) ([]*domain.Team, error) {
+	if s.teamRepo == nil {
+		return nil, fmt.Errorf("team repository is nil")
+	}
+
+	return s.teamRepo.GetAll(ctx)
+}
+
+func (s *AuthService) UpdateTeam(ctx context.Context, teamName string, balance float64, inventory map[string]int) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	if err := s.teamRepo.UpdateBalance(ctx, teamName, balance); err != nil {
+		return err
+	}
+
+	if err := s.teamRepo.UpdateInventory(ctx, teamName, inventory); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *AuthService) ResetTeamBalance(ctx context.Context, teamName string) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	team, err := s.teamRepo.GetByTeamName(ctx, teamName)
+	if err != nil {
+		return err
+	}
+
+	return s.teamRepo.UpdateBalance(ctx, teamName, team.InitialBalance)
+}
+
+func (s *AuthService) ResetTeamInventory(ctx context.Context, teamName string) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	// Reset to initial inventory (empty or default values)
+	inventory := make(map[string]int)
+	products := []string{"FOSFO", "GUACA", "SEBO", "PALTA-OIL", "PITA", "H-GUACA"}
+	for _, product := range products {
+		inventory[product] = 0
+	}
+
+	return s.teamRepo.UpdateInventory(ctx, teamName, inventory)
+}
