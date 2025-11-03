@@ -228,15 +228,22 @@
                                 <i class="fas fa-chart-line mr-2"></i>Create Market Order
                             </button>
                             
-                            <div class="grid grid-cols-2 gap-2 mt-4">
-                                <button onclick="toggleAutoMarketMaker()" id="auto-mm-btn" disabled
-                                        class="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    <i class="fas fa-robot mr-1"></i>Auto MM
-                                </button>
-                                <button onclick="clearAllOrders()" id="clear-all-btn" disabled
-                                        class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    <i class="fas fa-trash mr-1"></i>Clear
-                                </button>
+                            <div class="mt-4">
+                                <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-2">
+                                    <div class="text-xs text-yellow-800 dark:text-yellow-200">
+                                        <strong>💡 Auto Market Maker:</strong> Automatically creates random buy/sell orders every 3 seconds to simulate market activity. Uses debugMode to auto-accept orders.
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="toggleAutoMarketMaker()" id="auto-mm-btn" disabled
+                                            class="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-robot mr-1"></i>Auto MM
+                                    </button>
+                                    <button onclick="clearAllOrders()" id="clear-all-btn" disabled
+                                            class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-trash mr-1"></i>Clear All
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -697,10 +704,10 @@
                                                 <h6 class="font-medium text-blue-900 dark:text-blue-100">Características:</h6>
                                                 <ul class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                                                     <li>• Solo órdenes LIMIT con precio fijo</li>
-                                                    <li>• Auto Market Maker automático</li>
-                                                    <li>• Limpieza masiva de órdenes</li>
+                                                    <li>• Auto Market Maker (crea órdenes cada 3s)</li>
+                                                    <li>• Limpieza masiva de órdenes simuladas</li>
                                                     <li>• Control de precios de mercado</li>
-                                                    <li>• Sin impacto en balance real</li>
+                                                    <li>• Usa debugMode: AUTO_ACCEPT</li>
                                                 </ul>
                                             </div>
                                             <div>
@@ -785,18 +792,22 @@
                                         <div>
                                             <h5 class="font-medium text-gray-900 dark:text-white">🚨 Inyección de Errores</h5>
                                             <p class="text-sm text-gray-600 dark:text-gray-300">Simular errores de balance, productos no autorizados, desconexiones</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">→ Resultado visible en: Notificación toast + pestaña "Messages"</p>
                                         </div>
                                         <div>
                                             <h5 class="font-medium text-gray-900 dark:text-white">🏭 Pruebas de Producción</h5>
                                             <p class="text-sm text-gray-600 dark:text-gray-300">Validar algoritmos de producción y bonificaciones premium</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">→ Resultado visible en: Inventario (sidebar) + notificación toast</p>
                                         </div>
                                         <div>
                                             <h5 class="font-medium text-gray-900 dark:text-white">🔧 Utilidades</h5>
-                                            <p class="text-sm text-gray-600 dark:text-gray-300">Ping al servidor, resincronizar datos, ver sesiones conectadas</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Ping, resincronizar datos, ver sesiones, consultar órdenes</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">→ Resultado visible en: Panel "Market Activity" en Dashboard</p>
                                         </div>
                                         <div>
-                                            <h5 class="font-medium text-gray-900 dark:text-white">📡 Monitoreo</h5>
-                                            <p class="text-sm text-gray-600 dark:text-gray-300">Estado de conexión en tiempo real y salud del sistema</p>
+                                            <h5 class="font-medium text-gray-900 dark:text-white">📊 Reportes de Performance</h5>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Ver rendimiento de tu equipo y ranking global</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">→ Resultado visible en: Panel "Market Activity" en Dashboard</p>
                                         </div>
                                     </div>
                                 </div>
@@ -882,6 +893,134 @@
                                 </div>
                             </div>
                             
+                            <!-- Button Guide -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+                                <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                                    <i class="fas fa-mouse-pointer mr-2 text-indigo-600"></i>🖱️ Guía de Botones y Acciones
+                                </h4>
+                                
+                                <!-- Simulator Section -->
+                                <div class="mb-6">
+                                    <h5 class="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-3">
+                                        <i class="fas fa-rocket mr-2"></i>Pestaña Simulador
+                                    </h5>
+                                    <div class="space-y-3 ml-4">
+                                        <div class="border-l-4 border-green-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Create Market Order</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Crea una orden LIMIT simulada con precio fijo</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Notificación toast + pestaña "My Orders" + Market Activity</p>
+                                        </div>
+                                        <div class="border-l-4 border-yellow-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Auto MM</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Inicia/detiene el creador automático de órdenes (cada 3 segundos)</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Notificación toast + pestaña "Messages" + My Orders se llenarán automáticamente</p>
+                                        </div>
+                                        <div class="border-l-4 border-red-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Clear All</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">⚠️ Función pendiente - El servidor aún no soporta cancelación de órdenes</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">📍 Verás un mensaje informativo por ahora</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Trading Section -->
+                                <div class="mb-6">
+                                    <h5 class="text-lg font-semibold text-green-800 dark:text-green-200 mb-3">
+                                        <i class="fas fa-exchange-alt mr-2"></i>Pestaña Trading
+                                    </h5>
+                                    <div class="space-y-3 ml-4">
+                                        <div class="border-l-4 border-green-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Place Order</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Envía una orden real (MARKET o LIMIT) que afecta tu balance</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Toast de confirmación + My Orders + cuando se ejecute aparece en History</p>
+                                        </div>
+                                        <div class="border-l-4 border-blue-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Refresh Orders</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Actualiza la lista de tus órdenes activas desde el servidor</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Lista "My Orders" se actualiza + contador en Dashboard</p>
+                                        </div>
+                                        <div class="border-l-4 border-purple-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Quick Buy/Sell FOSFO</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Atajos para comprar/vender rápidamente 5 unidades de FOSFO al precio de mercado</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Toast + My Orders + History cuando se ejecute</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Debug Section -->
+                                <div class="mb-6">
+                                    <h5 class="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-3">
+                                        <i class="fas fa-bug mr-2"></i>Pestaña Debug
+                                    </h5>
+                                    <div class="space-y-3 ml-4">
+                                        <div class="border-l-4 border-red-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Error Injection (Balance, Product, etc.)</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Prueba cómo tu cliente maneja diferentes tipos de errores del servidor</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Toast de error + Messages tab + posible mensaje de error del servidor</p>
+                                        </div>
+                                        <div class="border-l-4 border-blue-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Test Production</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Simula producción de un producto para actualizar tu inventario</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Inventario (sidebar izquierdo) + Toast de confirmación</p>
+                                        </div>
+                                        <div class="border-l-4 border-green-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Ping</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Verifica conectividad con el servidor (latencia)</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Toast "Pong received" + Messages tab</p>
+                                        </div>
+                                        <div class="border-l-4 border-purple-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Resync</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Solicita resincronización completa de datos desde el servidor</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Actualización de Inventory + Balance + Toast</p>
+                                        </div>
+                                        <div class="border-l-4 border-indigo-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Orders</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Solicita lista completa de todas las órdenes activas en el mercado</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Messages tab + log del servidor</p>
+                                        </div>
+                                        <div class="border-l-4 border-teal-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Sessions</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Muestra todas las sesiones de clientes conectados al servidor</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Panel "Market Activity" en Dashboard con lista de equipos conectados</p>
+                                        </div>
+                                        <div class="border-l-4 border-emerald-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">My Performance</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Reporte detallado de tu rendimiento: P&L, ROI, trades, volumen</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Panel "Market Activity" con tarjeta verde de estadísticas</p>
+                                        </div>
+                                        <div class="border-l-4 border-amber-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Global Report</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Reporte global del mercado con top traders y estadísticas</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Panel "Market Activity" con tarjeta púrpura y ranking</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Other Tabs -->
+                                <div class="mb-6">
+                                    <h5 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
+                                        <i class="fas fa-chart-line mr-2"></i>Otras Pestañas
+                                    </h5>
+                                    <div class="space-y-3 ml-4">
+                                        <div class="border-l-4 border-blue-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Ticker Tab</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Muestra precios en tiempo real de todos los productos</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Se actualiza automáticamente cuando el servidor envía TICKER messages</p>
+                                        </div>
+                                        <div class="border-l-4 border-green-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Order Book Tab</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Visualiza órdenes de compra/venta por producto</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Selecciona un producto del dropdown y verás las órdenes activas</p>
+                                        </div>
+                                        <div class="border-l-4 border-purple-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">History Tab</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Historial completo de todas tus transacciones ejecutadas</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Se actualiza automáticamente cuando recibes FILL messages del servidor</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- Keyboard Shortcuts -->
                             <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
                                 <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -913,12 +1052,8 @@
                                                 <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + B</kbd>
                                             </div>
                                             <div class="flex justify-between items-center">
-                                                <span class="text-sm text-gray-600 dark:text-gray-300">Venta Rápida FOSFO</span>
-                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + S</kbd>
-                                            </div>
-                                            <div class="flex justify-between items-center">
                                                 <span class="text-sm text-gray-600 dark:text-gray-300">Actualizar Órdenes</span>
-                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + R</kbd>
+                                                <kbd class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs">Ctrl + Shift + R</kbd>
                                             </div>
                                         </div>
                                     </div>
@@ -1007,7 +1142,65 @@
         let currentMainTab = 'dashboard';
         let currentTradingTab = 'orders';
         let autoMarketMaker = false;
+        let autoMarketMakerInterval = null;
         let isDarkMode = false;
+        let myActiveOrders = [];
+        
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 3000) {
+            const toastContainer = document.getElementById('toast-container') || createToastContainer();
+            
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type} animate-slide-in`;
+            
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '⚠' : 'ℹ';
+            const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
+            
+            toast.innerHTML = `
+                <div class="${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-3 max-w-md">
+                    <span class="text-xl font-bold">${icon}</span>
+                    <span class="flex-1">${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('animate-slide-out');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+        
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'fixed top-20 right-4 z-50 space-y-2';
+            document.body.appendChild(container);
+            
+            const style = document.createElement('style');
+            style.textContent = `
+                .animate-slide-in {
+                    animation: slideIn 0.3s ease-out;
+                }
+                .animate-slide-out {
+                    animation: slideOut 0.3s ease-in;
+                }
+                @keyframes slideIn {
+                    from { transform: translateX(400px); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(400px); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            return container;
+        }
         
         // Theme management
         function toggleTheme() {
@@ -1090,6 +1283,7 @@
         function connect() {
             console.log('Connecting...');
             updateStatus('connecting', 'Connecting...');
+            showToast('Connecting to server...', 'info');
             
             // Create WebSocket connection
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1104,6 +1298,7 @@
                     updateStatus('connected', 'Connected');
                     document.getElementById('connect-btn').innerHTML = '<i class="fas fa-unlink mr-2"></i>Disconnect';
                     document.getElementById('login-btn').disabled = false;
+                    showToast('Connected to server successfully!', 'success');
                     enableButtons();
                 };
                 
@@ -1124,18 +1319,26 @@
                     document.getElementById('connect-btn').innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
                     document.getElementById('login-btn').disabled = true;
                     document.getElementById('team-info').style.display = 'none';
+                    showToast('Disconnected from server', 'warning');
                     disableButtons();
+                    if (autoMarketMakerInterval) {
+                        clearInterval(autoMarketMakerInterval);
+                        autoMarketMakerInterval = null;
+                        autoMarketMaker = false;
+                    }
                     socket = null;
                 };
                 
                 socket.onerror = function(error) {
                     console.error('WebSocket error:', error);
                     updateStatus('disconnected', 'Connection Error');
+                    showToast('Connection error occurred', 'error');
                 };
                 
             } catch (error) {
                 console.error('Failed to create WebSocket connection:', error);
                 updateStatus('disconnected', 'Connection Failed');
+                showToast('Failed to connect to server', 'error');
             }
         }
         
@@ -1157,16 +1360,17 @@
         function login() {
             const token = document.getElementById('token').value.trim();
             if (!token) {
-                alert('Please enter a team token');
+                showToast('Please enter a team token', 'warning');
                 return;
             }
             
             if (!socket || socket.readyState !== WebSocket.OPEN) {
-                alert('Please connect to the server first');
+                showToast('Please connect to the server first', 'warning');
                 return;
             }
             
             console.log('Logging in with token:', token);
+            showToast('Authenticating...', 'info');
             
             // Send authentication message
             const authMessage = {
@@ -1389,7 +1593,7 @@
                 console.log('Sent message:', message);
             } else {
                 console.error('WebSocket not connected');
-                alert('Not connected to server');
+                showToast('Not connected to server', 'error');
             }
         }
         
@@ -1402,13 +1606,10 @@
                     break;
                 case 'PONG':
                     addMessageToLog('Pong received');
+                    showToast('Pong received from server', 'success', 2000);
                     break;
                 case 'ERROR':
-                    if (message.code && message.code.includes('AUTH')) {
-                        handleAuthFailure(message);
-                    } else {
-                        handleError(message);
-                    }
+                    handleError(message);
                     break;
                 case 'FILL':
                     handleFillMessage(message);
@@ -1421,6 +1622,12 @@
                     break;
                 case 'MARKET_STATE':
                     handleMarketStateUpdate(message);
+                    break;
+                case 'ORDER_BOOK_UPDATE':
+                    handleOrderBookUpdate(message);
+                    break;
+                case 'ALL_ORDERS':
+                    handleAllOrdersResponse(message);
                     break;
                 case 'CONNECTED_SESSIONS':
                     handleSessionsResponse(message);
@@ -1437,11 +1644,9 @@
                 case 'GLOBAL_PERFORMANCE_REPORT':
                     handleGlobalPerformanceReport(message);
                     break;
-                case 'ERROR':
-                    handleError(message);
-                    break;
                 default:
                     console.log('Unknown message type:', message.type);
+                    addMessageToLog(`Unknown message: ${message.type}`);
             }
         }
         
@@ -1457,28 +1662,140 @@
             updateStatus('authenticated', 'Authenticated');
             showTeamInfo(message.team);
             enableButtons();
-            
-            // Update dashboard with team data
             updateDashboard(currentTeam);
+            showToast(`Welcome, ${message.team}!`, 'success');
         }
         
         function handleAuthFailure(message) {
-            alert('Authentication failed: ' + (message.reason || 'Invalid token'));
+            showToast('Authentication failed: ' + (message.reason || 'Invalid token'), 'error');
+        }
+        
+        function handleAllOrdersResponse(message) {
+            myActiveOrders = message.orders || [];
+            displayMyOrders(myActiveOrders);
+            showToast(`Loaded ${myActiveOrders.length} active orders`, 'info', 2000);
+        }
+        
+        function displayMyOrders(orders) {
+            const ordersList = document.getElementById('my-orders-list');
+            
+            if (!orders || orders.length === 0) {
+                ordersList.innerHTML = `
+                    <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-info-circle mr-2"></i>No active orders
+                    </div>
+                `;
+                document.getElementById('dashboard-orders').textContent = '0';
+                return;
+            }
+            
+            document.getElementById('dashboard-orders').textContent = orders.length.toString();
+            
+            ordersList.innerHTML = orders.map(order => {
+                const sideColor = order.side === 'BUY' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                const priceText = order.price ? `$${order.price.toFixed(2)}` : 'MARKET';
+                
+                return `
+                    <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 mb-2">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="text-sm font-medium ${sideColor}">
+                                    ${order.side} ${order.quantity} ${order.product}
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    Price: ${priceText} | Mode: ${order.mode}
+                                </div>
+                                ${order.message ? `<div class="text-xs text-gray-400 italic">"${order.message}"</div>` : ''}
+                                <div class="text-xs text-gray-400">
+                                    ID: ${order.clOrdID}
+                                </div>
+                            </div>
+                            <button onclick="cancelOrder('${order.clOrdID}')" 
+                                    class="ml-2 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function handleOrderBookUpdate(message) {
+            updateOrderBookDisplay(message);
+        }
+        
+        function updateOrderBookDisplay(orderBookData) {
+            const selectedProduct = document.getElementById('product-selector').value;
+            if (selectedProduct !== orderBookData.product) {
+                return;
+            }
+            
+            const buyOrdersDiv = document.getElementById('buy-orders');
+            const sellOrdersDiv = document.getElementById('sell-orders');
+            const allOrdersDiv = document.getElementById('all-orders-list');
+            
+            if (!orderBookData.buyOrders || orderBookData.buyOrders.length === 0) {
+                buyOrdersDiv.innerHTML = '<div class="text-green-600 dark:text-green-400 text-sm">No buy orders</div>';
+            } else {
+                buyOrdersDiv.innerHTML = orderBookData.buyOrders.slice(0, 10).map(order => `
+                    <div class="flex justify-between items-center text-sm p-2 bg-white dark:bg-gray-800 rounded">
+                        <span class="font-medium">${order.quantity}</span>
+                        <span class="text-green-600 dark:text-green-400 font-bold">$${order.price ? order.price.toFixed(2) : 'MARKET'}</span>
+                        <span class="text-xs text-gray-500">${order.teamName}</span>
+                    </div>
+                `).join('');
+            }
+            
+            if (!orderBookData.sellOrders || orderBookData.sellOrders.length === 0) {
+                sellOrdersDiv.innerHTML = '<div class="text-red-600 dark:text-red-400 text-sm">No sell orders</div>';
+            } else {
+                sellOrdersDiv.innerHTML = orderBookData.sellOrders.slice(0, 10).map(order => `
+                    <div class="flex justify-between items-center text-sm p-2 bg-white dark:bg-gray-800 rounded">
+                        <span class="font-medium">${order.quantity}</span>
+                        <span class="text-red-600 dark:text-red-400 font-bold">$${order.price ? order.price.toFixed(2) : 'MARKET'}</span>
+                        <span class="text-xs text-gray-500">${order.teamName}</span>
+                    </div>
+                `).join('');
+            }
+            
+            const allOrders = [...(orderBookData.buyOrders || []), ...(orderBookData.sellOrders || [])];
+            if (allOrders.length === 0) {
+                allOrdersDiv.innerHTML = '<div class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-info-circle mr-2"></i>No orders available</div>';
+            } else {
+                allOrdersDiv.innerHTML = allOrders.map(order => {
+                    const sideColor = order.side === 'BUY' ? 'text-green-600' : 'text-red-600';
+                    return `
+                        <div class="flex justify-between items-center text-xs p-2 border-b border-gray-200 dark:border-gray-600">
+                            <span class="${sideColor} font-medium">${order.side}</span>
+                            <span>${order.quantity} ${orderBookData.product}</span>
+                            <span class="font-bold">$${order.price ? order.price.toFixed(2) : 'MKT'}</span>
+                            <span class="text-gray-500">${order.teamName}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            showToast(`Order book updated for ${orderBookData.product}`, 'info', 2000);
         }
         
         function handleFillMessage(message) {
-            // Add transaction to the transactions list
             addTransactionToList(message);
-            
-            // Update dashboard stats
             updateDashboardAfterTrade(message);
-            
-            // Show notification
             showNotification(`Trade executed: ${message.side} ${message.fillQty} ${message.product} @ $${message.fillPrice.toFixed(2)}`, 'success');
+            showToast(`✓ ${message.side} ${message.fillQty} ${message.product} @ $${message.fillPrice.toFixed(2)}`, 'success');
+            
+            if (isAuthenticated) {
+                setTimeout(() => refreshMyOrders(), 500);
+            }
         }
         
         function handleOrderAck(message) {
             addMessageToLog(`Order ${message.clOrdID} acknowledged: ${message.status}`);
+            showToast(`Order ${message.status}`, 'success', 2000);
+            
+            if (isAuthenticated) {
+                setTimeout(() => refreshMyOrders(), 500);
+            }
         }
         
         function handleTickerUpdate(message) {
@@ -1588,16 +1905,22 @@
         
         function handleInventoryUpdate(message) {
             updateInventoryDisplay(message.inventory);
+            showToast('Inventory updated', 'success', 2000);
         }
         
         function handleBalanceUpdate(message) {
             updateBalanceDisplay(message.balance);
+            showToast(`Balance updated: $${message.balance.toFixed(2)}`, 'success', 2000);
         }
         
         function handleError(message) {
             console.error('Server error:', message);
-            alert('Server error: ' + message.reason);
+            showToast('Error: ' + message.reason, 'error');
             addMessageToLog(`ERROR: ${message.reason}`);
+            
+            if (message.code && message.code.includes('AUTH')) {
+                handleAuthFailure(message);
+            }
         }
         
         function handlePerformanceReport(message) {
@@ -1656,6 +1979,7 @@
             }
             
             marketActivity.insertBefore(reportElement, marketActivity.firstChild);
+            showToast('Performance report loaded', 'success');
         }
         
         function displayGlobalPerformanceReport(report) {
@@ -1704,11 +2028,13 @@
             }
             
             marketActivity.insertBefore(reportElement, marketActivity.firstChild);
+            showToast('Global performance report loaded', 'success');
         }
-        
-        function requestTeamPerformanceReport() {
+
+        // Trading functions
+        function createMarketOrder() {
             if (!isAuthenticated) {
-                alert('Please authenticate first');
+                showToast('Please authenticate first', 'warning');
                 return;
             }
             
@@ -1719,11 +2045,12 @@
             
             sendMessage(message);
             addMessageToLog('Requested team performance report');
+            showToast('Requesting performance report...', 'info');
         }
         
         function requestGlobalPerformanceReport() {
             if (!isAuthenticated) {
-                alert('Please authenticate first');
+                showToast('Please authenticate first', 'warning');
                 return;
             }
             
@@ -1734,6 +2061,7 @@
             
             sendMessage(message);
             addMessageToLog('Requested global performance report');
+            showToast('Requesting global report...', 'info');
         }
 
         // Trading functions (placeholder implementations)
@@ -1749,11 +2077,10 @@
             const price = parseFloat(document.getElementById('sim-price').value);
             
             if (!product || !qty || qty <= 0 || !price || price <= 0) {
-                alert('Please fill in all required fields');
+                showToast('Please fill in all required fields', 'warning');
                 return;
             }
             
-            // Generate unique order ID
             const timestamp = Date.now();
             const clOrdID = `SIM-${currentTeam.teamName}-${timestamp}`;
             
@@ -1771,11 +2098,15 @@
             
             sendMessage(orderMessage);
             addMessageToLog(`Simulator order sent: ${side} ${qty} ${product} @ $${price.toFixed(2)}`);
+            showToast(`Simulator order: ${side} ${qty} ${product} @ $${price.toFixed(2)}`, 'success');
+            
+            document.getElementById('sim-qty').value = '';
+            document.getElementById('sim-price').value = '';
         }
         
         function placeOrder() {
             if (!isAuthenticated) {
-                alert('Please authenticate first');
+                showToast('Please authenticate first', 'warning');
                 return;
             }
             
@@ -1787,16 +2118,15 @@
             const message = document.getElementById('message').value.trim();
             
             if (!product || !qty || qty <= 0) {
-                alert('Please fill in all required fields');
+                showToast('Please fill in all required fields', 'warning');
                 return;
             }
             
             if (mode === 'LIMIT' && (!price || price <= 0)) {
-                alert('LIMIT orders require a positive price');
+                showToast('LIMIT orders require a positive price', 'warning');
                 return;
             }
             
-            // Generate unique order ID
             const timestamp = Date.now();
             const clOrdID = `WEB-${currentTeam.teamName}-${timestamp}`;
             
@@ -1813,74 +2143,114 @@
             
             sendMessage(orderMessage);
             addMessageToLog(`Order sent: ${side} ${qty} ${product} @ ${mode === 'LIMIT' ? '$' + price.toFixed(2) : 'MARKET'}`);
+            showToast(`Order placed: ${side} ${qty} ${product}`, 'success');
+            
+            document.getElementById('qty').value = '';
+            document.getElementById('price').value = '';
+            document.getElementById('message').value = '';
         }
         
         function quickTrade(side, product, quantity) {
-            console.log(`Quick trade: ${side} ${quantity} ${product}`);
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const timestamp = Date.now();
+            const clOrdID = `QUICK-${currentTeam.teamName}-${timestamp}`;
+            
+            const orderMessage = {
+                type: "ORDER",
+                clOrdID: clOrdID,
+                side: side,
+                mode: "MARKET",
+                product: product,
+                qty: quantity,
+                message: "Quick trade"
+            };
+            
+            sendMessage(orderMessage);
+            showToast(`Quick ${side}: ${quantity} ${product}`, 'success');
         }
         
         function toggleAutoMarketMaker() {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
             autoMarketMaker = !autoMarketMaker;
             const btn = document.getElementById('auto-mm-btn');
+            
             if (autoMarketMaker) {
                 btn.innerHTML = '<i class="fas fa-robot mr-1"></i>🔴 Stop MM';
                 btn.className = btn.className.replace('bg-yellow-600', 'bg-red-600').replace('hover:bg-yellow-700', 'hover:bg-red-700');
+                showToast('Auto Market Maker started - Creating buy/sell orders automatically every 3 seconds', 'success');
+                startAutoMarketMaker();
             } else {
                 btn.innerHTML = '<i class="fas fa-robot mr-1"></i>Auto MM';
                 btn.className = btn.className.replace('bg-red-600', 'bg-yellow-600').replace('hover:bg-red-700', 'hover:bg-yellow-700');
+                showToast('Auto Market Maker stopped', 'info');
+                stopAutoMarketMaker();
+            }
+        }
+        
+        function startAutoMarketMaker() {
+            const products = ['FOSFO', 'PITA', 'PALTA-OIL', 'GUACA', 'SEBO', 'H-GUACA'];
+            
+            autoMarketMakerInterval = setInterval(() => {
+                if (!autoMarketMaker || !isAuthenticated) {
+                    stopAutoMarketMaker();
+                    return;
+                }
+                
+                const product = products[Math.floor(Math.random() * products.length)];
+                const side = Math.random() > 0.5 ? 'BUY' : 'SELL';
+                const qty = Math.floor(Math.random() * 5) + 1;
+                const basePrice = 10 + Math.random() * 20;
+                const spread = 0.5;
+                const price = side === 'BUY' ? basePrice - spread : basePrice + spread;
+                
+                const timestamp = Date.now();
+                const clOrdID = `MM-${currentTeam.teamName}-${timestamp}`;
+                
+                const orderMessage = {
+                    type: "ORDER",
+                    clOrdID: clOrdID,
+                    side: side,
+                    mode: "LIMIT",
+                    product: product,
+                    qty: qty,
+                    limitPrice: price,
+                    message: "Auto Market Maker",
+                    debugMode: "AUTO_ACCEPT"
+                };
+                
+                sendMessage(orderMessage);
+                addMessageToLog(`Auto MM: ${side} ${qty} ${product} @ $${price.toFixed(2)}`);
+            }, 3000);
+        }
+        
+        function stopAutoMarketMaker() {
+            if (autoMarketMakerInterval) {
+                clearInterval(autoMarketMakerInterval);
+                autoMarketMakerInterval = null;
             }
         }
         
         function clearAllOrders() {
-            console.log('Clearing all orders...');
-        }
-        
-        function refreshMyOrders() {
-            console.log('Refreshing orders...');
-        }
-        
-        function cancelAllOrders() {
-            console.log('Canceling all orders...');
-        }
-        
-        function clearMessages() {
-            document.getElementById('message-list').innerHTML = `
-                <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                    <i class="fas fa-info-circle mr-2"></i>No system messages
-                </div>
-            `;
-        }
-        
-        // Debug functions
-        function injectError(errorType) {
-            console.log('Injecting error:', errorType);
-        }
-        
-        function testProduction() {
-            console.log('Testing production...');
-        }
-        
-        function sendPing() {
-            if (!socket || socket.readyState !== WebSocket.OPEN) {
-                alert('Not connected to server');
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
                 return;
             }
             
-            const pingMessage = {
-                type: "PING"
-            };
-            
-            sendMessage(pingMessage);
-            addMessageToLog('Ping sent');
+            showToast('Order cancellation not yet implemented on server', 'info');
+            addMessageToLog('Clear all orders - feature pending server implementation');
         }
         
-        function requestResync() {
-            console.log('Requesting resync...');
-        }
-        
-        function requestAllOrders() {
+        function refreshMyOrders() {
             if (!isAuthenticated) {
-                alert('Please authenticate first');
+                showToast('Please authenticate first', 'warning');
                 return;
             }
             
@@ -1890,19 +2260,158 @@
             
             sendMessage(message);
             addMessageToLog('Requested all orders');
+            showToast('Refreshing orders...', 'info', 1500);
+        }
+        
+        function cancelAllOrders() {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            showToast('Order cancellation not yet implemented on server', 'info');
+            addMessageToLog('Cancel all orders - feature pending server implementation');
+        }
+        
+        function cancelOrder(clOrdID) {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            showToast('Order cancellation not yet implemented on server', 'info');
+            addMessageToLog(`Cancel order ${clOrdID} - feature pending server implementation`);
+        }
+        
+        function clearMessages() {
+            document.getElementById('message-list').innerHTML = `
+                <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                    <i class="fas fa-info-circle mr-2"></i>No system messages
+                </div>
+            `;
+            showToast('Messages cleared', 'success', 2000);
+        }
+        
+        // Debug functions
+        function injectError(errorType) {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const timestamp = Date.now();
+            const clOrdID = `ERR-${currentTeam.teamName}-${timestamp}`;
+            
+            const errorOrder = {
+                type: "ORDER",
+                clOrdID: clOrdID,
+                side: "BUY",
+                mode: "MARKET",
+                product: "FOSFO",
+                qty: 1000000,
+                debugMode: errorType
+            };
+            
+            sendMessage(errorOrder);
+            showToast(`Injected error: ${errorType}`, 'warning');
+            addMessageToLog(`Error injection: ${errorType}`);
+        }
+        
+        function testProduction() {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const product = document.getElementById('prod-product').value;
+            const quantity = parseInt(document.getElementById('prod-qty').value);
+            
+            if (!product || !quantity || quantity <= 0) {
+                showToast('Please enter a valid product and quantity', 'warning');
+                return;
+            }
+            
+            const productionMessage = {
+                type: "PRODUCTION_UPDATE",
+                product: product,
+                quantity: quantity
+            };
+            
+            sendMessage(productionMessage);
+            showToast(`Production test: +${quantity} ${product}`, 'info');
+            addMessageToLog(`Production test: ${product} x${quantity}`);
+            
+            document.getElementById('prod-qty').value = '';
+            
+            setTimeout(() => {
+                if (isAuthenticated) {
+                    const resyncMsg = {
+                        type: "RESYNC",
+                        lastSync: new Date().toISOString()
+                    };
+                    sendMessage(resyncMsg);
+                }
+            }, 1000);
+        }
+        
+        function sendPing() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                showToast('Not connected to server', 'error');
+                return;
+            }
+            
+            const pingMessage = {
+                type: "PING"
+            };
+            
+            sendMessage(pingMessage);
+            addMessageToLog('Ping sent');
+            showToast('Ping sent to server', 'info', 2000);
+        }
+        
+        function requestResync() {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const resyncMessage = {
+                type: "RESYNC",
+                lastSync: new Date().toISOString()
+            };
+            
+            sendMessage(resyncMessage);
+            showToast('Requesting data resync...', 'info');
+            addMessageToLog('Resync requested');
+        }
+        
+        function requestAllOrders() {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_ALL_ORDERS"
+            };
+            
+            sendMessage(message);
+            addMessageToLog('Requested all orders');
+            showToast('Fetching all orders...', 'info');
         }
         
         function requestConnectedSessions() {
-            console.log('Requesting connected sessions...');
             if (!isAuthenticated) {
-                alert('Please authenticate first');
+                showToast('Please authenticate first', 'warning');
                 return;
             }
             
             const message = {
                 type: "REQUEST_CONNECTED_SESSIONS"
             };
+            
             sendMessage(message);
+            showToast('Fetching connected sessions...', 'info');
         }
         
         function handleSessionsResponse(message) {
@@ -1910,7 +2419,6 @@
         }
         
         function displaySessions(sessions) {
-            // Show sessions in a modal or in the market activity area
             const marketActivity = document.getElementById('market-activity');
             
             const sessionsElement = document.createElement('div');
@@ -1937,18 +2445,35 @@
                 </div>
             `;
             
-            // Remove empty state if exists
             const emptyState = marketActivity.querySelector('.flex.items-center.justify-center');
             if (emptyState) {
                 emptyState.remove();
             }
             
             marketActivity.insertBefore(sessionsElement, marketActivity.firstChild);
+            showToast(`${sessions.length} connected sessions`, 'success');
         }
         
         function updateOrderBook() {
             const product = document.getElementById('product-selector').value;
-            console.log('Updating order book for:', product);
+            
+            if (!product) {
+                showToast('Please select a product', 'warning');
+                return;
+            }
+            
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const message = {
+                type: "REQUEST_ORDER_BOOK",
+                product: product
+            };
+            
+            sendMessage(message);
+            showToast(`Fetching order book for ${product}...`, 'info', 2000);
         }
         
         // Initialize the app
@@ -1976,7 +2501,7 @@
                     }
                 }
                 
-                if (e.ctrlKey) {
+                if (e.ctrlKey && !e.altKey) {
                     switch(e.key) {
                         case 'b':
                             e.preventDefault();
@@ -1984,16 +2509,12 @@
                                 quickTrade('BUY', 'FOSFO', 5);
                             }
                             break;
-                        case 's':
-                            e.preventDefault();
-                            if (!document.getElementById('quick-sell-fosfo').disabled) {
-                                quickTrade('SELL', 'FOSFO', 5);
-                            }
-                            break;
                         case 'r':
-                            e.preventDefault();
-                            if (!document.getElementById('refresh-orders-btn').disabled) {
-                                refreshMyOrders();
+                            if (e.shiftKey) {
+                                e.preventDefault();
+                                if (!document.getElementById('refresh-orders-btn').disabled) {
+                                    refreshMyOrders();
+                                }
                             }
                             break;
                     }
