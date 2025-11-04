@@ -40,3 +40,25 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.addAll(listOf(
+        "-Xlint:all",
+        "-Xlint:-processing",
+        "-Werror"
+    ))
+}
+
+tasks.javadoc {
+    options {
+        this as StandardJavadocDocletOptions
+        addStringOption("Xdoclint:none", "-quiet")
+    }
+}
+
+tasks.withType<JavaExec> {
+    jvmArgs = listOf(
+        "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+        "--add-opens", "java.base/java.lang.invoke=ALL-UNNAMED"
+    )
+}

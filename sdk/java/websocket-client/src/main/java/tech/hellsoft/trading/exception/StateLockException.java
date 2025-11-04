@@ -4,6 +4,8 @@ import lombok.Getter;
 
 @Getter
 public class StateLockException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+    
     private final String actionName;
     private final long timeoutMillis;
     

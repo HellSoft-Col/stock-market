@@ -4,6 +4,8 @@ import lombok.Getter;
 
 @Getter
 public class ConexionFallidaException extends Exception {
+    private static final long serialVersionUID = 1L;
+    
     private final String host;
     private final int port;
     
