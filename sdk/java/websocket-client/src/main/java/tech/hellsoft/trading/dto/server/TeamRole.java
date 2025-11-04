@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TeamRole {
-    private Integer branches;
-    private Integer maxDepth;
-    private Double decay;
-    private Double budget;
-    private Double baseEnergy;
-    private Double levelEnergy;
+  private Integer branches;
+  private Integer maxDepth;
+  private Double decay;
+  private Double budget;
+  private Double baseEnergy;
+  private Double levelEnergy;
 }

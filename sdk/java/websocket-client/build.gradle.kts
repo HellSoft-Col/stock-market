@@ -2,6 +2,8 @@ plugins {
     `java-library`
     `maven-publish`
     jacoco
+    checkstyle
+    id("com.diffplug.spotless") version "6.25.0"
 }
 
 group = "tech.hellsoft.trading"
@@ -22,14 +24,14 @@ repositories {
 dependencies {
     // JSON Processing
     api("com.google.code.gson:gson:2.13.1")
-    
+
     // Lombok - Code generation
     compileOnly("org.projectlombok:lombok:1.18.40")
     annotationProcessor("org.projectlombok:lombok:1.18.40")
-    
+
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.16")
-    
+
     // Testing
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -66,11 +68,13 @@ tasks.jacocoTestCoverageVerification {
 }
 
 tasks.withType<JavaCompile> {
-    options.compilerArgs.addAll(listOf(
-        "-Xlint:all",
-        "-Xlint:-processing",
-        "-Werror"
-    ))
+    options.compilerArgs.addAll(
+        listOf(
+            "-Xlint:all",
+            "-Xlint:-processing",
+            "-Werror",
+        ),
+    )
 }
 
 tasks.javadoc {
@@ -81,8 +85,74 @@ tasks.javadoc {
 }
 
 tasks.withType<JavaExec> {
-    jvmArgs = listOf(
-        "--add-opens", "java.base/java.lang=ALL-UNNAMED",
-        "--add-opens", "java.base/java.lang.invoke=ALL-UNNAMED"
-    )
+    jvmArgs =
+        listOf(
+            "--add-opens",
+            "java.base/java.lang=ALL-UNNAMED",
+            "--add-opens",
+            "java.base/java.lang.invoke=ALL-UNNAMED",
+        )
+}
+
+// Spotless: Code formatting
+spotless {
+    java {
+        target("src/**/*.java")
+
+        // Use Google Java Format
+        googleJavaFormat("1.19.2")
+
+        // Remove unused imports
+        removeUnusedImports()
+
+        // Format imports
+        importOrder("java", "javax", "org", "com", "tech", "")
+
+        // Ensure newline at end of file
+        endWithNewline()
+
+        // Trim trailing whitespace
+        trimTrailingWhitespace()
+
+        // Spotless doesn't need custom wildcard check - removeUnusedImports handles it
+    }
+
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint()
+    }
+}
+
+// Checkstyle: Linting and code quality
+checkstyle {
+    toolVersion = "9.3"
+    configFile = file("$rootDir/config/checkstyle/checkstyle.xml")
+    isIgnoreFailures = true // Don't fail build on warnings
+    maxWarnings = 100 // Allow some warnings
+}
+
+tasks.named<Checkstyle>("checkstyleMain") {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.named<Checkstyle>("checkstyleTest") {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+// Run spotless check before compilation
+tasks.withType<JavaCompile> {
+    dependsOn("spotlessApply")
+}
+
+// Add quality check task
+tasks.register("qualityCheck") {
+    group = "verification"
+    description = "Run all quality checks: tests, coverage, formatting, and linting"
+    dependsOn("clean", "spotlessCheck", "checkstyleMain", "checkstyleTest", "test", "jacocoTestReport")
 }

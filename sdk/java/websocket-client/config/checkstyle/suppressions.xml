@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+    <!-- Suppress checks for test classes -->
+    <suppress checks="JavadocMethod" files=".*Test\.java"/>
+    <suppress checks="MissingJavadocMethod" files=".*Test\.java"/>
+    <suppress checks="JavadocType" files=".*Test\.java"/>
+    <suppress checks="MagicNumber" files=".*Test\.java"/>
+    <suppress checks="MethodLength" files=".*Test\.java"/>
+    
+    <!-- Suppress checks for Lombok-generated DTOs -->
+    <suppress checks="VisibilityModifier" files=".*(Message|Config|Exception)\.java"/>
+    <suppress checks="MissingJavadocType" files=".*dto/.*\.java"/>
+    <suppress checks="MissingJavadocMethod" files=".*dto/.*\.java"/>
+    
+    <!-- Suppress line length for long builder chains -->
+    <suppress checks="LineLength" files=".*Test\.java"/>
+</suppressions>
