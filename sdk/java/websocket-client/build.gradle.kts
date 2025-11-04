@@ -157,3 +157,48 @@ tasks.register("qualityCheck") {
     description = "Run all quality checks: tests, coverage, formatting, and linting"
     dependsOn("clean", "spotlessCheck", "checkstyleMain", "checkstyleTest", "test", "jacocoTestReport")
 }
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            
+            pom {
+                name.set("Stock Market WebSocket Client")
+                description.set("Java WebSocket client library for connecting to the stock market trading system")
+                url.set("https://github.com/${System.getenv("GITHUB_REPOSITORY") ?: "unknown/unknown"}")
+                
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+                
+                developers {
+                    developer {
+                        id.set("hellsoft")
+                        name.set("Hellsoft Tech")
+                    }
+                }
+                
+                scm {
+                    connection.set("scm:git:git://github.com/${System.getenv("GITHUB_REPOSITORY") ?: "unknown/unknown"}.git")
+                    developerConnection.set("scm:git:ssh://github.com:${System.getenv("GITHUB_REPOSITORY") ?: "unknown/unknown"}.git")
+                    url.set("https://github.com/${System.getenv("GITHUB_REPOSITORY") ?: "unknown/unknown"}")
+                }
+            }
+        }
+    }
+    
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/${System.getenv("GITHUB_REPOSITORY") ?: "unknown/unknown"}")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}
