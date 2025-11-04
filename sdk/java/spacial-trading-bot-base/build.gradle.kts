@@ -1,15 +1,18 @@
 plugins {
-    java
-    application
+    id("java")
+    id("application")
     id("com.diffplug.spotless") version "6.25.0"
+    id("checkstyle")
+    id("pmd")
 }
 
-group = "tech.hellsoft.trading"
+group = "tech.hellsoft"
 version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
     maven {
+        name = "GitHubPackages"
         url = uri("https://maven.pkg.github.com/HellSoft-Col/stock-market")
         credentials {
             username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
@@ -19,34 +22,45 @@ repositories {
 }
 
 dependencies {
-    implementation("tech.hellsoft.trading:websocket-client:1.0.0-SNAPSHOT")
+    // Hellsoft SDK - Ready when available
+    implementation("tech.hellsoft.trading:websocket-client:1.0.3")
+    
+    // GSON for JSON processing
+    implementation("com.google.code.gson:gson:2.10.1")
+
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// Auto-formatting with Spotless
-spotless {
-    java {
-        googleJavaFormat()
+application {
+    mainClass.set("tech.hellsoft.trading.Main")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
-}
-
-// Task to auto-format code
-tasks.register("formatAll") {
-    group = "formatting"
-    description = "Auto-format all Java code"
-    dependsOn("spotlessApply")
-}
-
-// Task to check formatting
-tasks.register("lintAll") {
-    group = "verification"
-    description = "Check code formatting"
-    dependsOn("spotlessCheck")
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
+spotless {
+    java {
+        eclipse().configFile("${project.rootDir}/config/eclipse-format.xml")
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+checkstyle {
+    toolVersion = "10.12.4"
+    configFile = file("${project.rootDir}/config/checkstyle/checkstyle.xml")
+}
+
+pmd {
+    toolVersion = "6.55.0"
+    ruleSetFiles = files("${project.rootDir}/config/pmd/ruleset.xml")
+}

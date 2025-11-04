@@ -1,0 +1,8 @@
+# GitHub Packages Authentication
+gpr.user=<USERNAME>
+gpr.token=<TOKEN>
+
+# Gradle optimizations
+org.gradle.daemon=true
+org.gradle.caching=true
+org.gradle.configuration-cache=true
