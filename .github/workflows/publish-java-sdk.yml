@@ -38,7 +38,7 @@ jobs:
       working-directory: sdk/java/websocket-client
       run: chmod +x gradlew
       
-    - name: Auto-increment version
+    - name: Calculate build version
       working-directory: sdk/java/websocket-client
       run: |
         if [ -f "VERSION" ]; then
@@ -47,20 +47,20 @@ jobs:
           MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
           MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
           PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
-          # Increment patch
-          PATCH=$((PATCH + 1))
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo $NEW_VERSION > VERSION
-          echo "Updated version to $NEW_VERSION"
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          # Increment patch for this build
+          BUILD_PATCH=$((PATCH + 1))
+          BUILD_VERSION="$MAJOR.$MINOR.$BUILD_PATCH"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          echo "Build version: $BUILD_VERSION (based on $CURRENT_VERSION)"
         else
-          echo "1.0.1" > VERSION
-          echo "NEW_VERSION=1.0.1" >> $GITHUB_ENV
+          BUILD_VERSION="1.0.1"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          echo "Build version: $BUILD_VERSION (no VERSION file found)"
         fi
         
     - name: Build with Gradle
       working-directory: sdk/java/websocket-client
-      run: ./gradlew build -x spotlessJava -x spotlessCheck --no-daemon
+      run: ./gradlew build -x spotlessJava -x spotlessCheck --no-daemon -Pversion=${{ env.BUILD_VERSION }}
       env:
         CI: true
       
@@ -92,14 +92,17 @@ jobs:
         name: package
         path: sdk/java/websocket-client/build/libs/
         
-    - name: Commit version update
-      if: github.event_name == 'push'
+    - name: Create version artifact
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add sdk/java/websocket-client/VERSION
-        git diff --staged --quiet || git commit -m "Auto-increment version to ${{ env.NEW_VERSION }}"
-        git push
+        echo "Build version: ${{ env.BUILD_VERSION }}" > version-info.txt
+        echo "Commit: ${{ github.sha }}" >> version-info.txt
+        echo "Timestamp: $(date -u)" >> version-info.txt
+        
+    - name: Upload version info
+      uses: actions/upload-artifact@v4
+      with:
+        name: version-info
+        path: version-info.txt
 
   publish:
     name: Publish to GitHub Packages
@@ -127,15 +130,16 @@ jobs:
       working-directory: sdk/java/websocket-client
       run: chmod +x gradlew
       
-    - name: Read current version
-      working-directory: sdk/java/websocket-client
+    - name: Download version info
+      uses: actions/download-artifact@v4
+      with:
+        name: version-info
+        
+    - name: Read build version
       run: |
-        if [ -f "VERSION" ]; then
-          CURRENT_VERSION=$(cat VERSION)
-          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
-        else
-          echo "CURRENT_VERSION=1.0.0" >> $GITHUB_ENV
-        fi
+        BUILD_VERSION=$(head -n 1 version-info.txt | cut -d' ' -f3)
+        echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+        echo "Publishing version: $BUILD_VERSION"
         
     - name: Get commit message
       id: commit
@@ -148,7 +152,7 @@ jobs:
         GITHUB_ACTOR: ${{ github.actor }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         CI: true
-      run: ./gradlew publish -x spotlessJava -x spotlessCheck --no-daemon
+      run: ./gradlew publish -x spotlessJava -x spotlessCheck --no-daemon -Pversion=${{ env.BUILD_VERSION }}
       
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
@@ -170,7 +174,7 @@ jobs:
         echo "**Changes:** ${{ steps.commit.outputs.message }}" >> release-notes.md
         echo "" >> release-notes.md
         echo "### Artifacts" >> release-notes.md
-        echo "- Maven Package: \`tech.hellsoft.trading:websocket-client:${{ env.CURRENT_VERSION }}\`" >> release-notes.md
+        echo "- Maven Package: \`tech.hellsoft.trading:websocket-client:${{ env.BUILD_VERSION }}\`" >> release-notes.md
         echo "- Published to: GitHub Packages Maven" >> release-notes.md
         
     - name: Upload release notes

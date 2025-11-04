@@ -8,13 +8,16 @@ plugins {
 
 group = "tech.hellsoft.trading"
 
-// Read version from VERSION file, fallback to default
+// Read version from VERSION file, fallback to default, allow override
 val versionFile = file("VERSION")
-version = if (versionFile.exists()) {
+val baseVersion = if (versionFile.exists()) {
     versionFile.readText().trim()
 } else {
     "1.0.0-SNAPSHOT"
 }
+
+// Allow version override via command line (for CI builds)
+version = project.findProperty("version") as String? ?: baseVersion
 
 java {
     toolchain {
