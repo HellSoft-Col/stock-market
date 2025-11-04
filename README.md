@@ -422,3 +422,4 @@ docker-compose up -d mongodb1 mongodb2 mongodb3 mongo-init
 # View logs
 docker-compose logs -f exchange-server
 ```
+test
