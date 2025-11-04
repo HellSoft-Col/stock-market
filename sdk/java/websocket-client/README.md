@@ -144,22 +144,97 @@ WebSocket Thread          Sequencer Thread         Callback Threads
 
 ## Installation
 
-### Gradle
+The SDK is published to **GitHub Packages** automatically on every push to `main`.
+
+### Option 1: GitHub Packages (Recommended)
+
+#### Step 1: Create GitHub Personal Access Token
+1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Click "Generate new token (classic)"
+3. Select scope: `read:packages`
+4. Copy the token (you'll need it in Step 2)
+
+#### Step 2: Configure Gradle
+
+Add to your `build.gradle.kts`:
 
 ```kotlin
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/HellSoft-Col/stock-market") // Replace HellSoft-Col/stock-market
+        credentials {
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("gpr.token") as String? ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
 dependencies {
     implementation("tech.hellsoft.trading:websocket-client:1.0.0-SNAPSHOT")
 }
 ```
 
-### Maven
+Create `gradle.properties` in your project root (or `~/.gradle/gradle.properties`):
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.token=YOUR_GITHUB_TOKEN
+```
+
+#### Step 3: Configure Maven (Alternative)
+
+Add to your `pom.xml`:
 
 ```xml
-<dependency>
-    <groupId>tech.hellsoft.trading</groupId>
-    <artifactId>websocket-client</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-</dependency>
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/HellSoft-Col/stock-market</url> <!-- Replace HellSoft-Col/stock-market -->
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>tech.hellsoft.trading</groupId>
+        <artifactId>websocket-client</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+</dependencies>
+```
+
+Add to `~/.m2/settings.xml`:
+```xml
+<settings>
+    <servers>
+        <server>
+            <id>github</id>
+            <username>YOUR_GITHUB_USERNAME</username>
+            <password>YOUR_GITHUB_TOKEN</password>
+        </server>
+    </servers>
+</settings>
+```
+
+### Option 2: Download JAR Directly
+
+1. Go to the [GitHub Actions](../../actions/workflows/publish-java-sdk.yml) page
+2. Click on the latest successful build
+3. Download the `package` artifact
+4. Add the JAR to your project:
+
+```kotlin
+dependencies {
+    implementation(files("libs/websocket-client-1.0.0-SNAPSHOT.jar"))
+}
+```
+
+### Option 3: Build from Source
+
+```bash
+git clone <repository-url>
+cd sdk/java/websocket-client
+./gradlew build
+# JAR will be in: build/libs/websocket-client-1.0.0-SNAPSHOT.jar
 ```
 
 ## Quick Start
