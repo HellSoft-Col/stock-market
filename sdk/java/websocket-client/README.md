@@ -172,16 +172,36 @@ import tech.hellsoft.trading.enums.*;
 
 public class Example implements EventListener {
     public static void main(String[] args) throws Exception {
-        // Create connector with default config
+        // 1️⃣ Create connector with default config
+        // This initializes 3 thread pools but does NOT start them yet:
+        //   - Message Sequencer (single virtual thread) - CREATED but idle
+        //   - Callback Executor (virtual thread pool) - CREATED but idle  
+        //   - Heartbeat not created yet (waits for connection)
         ConectorBolsa connector = new ConectorBolsa();
         
-        // Add listener
+        // 2️⃣ Add listener (runs on main thread)
+        // Listeners are stored in CopyOnWriteArrayList for thread-safe access
         connector.addListener(new Example());
         
-        // Connect and authenticate
+        // 3️⃣ Connect and authenticate
+        // This triggers:
+        //   - WebSocket connection establishment (platform thread)
+        //   - Heartbeat manager starts (scheduled virtual thread)
+        //   - LOGIN message sent through send semaphore
+        //   - Message sequencer starts processing incoming messages
         connector.conectar("localhost", 8080, "your-token-here");
+        // From this point:
+        //   - WebSocket thread receives all messages
+        //   - Sequencer thread processes them IN ORDER
+        //   - Callbacks execute on separate virtual threads
         
-        // Send a buy order
+        // 4️⃣ Send a buy order (can be called from any thread)
+        // Flow:
+        //   1. Main thread calls enviarOrden()
+        //   2. Acquires send semaphore (blocks if another send is in progress)
+        //   3. Serializes to JSON
+        //   4. Sends via WebSocket
+        //   5. Releases send semaphore
         OrderMessage order = OrderMessage.builder()
             .clOrdID("order-001")
             .side(OrderSide.BUY)
@@ -192,74 +212,175 @@ public class Example implements EventListener {
             .build();
         
         connector.enviarOrden(order);
+        // Main thread is now free - order is sent asynchronously
         
-        // Keep running
+        // 5️⃣ Keep running to receive messages
+        // Meanwhile, in parallel:
+        //   - WebSocket thread: Receives messages continuously
+        //   - Sequencer thread: Processes messages one-by-one
+        //   - Callback threads: Execute onFill(), onTicker(), etc.
+        //   - Heartbeat thread: Sends PING every 30 seconds
         Thread.sleep(60000);
         
-        // Disconnect
+        // 6️⃣ Disconnect and shutdown (runs on main thread)
+        // This triggers:
+        //   - Heartbeat stops (scheduled thread terminates)
+        //   - WebSocket closes gracefully
+        //   - Sequencer stops accepting new messages
+        //   - Callback executor stops (waits for running callbacks)
         connector.desconectar();
         connector.shutdown();
+        // All threads are now terminated cleanly
     }
+    
+    // 🧵 All callbacks below run on SEPARATE virtual threads
+    // Each callback execution gets its own virtual thread from the callback executor
+    // Multiple callbacks can run concurrently (e.g., onFill and onTicker at same time)
     
     @Override
     public void onLoginOk(LoginOKMessage message) {
+        // This runs on: Virtual Thread #1 (from callback executor)
+        // Triggered by: Sequencer thread after processing LOGIN_OK message
         System.out.println("Logged in as: " + message.getTeam());
         System.out.println("Balance: " + message.getCurrentBalance());
+        // While this runs, sequencer continues processing next messages
     }
     
     @Override
     public void onFill(FillMessage message) {
+        // This runs on: Virtual Thread #2 (from callback executor)
+        // Can run concurrently with onTicker() or other callbacks
         System.out.println("Order filled: " + message.getClOrdID() +
             " - " + message.getFillQty() + " @ " + message.getFillPrice());
+        // ⚠️ If you modify shared state here, use thread-safe collections!
     }
     
     @Override
     public void onTicker(TickerMessage message) {
+        // This runs on: Virtual Thread #3 (from callback executor)
+        // May execute while onFill() is still running
         System.out.println(message.getProduct() + " - " +
             "Bid: " + message.getBestBid() + " Ask: " + message.getBestAsk());
     }
     
     @Override
     public void onOffer(OfferMessage message) {
+        // This runs on: Virtual Thread #4 (from callback executor)
         System.out.println("Offer received: " + message.getOfferId());
     }
     
     @Override
     public void onError(ErrorMessage message) {
+        // This runs on: Virtual Thread #5 (from callback executor)
         System.err.println("Error: " + message.getCode() + " - " + message.getReason());
     }
     
     @Override
     public void onOrderAck(OrderAckMessage message) {
+        // This runs on: Virtual Thread #6 (from callback executor)
         System.out.println("Order acknowledged: " + message.getClOrdID());
     }
     
     @Override
     public void onInventoryUpdate(InventoryUpdateMessage message) {
+        // This runs on: Virtual Thread #7 (from callback executor)
         System.out.println("Inventory updated: " + message.getInventory());
     }
     
     @Override
     public void onBalanceUpdate(BalanceUpdateMessage message) {
+        // This runs on: Virtual Thread #8 (from callback executor)
         System.out.println("Balance updated: " + message.getBalance());
     }
     
     @Override
     public void onEventDelta(EventDeltaMessage message) {
+        // This runs on: Virtual Thread #9 (from callback executor)
         System.out.println("Event delta received");
     }
     
     @Override
     public void onBroadcast(BroadcastNotificationMessage message) {
+        // This runs on: Virtual Thread #10 (from callback executor)
         System.out.println("Broadcast: " + message.getMessage());
     }
     
     @Override
     public void onConnectionLost(Throwable error) {
+        // This runs on: Virtual Thread #11 (from callback executor)
+        // Triggered by: WebSocket error or heartbeat timeout
         System.err.println("Connection lost: " + error.getMessage());
     }
 }
 ```
+
+### 🧵 Thread Execution Flow Explained
+
+When you run the example above, here's what happens behind the scenes:
+
+```
+Time    Thread              Action
+────────────────────────────────────────────────────────────────────
+T0      Main Thread         Creates ConectorBolsa
+                           → Initializes MessageSequencer (idle)
+                           → Initializes CallbackExecutor (idle)
+                           → No threads running yet
+
+T1      Main Thread         Calls addListener()
+                           → Adds to CopyOnWriteArrayList
+                           → Still no threads running
+
+T2      Main Thread         Calls conectar()
+                           → Starts WebSocket connection
+                           → Starts HeartbeatManager
+        Heartbeat Thread    Starts scheduling PING messages
+        WebSocket Thread    Connects and waits for messages
+        Sequencer Thread    Starts and waits for messages
+
+T3      Main Thread         Calls enviarOrden()
+                           → Acquires semaphore
+                           → Sends via WebSocket
+                           → Releases semaphore
+                           → Returns immediately
+
+T4      WebSocket Thread    Receives FILL message
+                           → Passes to MessageSequencer
+        Sequencer Thread    Deserializes JSON → FillMessage
+                           → Submits callback to executor
+                           → Continues to next message
+        Virtual Thread #1   Executes onFill() callback
+                           → Your code runs here
+
+T5      WebSocket Thread    Receives TICKER message
+                           → Passes to MessageSequencer
+        Sequencer Thread    Deserializes JSON → TickerMessage
+                           → Submits callback to executor
+        Virtual Thread #2   Executes onTicker() callback
+                           → Runs concurrently with #1!
+
+T6      Heartbeat Thread    Sends PING message
+                           → Acquires send semaphore
+                           → Sends via WebSocket
+                           → Releases semaphore
+
+T7      Main Thread         Calls desconectar()
+                           → Stops heartbeat
+                           → Closes WebSocket
+        Main Thread         Calls shutdown()
+                           → Stops sequencer
+                           → Stops callback executor
+                           → Waits for threads to finish
+                           → All threads terminated ✅
+```
+
+### 🔑 Key Takeaways
+
+1. **Initialization is cheap**: Creating `ConectorBolsa()` just allocates structures
+2. **Connection activates threads**: `conectar()` starts the thread pools
+3. **Sending is thread-safe**: Multiple threads can call `enviarOrden()` safely
+4. **Messages are ordered**: Sequencer guarantees FILL #1 is processed before FILL #2
+5. **Callbacks are concurrent**: `onFill()` and `onTicker()` can run simultaneously
+6. **Shutdown is clean**: All threads terminate gracefully
 
 ## Configuration
 
