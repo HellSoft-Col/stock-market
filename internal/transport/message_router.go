@@ -525,12 +525,13 @@ func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client Messa
 	}
 
 	teamName := client.GetTeamName()
+	isAdmin := teamName == "admin"
 	orderSummaries := make([]*domain.OrderSummary, 0)
 	for _, order := range orders {
 		if order == nil {
 			continue
 		}
-		if order.TeamName != teamName {
+		if !isAdmin && order.TeamName != teamName {
 			continue
 		}
 		summary := &domain.OrderSummary{

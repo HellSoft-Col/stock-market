@@ -1722,6 +1722,10 @@
                 case 'OFFER':
                     handleOfferMessage(message);
                     break;
+                case 'BROADCAST_NOTIFICATION':
+                    showToast(`📢 ${message.sender}: ${message.message}`, 'info', 5000);
+                    addMessageToLog(`📢 Broadcast from ${message.sender}: ${message.message}`);
+                    break;
                 default:
                     console.log('Unknown message type:', message.type);
                     addMessageToLog(`Unknown message: ${message.type}`);
