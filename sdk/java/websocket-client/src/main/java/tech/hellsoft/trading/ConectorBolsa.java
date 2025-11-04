@@ -38,6 +38,37 @@ import tech.hellsoft.trading.internal.serialization.JsonSerializer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Main client SDK for connecting to the Stock Market WebSocket server.
+ *
+ * <p>This class provides the primary interface for establishing connections, sending messages, and
+ * receiving market data. All operations are thread-safe and use virtual threads for concurrent
+ * processing.
+ *
+ * <p>Typical usage pattern:
+ *
+ * <pre>{@code
+ * ConectorBolsa connector = new ConectorBolsa();
+ * connector.addListener(new MyEventListener());
+ * connector.conectar("market.example.com", 8080, "your-token");
+ *
+ * // Send orders after successful login
+ * OrderMessage order = OrderMessage.builder()
+ *     .clOrdID("order-123")
+ *     .side(OrderSide.BUY)
+ *     .product(Product.GUACA)
+ *     .qty(100)
+ *     .mode(OrderMode.MARKET)
+ *     .build();
+ * connector.enviarOrden(order);
+ *
+ * // Clean shutdown
+ * connector.shutdown();
+ * }</pre>
+ *
+ * @see EventListener for receiving server messages
+ * @see ConectorConfig for configuration options
+ */
 @Slf4j
 public class ConectorBolsa {
   private final ConectorConfig config;
@@ -51,6 +82,14 @@ public class ConectorBolsa {
   private volatile WebSocket webSocket;
   private HeartbeatManager heartbeatManager;
 
+  /**
+   * Creates a new ConectorBolsa instance with custom configuration.
+   *
+   * @param config the configuration settings (must not be null)
+   * @throws IllegalArgumentException if config is null
+   * @throws IllegalArgumentException if configuration validation fails
+   * @see ConectorConfig for available configuration options
+   */
   public ConectorBolsa(ConectorConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("config cannot be null");
@@ -60,10 +99,26 @@ public class ConectorBolsa {
     this.config = config;
   }
 
+  /**
+   * Creates a new ConectorBolsa instance with default configuration.
+   *
+   * <p>Uses {@link ConectorConfig#defaultConfig()} for all settings. This is suitable for most use
+   * cases.
+   */
   public ConectorBolsa() {
     this(ConectorConfig.defaultConfig());
   }
 
+  /**
+   * Adds an event listener to receive server messages.
+   *
+   * <p>Multiple listeners can be added. All callbacks are executed on virtual threads to avoid
+   * blocking the WebSocket processing thread.
+   *
+   * @param listener the listener to add (must not be null)
+   * @throws IllegalArgumentException if listener is null
+   * @see EventListener for callback methods
+   */
   public void addListener(EventListener listener) {
     if (listener == null) {
       throw new IllegalArgumentException("listener cannot be null");
@@ -73,6 +128,14 @@ public class ConectorBolsa {
     log.debug("Added listener: {}", listener.getClass().getSimpleName());
   }
 
+  /**
+   * Removes an event listener.
+   *
+   * <p>If the listener is not currently registered, this method does nothing. The method is
+   * thread-safe and can be called from any thread.
+   *
+   * @param listener the listener to remove (may be null)
+   */
   public void removeListener(EventListener listener) {
     if (listener == null) {
       return;
@@ -82,6 +145,25 @@ public class ConectorBolsa {
     log.debug("Removed listener: {}", listener.getClass().getSimpleName());
   }
 
+  /**
+   * Connects to the Stock Market WebSocket server.
+   *
+   * <p>This method establishes a WebSocket connection and automatically sends a login message. The
+   * connection state transitions from DISCONNECTED to CONNECTING to AUTHENTICATED upon successful
+   * completion.
+   *
+   * <p>After successful connection and authentication, the {@link
+   * EventListener#onLoginOk(LoginOKMessage)} callback will be invoked.
+   *
+   * @param host the server hostname or IP address (must not be null or blank)
+   * @param port the server port (must be between 1 and 65535)
+   * @param token the authentication token (must not be null or blank)
+   * @throws ConexionFallidaException if the connection fails
+   * @throws IllegalStateException if already connected or connecting
+   * @throws IllegalArgumentException if any parameter is invalid
+   * @see #desconectar() to disconnect
+   * @see EventListener#onLoginOk(LoginOKMessage) for successful authentication
+   */
   public void conectar(String host, int port, String token) throws ConexionFallidaException {
     if (state != ConnectionState.DISCONNECTED) {
       throw new IllegalStateException("Already connected or connecting");
@@ -132,6 +214,18 @@ public class ConectorBolsa {
     }
   }
 
+  /**
+   * Disconnects from the server gracefully.
+   *
+   * <p>This method sends a WebSocket close frame and stops the heartbeat mechanism. If already
+   * disconnected, this method does nothing. The connection state is set to DISCONNECTED.
+   *
+   * <p>After disconnection, the {@link EventListener#onConnectionLost(Throwable)} callback will NOT
+   * be invoked since this is an intentional disconnection.
+   *
+   * @see #conectar(String, int, String) to reconnect
+   * @see #shutdown() for complete cleanup
+   */
   public void desconectar() {
     if (state == ConnectionState.DISCONNECTED) {
       return;
@@ -150,6 +244,21 @@ public class ConectorBolsa {
     log.info("Disconnected");
   }
 
+  /**
+   * Sends a login message to authenticate with the server.
+   *
+   * <p>This method is typically called automatically by {@link #conectar(String, int, String)}, but
+   * can be called manually for re-authentication scenarios.
+   *
+   * <p>Upon successful authentication, the {@link EventListener#onLoginOk(LoginOKMessage)} callback
+   * will be invoked with the session details.
+   *
+   * @param token the authentication token (must not be null or blank)
+   * @throws IllegalStateException if not connected to the server
+   * @throws IllegalArgumentException if token is null or blank
+   * @see EventListener#onLoginOk(LoginOKMessage) for successful authentication
+   * @see EventListener#onError(ErrorMessage) for authentication failures
+   */
   public void enviarLogin(String token) {
     if (state != ConnectionState.CONNECTED) {
       throw new IllegalStateException("Not connected");
@@ -165,6 +274,34 @@ public class ConectorBolsa {
     sendMessage(login);
   }
 
+  /**
+   * Sends a buy or sell order to the market.
+   *
+   * <p>The order must be properly constructed with all required fields. Order responses arrive
+   * asynchronously via {@link EventListener#onFill(FillMessage)} for executions and {@link
+   * EventListener#onOrderAck(OrderAckMessage)} for acknowledgments.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * OrderMessage order = OrderMessage.builder()
+   *     .clOrdID("unique-order-id")
+   *     .side(OrderSide.BUY)
+   *     .product(Product.GUACA)
+   *     .qty(100)
+   *     .mode(OrderMode.MARKET)
+   *     .limitPrice(50.0) // Only for LIMIT orders
+   *     .build();
+   * connector.enviarOrden(order);
+   * }</pre>
+   *
+   * @param order the order to send (must not be null)
+   * @throws IllegalStateException if not authenticated
+   * @throws IllegalArgumentException if order is null
+   * @see EventListener#onFill(FillMessage) for order executions
+   * @see EventListener#onOrderAck(OrderAckMessage) for order acknowledgments
+   * @see EventListener#onError(ErrorMessage) for order rejections
+   */
   public void enviarOrden(OrderMessage order) {
     if (state != ConnectionState.AUTHENTICATED) {
       throw new IllegalStateException("Not authenticated");
@@ -178,6 +315,18 @@ public class ConectorBolsa {
     sendMessage(order);
   }
 
+  /**
+   * Cancels a previously submitted order.
+   *
+   * <p>Cancels the order with the specified client order ID (clOrdID). The cancellation result
+   * arrives asynchronously via {@link EventListener#onOrderAck(OrderAckMessage)}.
+   *
+   * @param clOrdID the client order ID of the order to cancel (must not be null or blank)
+   * @throws IllegalStateException if not authenticated
+   * @throws IllegalArgumentException if clOrdID is null or blank
+   * @see EventListener#onOrderAck(OrderAckMessage) for cancellation confirmation
+   * @see EventListener#onError(ErrorMessage) for cancellation failures
+   */
   public void enviarCancelacion(String clOrdID) {
     if (state != ConnectionState.AUTHENTICATED) {
       throw new IllegalStateException("Not authenticated");
@@ -193,6 +342,18 @@ public class ConectorBolsa {
     sendMessage(cancel);
   }
 
+  /**
+   * Sends a production update to the server.
+   *
+   * <p>Production updates are used to report manufacturing or production activities that may affect
+   * market conditions and inventory levels.
+   *
+   * @param update the production update message (must not be null)
+   * @throws IllegalStateException if not authenticated
+   * @throws IllegalArgumentException if update is null
+   * @see EventListener#onInventoryUpdate(InventoryUpdateMessage) for inventory changes
+   * @see EventListener#onError(ErrorMessage) for update failures
+   */
   public void enviarActualizacionProduccion(ProductionUpdateMessage update) {
     if (state != ConnectionState.AUTHENTICATED) {
       throw new IllegalStateException("Not authenticated");
@@ -206,6 +367,19 @@ public class ConectorBolsa {
     sendMessage(update);
   }
 
+  /**
+   * Sends a response to a received offer.
+   *
+   * <p>Used to accept or reject offers received via {@link EventListener#onOffer(OfferMessage)}.
+   * The response should reference the original offer ID.
+   *
+   * @param response the offer response message (must not be null)
+   * @throws IllegalStateException if not authenticated
+   * @throws IllegalArgumentException if response is null
+   * @see EventListener#onOffer(OfferMessage) for receiving offers
+   * @see EventListener#onFill(FillMessage) for offer executions
+   * @see EventListener#onError(ErrorMessage) for response failures
+   */
   public void enviarRespuestaOferta(AcceptOfferMessage response) {
     if (state != ConnectionState.AUTHENTICATED) {
       throw new IllegalStateException("Not authenticated");
@@ -376,6 +550,17 @@ public class ConectorBolsa {
     notifyConnectionLost(new RuntimeException("Pong timeout"));
   }
 
+  /**
+   * Performs a complete shutdown of the SDK.
+   *
+   * <p>This method disconnects from the server and releases all resources including thread pools
+   * and message sequencers. After calling this method, the ConectorBolsa instance cannot be reused.
+   *
+   * <p>This method should be called when the application is shutting down or when the SDK instance
+   * is no longer needed.
+   *
+   * @see #desconectar() for graceful disconnect without resource cleanup
+   */
   public void shutdown() {
     desconectar();
     sequencer.shutdown();

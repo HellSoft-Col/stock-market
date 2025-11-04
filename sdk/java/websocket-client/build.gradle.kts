@@ -48,6 +48,16 @@ tasks.test {
     finalizedBy(tasks.jacocoTestReport)
 }
 
+// Ensure JavaDoc is generated during build
+tasks.named("build") {
+    dependsOn(tasks.javadoc)
+}
+
+// Ensure JavaDoc is included in check
+tasks.named("check") {
+    dependsOn(tasks.javadoc)
+}
+
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
     reports {
@@ -80,7 +90,26 @@ tasks.withType<JavaCompile> {
 tasks.javadoc {
     options {
         this as StandardJavadocDocletOptions
-        addStringOption("Xdoclint:none", "-quiet")
+        // Configure doclint to be less strict but still catch important issues
+        addStringOption("Xdoclint:all,-missing", "-quiet")
+        // Add links to external documentation
+        (this as StandardJavadocDocletOptions).links("https://docs.oracle.com/en/java/javase/25/docs/api/")
+        // Set window title
+        windowTitle = "Stock Market WebSocket Client API"
+        // Set document title
+        docTitle = "Stock Market WebSocket Client API Documentation"
+        // Set header
+        header = "Stock Market WebSocket Client"
+        // Include author tags
+        addBooleanOption("author", true)
+        // Include version tags
+        addBooleanOption("version", true)
+        // Use HTML5
+        addBooleanOption("html5", true)
+        // Show protected members
+        addBooleanOption("protected", true)
+        // Show package private members
+        addBooleanOption("package", true)
     }
 }
 
@@ -156,8 +185,8 @@ if (!System.getenv().containsKey("CI")) {
 // Add quality check task
 tasks.register("qualityCheck") {
     group = "verification"
-    description = "Run all quality checks: tests, coverage, formatting, and linting"
-    dependsOn("clean", "spotlessCheck", "checkstyleMain", "checkstyleTest", "test", "jacocoTestReport")
+    description = "Run all quality checks: tests, coverage, formatting, linting, and documentation"
+    dependsOn("clean", "spotlessCheck", "checkstyleMain", "checkstyleTest", "test", "jacocoTestReport", "javadoc")
 }
 
 publishing {
