@@ -29,14 +29,14 @@ check_version() {
 }
 
 echo "📦 Main Dependencies:"
-check_version "com.google.code.gson" "gson" "2.11.0"
+check_version "com.google.code.gson" "gson" "2.13.1"
 check_version "org.projectlombok" "lombok" "1.18.40"
 check_version "org.slf4j" "slf4j-api" "2.0.16"
 
 echo ""
 echo "🧪 Test Dependencies:"
 check_version "org.junit.jupiter" "junit-jupiter" "5.11.4"
-check_version "org.mockito" "mockito-core" "5.15.2"
+check_version "org.mockito" "mockito-core" "5.18.0"
 
 echo ""
 echo "✨ Check complete!"
