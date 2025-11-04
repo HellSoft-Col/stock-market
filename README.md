@@ -1,20 +1,107 @@
-# Intergalactic Avocado Stock Exchange Server
+# 🥑 Intergalactic Avocado Stock Exchange Server
 
-A real-time trading system for educational tournaments where university students compete in a virtual stock exchange. Now featuring WebSocket connectivity and a modern web UI for real-time market visualization.
+[![Build Container](https://github.com/HellSoft-Col/stock-market/actions/workflows/build-container.yml/badge.svg)](https://github.com/HellSoft-Col/stock-market/actions/workflows/build-container.yml)
+[![Publish Java SDK](https://github.com/HellSoft-Col/stock-market/actions/workflows/publish-java-sdk.yml/badge.svg)](https://github.com/HellSoft-Col/stock-market/actions/workflows/publish-java-sdk.yml)
+[![Security Scan](https://github.com/HellSoft-Col/stock-market/actions/workflows/security-scan.yml/badge.svg)](https://github.com/HellSoft-Col/stock-market/actions/workflows/security-scan.yml)
+
+A real-time trading system for educational tournaments where university students compete in a virtual stock exchange. Now featuring WebSocket connectivity, a modern web UI for real-time market visualization, and official SDKs! 🚀
+
+## 📦 Official SDKs
+
+### Java SDK ☕
+
+Connect to the exchange using our official Java 25 SDK with WebSocket support:
+
+```java
+import tech.hellsoft.trading.*;
+import tech.hellsoft.trading.enums.*;
+
+// Create connector
+ConectorBolsa connector = new ConectorBolsa();
+
+// Add listener
+connector.addListener(new EventListener() {
+    @Override
+    public void onLoginOk(LoginOKMessage msg) {
+        System.out.println("✅ Logged in as: " + msg.getTeam());
+    }
+    
+    @Override
+    public void onFill(FillMessage msg) {
+        System.out.println("💰 Fill: " + msg.getFillQty() + " @ " + msg.getFillPrice());
+    }
+    // ... other callbacks
+});
+
+// Connect and authenticate
+connector.conectar("localhost", 9000, "your-token-here");
+
+// Place an order
+OrderMessage order = OrderMessage.builder()
+    .clOrdID("order-001")
+    .side(OrderSide.BUY)
+    .mode(OrderMode.MARKET)
+    .product(Product.GUACA)
+    .qty(10)
+    .build();
+    
+connector.enviarOrden(order);
+```
+
+#### Installation
+
+**Gradle:**
+```kotlin
+repositories {
+    maven {
+        url = uri("https://maven.pkg.github.com/HellSoft-Col/stock-market")
+        credentials {
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
+dependencies {
+    implementation("tech.hellsoft.trading:websocket-client:1.0.0-SNAPSHOT")
+}
+```
+
+**Maven:**
+```xml
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/HellSoft-Col/stock-market</url>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>tech.hellsoft.trading</groupId>
+    <artifactId>websocket-client</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+📚 **[Full Java SDK Documentation →](sdk/java/websocket-client/README.md)**
+
+### Python SDK 🐍 (Coming Soon)
+
+### JavaScript SDK 📜 (Coming Soon)
 
 ## Quick Start
 
-### 1. Build the server
+### 1. Build the server 🔨
 ```bash
 go build -o exchange-server ./cmd/server
 ```
 
-### 2. Run the server
+### 2. Run the server 🚀
 ```bash
 ./exchange-server
 ```
 
-### 3. Access the Web UI
+### 3. Access the Web UI 🌐
 Open your browser and navigate to: **http://localhost:9000**
 
 The web interface provides:
@@ -24,7 +111,7 @@ The web interface provides:
 - Team authentication
 - Message monitoring
 
-### 4. Set up MongoDB (for local development)
+### 4. Set up MongoDB (for local development) 🗄️
 ```bash
 # Start MongoDB replica set with Docker
 docker-compose up -d mongodb1 mongodb2 mongodb3 mongo-init
@@ -33,12 +120,12 @@ docker-compose up -d mongodb1 mongodb2 mongodb3 mongo-init
 sleep 15
 ```
 
-### 5. Seed test data
+### 5. Seed test data 🌱
 ```bash
 ./seed-teams
 ```
 
-### 6. Test the exchange
+### 6. Test the exchange 🧪
 
 #### Using Web Interface
 1. Open http://localhost:9000 in your browser
@@ -60,7 +147,7 @@ sleep 15
 ./simple-client
 ```
 
-### 7. Test complete trading flow
+### 7. Test complete trading flow 📊
 ```bash
 # Terminal 1: Start a BUY order (will wait in order book and generate OFFER)
 ./test-order TK-ANDROMEDA-2025-AVOCULTORES BUY FOSFO 10
@@ -75,7 +162,7 @@ sleep 15
 ./simple-client
 ```
 
-### 8. Advanced testing
+### 8. Advanced testing 🔬
 ```bash
 # Test production updates
 ./test-production TK-ANDROMEDA-2025-AVOCULTORES GUACA 16  # Should succeed (authorized)
@@ -225,7 +312,7 @@ for i in {1..105}; do ./test-order TK-ANDROMEDA-2025-AVOCULTORES BUY FOSFO 1; do
 ## Phase 11 Complete ✅
 ## Phase 12 Complete ✅ 🎉
 
-## Features Complete ✅
+## ✨ Features Complete
 
 The server now includes:
 
@@ -329,7 +416,7 @@ The server now includes:
 - Static file serving for HTML/CSS/JavaScript assets
 - Unified client interface supporting both web and programmatic access
 
-### Architecture Overview
+### 🏗️ Architecture Overview
 
 ```
 Web UI ──HTTP──► WebSocket Server ──► MongoDB Replica Set
@@ -355,7 +442,7 @@ Web UI ──HTTP──► WebSocket Server ──► MongoDB Replica Set
 - **HTTP Server**: Serves static files and handles WebSocket upgrades
 - **Unified Client Interface**: Both web and Go clients use the same WebSocket protocol
 
-## Configuration
+## ⚙️ Configuration
 
 The server uses `config.yaml` for configuration:
 
@@ -369,7 +456,7 @@ server:
   writeTimeout: 10s
 ```
 
-## Development Phases
+## 🗓️ Development Phases
 
 - [x] Phase 1: Basic TCP server + echo functionality
 - [x] Phase 2: MongoDB connection + repositories with order book persistence
@@ -385,7 +472,7 @@ server:
 - [x] **Phase 12: WebSocket Migration + Web UI** ✨
 - [x] Phase 13: Testing and deployment
 
-## Dependencies
+## 📚 Dependencies
 
 - Go 1.25+
 - MongoDB 7.0+ with replica set (for transactions)
@@ -398,7 +485,7 @@ server:
 - github.com/google/uuid (ID generation)
 - **github.com/gorilla/websocket (WebSocket support)** ✨
 
-## Database Features
+## 🗄️ Database Features
 
 ### Collections
 - `teams` - Team authentication and configuration
@@ -416,7 +503,7 @@ server:
 - Order status updates + fill creation in single transaction
 - Auto-retry on transaction conflicts
 
-## Docker Deployment
+## 🐳 Docker Deployment
 
 ```bash
 # Build and run everything
