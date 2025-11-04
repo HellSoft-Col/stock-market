@@ -127,6 +127,7 @@ spotless {
 checkstyle {
     toolVersion = "9.3"
     configFile = file("$rootDir/config/checkstyle/checkstyle.xml")
+    configProperties = mapOf("suppressionFile" to "$rootDir/config/checkstyle/suppressions.xml")
     isIgnoreFailures = true // Don't fail build on warnings
     maxWarnings = 100 // Allow some warnings
 }

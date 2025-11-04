@@ -10,6 +10,8 @@
     <suppress checks="JavadocType" files=".*Test\.java"/>
     <suppress checks="MagicNumber" files=".*Test\.java"/>
     <suppress checks="MethodLength" files=".*Test\.java"/>
+    <suppress checks="AvoidStarImport" files=".*Test\.java"/>
+    <suppress checks="WhitespaceAround" files=".*Test\.java"/>
     
     <!-- Suppress checks for Lombok-generated DTOs -->
     <suppress checks="VisibilityModifier" files=".*(Message|Config|Exception)\.java"/>
