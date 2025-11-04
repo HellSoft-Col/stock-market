@@ -10,11 +10,12 @@ group = "tech.hellsoft.trading"
 
 // Read version from VERSION file, fallback to default, allow override
 val versionFile = file("VERSION")
-val baseVersion = if (versionFile.exists()) {
-    versionFile.readText().trim()
-} else {
-    "1.0.0-SNAPSHOT"
-}
+val baseVersion =
+    if (versionFile.exists()) {
+        versionFile.readText().trim()
+    } else {
+        "1.0.0-SNAPSHOT"
+    }
 
 // Allow version override via command line (for CI builds)
 version = project.findProperty("version") as String? ?: baseVersion
@@ -41,6 +42,9 @@ dependencies {
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.16")
+
+    // SLF4J implementation for tests (users can provide their own in production)
+    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.16")
 
     // Testing
     testImplementation(platform("org.junit:junit-bom:5.11.4"))

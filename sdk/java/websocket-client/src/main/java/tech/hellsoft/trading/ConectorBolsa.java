@@ -146,11 +146,83 @@ public class ConectorBolsa {
   }
 
   /**
-   * Connects to the Stock Market WebSocket server.
+   * Connects to the Stock Market WebSocket server using a full WebSocket URL.
    *
-   * <p>This method establishes a WebSocket connection and automatically sends a login message. The
-   * connection state transitions from DISCONNECTED to CONNECTING to AUTHENTICATED upon successful
-   * completion.
+   * <p>This method supports both WS (ws://) and WSS (wss://) protocols. Use WSS for secure
+   * connections (equivalent to HTTPS). This is the recommended method for production environments.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * connector.conectar("wss://trading.hellsoft.tech/ws", "your-token");
+   * }</pre>
+   *
+   * @param websocketUrl the full WebSocket URL (must not be null or blank)
+   * @param token the authentication token (must not be null or blank)
+   * @throws ConexionFallidaException if the connection fails
+   * @throws IllegalStateException if already connected or connecting
+   * @throws IllegalArgumentException if any parameter is invalid
+   * @see #desconectar() to disconnect
+   * @see EventListener#onLoginOk(LoginOKMessage) for successful authentication
+   */
+  public void conectar(String websocketUrl, String token) throws ConexionFallidaException {
+    if (state != ConnectionState.DISCONNECTED) {
+      throw new IllegalStateException("Already connected or connecting");
+    }
+
+    if (websocketUrl == null || websocketUrl.isBlank()) {
+      throw new IllegalArgumentException("websocketUrl cannot be null or blank");
+    }
+
+    if (token == null || token.isBlank()) {
+      throw new IllegalArgumentException("token cannot be null or blank");
+    }
+
+    try {
+      state = ConnectionState.CONNECTING;
+
+      URI uri = URI.create(websocketUrl);
+
+      // Validate protocol
+      String scheme = uri.getScheme();
+      if (scheme == null || (!scheme.equals("ws") && !scheme.equals("wss"))) {
+        throw new IllegalArgumentException("URL must start with ws:// or wss://");
+      }
+
+      log.info("Connecting to {} (secure: {})", uri, scheme.equals("wss"));
+
+      HttpClient client = HttpClient.newHttpClient();
+
+      WebSocketHandler handler =
+          new WebSocketHandler(
+              this::onMessageReceived, this::onWebSocketError, this::onWebSocketClosed);
+
+      webSocket =
+          client
+              .newWebSocketBuilder()
+              .connectTimeout(config.getConnectionTimeout())
+              .buildAsync(uri, handler)
+              .join();
+
+      state = ConnectionState.CONNECTED;
+      log.info("Connected to {}", uri);
+
+      enviarLogin(token);
+      startHeartbeat();
+
+    } catch (Exception e) {
+      state = ConnectionState.DISCONNECTED;
+      throw new ConexionFallidaException(
+          "Failed to connect to " + websocketUrl, websocketUrl, 0, e);
+    }
+  }
+
+  /**
+   * Connects to the Stock Market WebSocket server using host and port (non-secure).
+   *
+   * <p>This method establishes a non-secure WebSocket connection (ws://). For production
+   * environments, use {@link #conectar(String, String)} or {@link #conectarSeguro(String, int,
+   * String)} for secure connections.
    *
    * <p>After successful connection and authentication, the {@link
    * EventListener#onLoginOk(LoginOKMessage)} callback will be invoked.
@@ -161,10 +233,41 @@ public class ConectorBolsa {
    * @throws ConexionFallidaException if the connection fails
    * @throws IllegalStateException if already connected or connecting
    * @throws IllegalArgumentException if any parameter is invalid
+   * @see #conectarSeguro(String, int, String) for secure connections
    * @see #desconectar() to disconnect
    * @see EventListener#onLoginOk(LoginOKMessage) for successful authentication
    */
   public void conectar(String host, int port, String token) throws ConexionFallidaException {
+    conectarInternal(host, port, token, false);
+  }
+
+  /**
+   * Connects to the Stock Market WebSocket server using secure WebSocket (WSS).
+   *
+   * <p>This method establishes a secure WebSocket connection (wss://), which is the WebSocket
+   * equivalent of HTTPS. This is the recommended method for production environments.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * connector.conectarSeguro("trading.hellsoft.tech", 443, "your-token");
+   * }</pre>
+   *
+   * @param host the server hostname or IP address (must not be null or blank)
+   * @param port the server port (must be between 1 and 65535)
+   * @param token the authentication token (must not be null or blank)
+   * @throws ConexionFallidaException if the connection fails
+   * @throws IllegalStateException if already connected or connecting
+   * @throws IllegalArgumentException if any parameter is invalid
+   * @see #desconectar() to disconnect
+   * @see EventListener#onLoginOk(LoginOKMessage) for successful authentication
+   */
+  public void conectarSeguro(String host, int port, String token) throws ConexionFallidaException {
+    conectarInternal(host, port, token, true);
+  }
+
+  private void conectarInternal(String host, int port, String token, boolean secure)
+      throws ConexionFallidaException {
     if (state != ConnectionState.DISCONNECTED) {
       throw new IllegalStateException("Already connected or connecting");
     }
@@ -184,22 +287,22 @@ public class ConectorBolsa {
     try {
       state = ConnectionState.CONNECTING;
 
-      URI uri = URI.create(String.format("ws://%s:%d", host, port));
-      log.info("Connecting to {}", uri);
+      String protocol = secure ? "wss" : "ws";
+      URI uri = URI.create(String.format("%s://%s:%d", protocol, host, port));
+      log.info("Connecting to {} (secure: {})", uri, secure);
 
-      try (HttpClient client = HttpClient.newHttpClient()) {
+      HttpClient client = HttpClient.newHttpClient();
 
-        WebSocketHandler handler =
-            new WebSocketHandler(
-                this::onMessageReceived, this::onWebSocketError, this::onWebSocketClosed);
+      WebSocketHandler handler =
+          new WebSocketHandler(
+              this::onMessageReceived, this::onWebSocketError, this::onWebSocketClosed);
 
-        webSocket =
-            client
-                .newWebSocketBuilder()
-                .connectTimeout(config.getConnectionTimeout())
-                .buildAsync(uri, handler)
-                .join();
-      }
+      webSocket =
+          client
+              .newWebSocketBuilder()
+              .connectTimeout(config.getConnectionTimeout())
+              .buildAsync(uri, handler)
+              .join();
 
       state = ConnectionState.CONNECTED;
       log.info("Connected to {}", uri);

@@ -10,6 +10,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
+import tech.hellsoft.trading.dto.server.InventoryUpdateMessage;
+import tech.hellsoft.trading.dto.server.LoginOKMessage;
+import tech.hellsoft.trading.enums.Product;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -18,6 +22,12 @@ public class JsonSerializer {
       new GsonBuilder()
           .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
           .serializeNulls()
+          // Custom deserializers for messages with Product maps that may have null keys
+          .registerTypeAdapter(LoginOKMessage.class, new LoginOKMessageDeserializer())
+          .registerTypeAdapter(
+              InventoryUpdateMessage.class, new InventoryUpdateMessageDeserializer())
+          // Custom type adapter for Product enum to handle unknown products gracefully
+          .registerTypeAdapter(Product.class, new ProductTypeAdapter())
           .create();
 
   public static String toJson(Object obj) {

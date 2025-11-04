@@ -42,7 +42,17 @@ public enum Product {
   CASCAR_ALLOY("CASCAR-ALLOY"),
 
   /** Pita - a bread product. */
-  PITA("PITA");
+  PITA("PITA"),
+
+  /** GTRON - a technology product. */
+  GTRON("GTRON"),
+
+  /**
+   * H-GUACA - premium guacamole.
+   *
+   * <p>Uses hyphen in JSON: "H-GUACA"
+   */
+  H_GUACA("H-GUACA");
 
   private final String value;
 
