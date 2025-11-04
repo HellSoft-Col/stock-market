@@ -2026,10 +2026,16 @@
                 buyOrdersDiv.innerHTML = '<div class="text-green-600 dark:text-green-400 text-sm">No buy orders</div>';
             } else {
                 buyOrdersDiv.innerHTML = orderBookData.buyOrders.slice(0, 10).map(order => `
-                    <div class="flex justify-between items-center text-sm p-2 bg-white dark:bg-gray-800 rounded">
+                    <div class="flex justify-between items-center text-sm p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                         <span class="font-medium">${order.quantity}</span>
                         <span class="text-green-600 dark:text-green-400 font-bold">$${order.price ? order.price.toFixed(2) : 'MARKET'}</span>
                         <span class="text-xs text-gray-500">${order.teamName}</span>
+                        ${order.teamName !== currentTeam ? `
+                            <button onclick="fillOrder('${order.clOrdID}', 'SELL', '${order.product}', ${order.quantity}, ${order.price || 0})" 
+                                    class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors">
+                                Fill
+                            </button>
+                        ` : '<span class="text-xs text-gray-400">You</span>'}
                     </div>
                 `).join('');
             }
@@ -2038,10 +2044,16 @@
                 sellOrdersDiv.innerHTML = '<div class="text-red-600 dark:text-red-400 text-sm">No sell orders</div>';
             } else {
                 sellOrdersDiv.innerHTML = orderBookData.sellOrders.slice(0, 10).map(order => `
-                    <div class="flex justify-between items-center text-sm p-2 bg-white dark:bg-gray-800 rounded">
+                    <div class="flex justify-between items-center text-sm p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                         <span class="font-medium">${order.quantity}</span>
                         <span class="text-red-600 dark:text-red-400 font-bold">$${order.price ? order.price.toFixed(2) : 'MARKET'}</span>
                         <span class="text-xs text-gray-500">${order.teamName}</span>
+                        ${order.teamName !== currentTeam ? `
+                            <button onclick="fillOrder('${order.clOrdID}', 'BUY', '${order.product}', ${order.quantity}, ${order.price || 0})" 
+                                    class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition-colors">
+                                Fill
+                            </button>
+                        ` : '<span class="text-xs text-gray-400">You</span>'}
                     </div>
                 `).join('');
             }
@@ -2052,12 +2064,20 @@
             } else {
                 allOrdersDiv.innerHTML = allOrders.map(order => {
                     const sideColor = order.side === 'BUY' ? 'text-green-600' : 'text-red-600';
+                    const counterSide = order.side === 'BUY' ? 'SELL' : 'BUY';
+                    const isMyOrder = order.teamName === currentTeam;
                     return `
                         <div class="flex justify-between items-center text-xs p-2 border-b border-gray-200 dark:border-gray-600">
                             <span class="${sideColor} font-medium">${order.side}</span>
                             <span>${order.quantity} ${orderBookData.product}</span>
                             <span class="font-bold">$${order.price ? order.price.toFixed(2) : 'MKT'}</span>
                             <span class="text-gray-500">${order.teamName}</span>
+                            ${!isMyOrder ? `
+                                <button onclick="fillOrder('${order.clOrdID}', '${counterSide}', '${order.product}', ${order.quantity}, ${order.price || 0})" 
+                                        class="px-2 py-1 ${order.side === 'BUY' ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white text-xs rounded">
+                                    Fill
+                                </button>
+                            ` : '<span class="text-xs text-gray-400">You</span>'}
                         </div>
                     `;
                 }).join('');
@@ -2884,6 +2904,36 @@
             
             sendMessage(message);
             showToast(`Fetching order book for ${product}...`, 'info', 2000);
+        }
+        
+        function fillOrder(targetClOrdID, side, product, quantity, price) {
+            if (!isAuthenticated) {
+                showToast('Please authenticate first', 'warning');
+                return;
+            }
+            
+            const priceDisplay = price > 0 ? `$${price.toFixed(2)}` : 'MARKET';
+            const action = side === 'BUY' ? 'buy' : 'sell';
+            
+            if (!confirm(`Fill this order?\n\n${action.toUpperCase()} ${quantity} ${product} @ ${priceDisplay}\n\nThis will create a counter-order to match.`)) {
+                return;
+            }
+            
+            const limitPrice = price > 0 ? price : null;
+            const clOrdID = `FILL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            const orderMsg = {
+                type: "ORDER",
+                clOrdID: clOrdID,
+                side: side,
+                mode: limitPrice ? "LIMIT" : "MARKET",
+                product: product,
+                qty: quantity,
+                limitPrice: limitPrice
+            };
+            
+            sendMessage(orderMsg);
+            showToast(`Creating ${action} order to fill...`, 'info');
         }
         
         // Initialize the app
