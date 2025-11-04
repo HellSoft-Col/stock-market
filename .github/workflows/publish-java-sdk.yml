@@ -38,7 +38,9 @@ jobs:
       
     - name: Build with Gradle
       working-directory: sdk/java/websocket-client
-      run: ./gradlew build --no-daemon
+      run: ./gradlew build -x spotlessJava -x spotlessCheck --no-daemon
+      env:
+        CI: true
       
     - name: Run tests
       working-directory: sdk/java/websocket-client
@@ -98,7 +100,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_ACTOR: ${{ github.actor }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-      run: ./gradlew publish --no-daemon
+        CI: true
+      run: ./gradlew publish -x spotlessJava -x spotlessCheck --no-daemon
       
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
