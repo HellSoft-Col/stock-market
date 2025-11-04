@@ -222,4 +222,5 @@ bin/
 server
 .html
 *.out
-output/output/
+output/
+
