@@ -1,5 +1,6 @@
 package tech.hellsoft.trading.internal.serialization;
 
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -71,7 +72,7 @@ class JsonSerializerTest {
     void shouldParseJsonObject() {
         String json = "{\"type\":\"ORDER\",\"qty\":10}";
         
-        com.google.gson.JsonObject obj = JsonSerializer.parseObject(json);
+        JsonObject obj = JsonSerializer.parseObject(json);
         
         assertNotNull(obj);
         assertTrue(obj.has("type"));
