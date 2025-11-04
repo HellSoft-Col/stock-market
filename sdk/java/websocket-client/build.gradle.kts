@@ -7,7 +7,14 @@ plugins {
 }
 
 group = "tech.hellsoft.trading"
-version = "1.0.0-SNAPSHOT"
+
+// Read version from VERSION file, fallback to default
+val versionFile = file("VERSION")
+version = if (versionFile.exists()) {
+    versionFile.readText().trim()
+} else {
+    "1.0.0-SNAPSHOT"
+}
 
 java {
     toolchain {
