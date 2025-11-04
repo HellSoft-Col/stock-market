@@ -17,7 +17,6 @@ import tech.hellsoft.trading.internal.serialization.JsonSerializer;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -92,18 +91,19 @@ public class ConectorBolsa {
             URI uri = URI.create(String.format("ws://%s:%d", host, port));
             log.info("Connecting to {}", uri);
 
-            HttpClient client = HttpClient.newHttpClient();
-            
-            WebSocketHandler handler = new WebSocketHandler(
-                this::onMessageReceived,
-                this::onWebSocketError,
-                this::onWebSocketClosed
-            );
+            try (HttpClient client = HttpClient.newHttpClient()) {
 
-            webSocket = client.newWebSocketBuilder()
-                .connectTimeout(config.getConnectionTimeout())
-                .buildAsync(uri, handler)
-                .join();
+                WebSocketHandler handler = new WebSocketHandler(
+                        this::onMessageReceived,
+                        this::onWebSocketError,
+                        this::onWebSocketClosed
+                );
+
+                webSocket = client.newWebSocketBuilder()
+                        .connectTimeout(config.getConnectionTimeout())
+                        .buildAsync(uri, handler)
+                        .join();
+            }
 
             state = ConnectionState.CONNECTED;
             log.info("Connected to {}", uri);

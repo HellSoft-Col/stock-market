@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     `maven-publish`
+    jacoco
 }
 
 group = "tech.hellsoft.trading"
@@ -20,7 +21,7 @@ repositories {
 
 dependencies {
     // JSON Processing
-    implementation("com.google.code.gson:gson:2.13.1")
+    api("com.google.code.gson:gson:2.13.1")
     
     // Lombok - Code generation
     compileOnly("org.projectlombok:lombok:1.18.40")
@@ -42,6 +43,26 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+}
+
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
 }
 
 tasks.withType<JavaCompile> {
