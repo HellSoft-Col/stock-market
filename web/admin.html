@@ -568,6 +568,8 @@
                     
                 case 'ALL_TEAMS':
                     displayTeamsList(message.teams);
+                    allTeamsData = message.teams || [];
+                    updateTeamSelector();
                     break;
                     
                 case 'TEAM_UPDATED':
@@ -607,7 +609,6 @@
 
         function handleAvailableTeams(message) {
             teams = message.teams.map(t => t.teamName);
-            updateTeamSelector();
             
             // Update stats
             document.getElementById('stat-users').textContent = message.count;
@@ -726,8 +727,14 @@
 
         function updateTeamSelector() {
             const select = document.getElementById('admin-order-team');
+            if (!select) return;
+            
+            const teamNames = allTeamsData.length > 0 
+                ? allTeamsData.map(t => t.teamName).filter(name => name !== 'admin')
+                : teams.filter(name => name !== 'admin');
+            
             select.innerHTML = '<option value="">Select team...</option>' + 
-                teams.map(team => `<option value="${team}">${team}</option>`).join('');
+                teamNames.map(team => `<option value="${team}">${team}</option>`).join('');
         }
 
         function updateConnectionStatus(connected) {
@@ -793,6 +800,10 @@
         }
 
         function showCreateOrderModal() {
+            if (allTeamsData.length === 0) {
+                sendMessage({ type: "GET_ALL_TEAMS" });
+            }
+            updateTeamSelector();
             document.getElementById('create-order-modal').classList.remove('hidden');
         }
 
