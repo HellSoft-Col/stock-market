@@ -85,9 +85,14 @@ dependencies {
 
 📚 **[Full Java SDK Documentation →](sdk/java/websocket-client/README.md)**
 
-### Python SDK 🐍 (Coming Soon)
+**Features:**
+- ☕ Java 25 with Virtual Threads for high concurrency
+- 🔒 Thread-safe with lock-free reads and single send semaphore
+- ⚡ Sequential message processing guarantees ordering
+- 🔄 Automatic heartbeat and connection management
+- 🧵 Asynchronous callbacks on virtual threads
 
-### JavaScript SDK 📜 (Coming Soon)
+> **Note:** This is currently the only official SDK. Python and JavaScript SDKs are not planned.
 
 ## Quick Start
 
