@@ -94,6 +94,10 @@ jobs:
       working-directory: sdk/java/websocket-client
       run: chmod +x gradlew
       
+    - name: Get commit message
+      id: commit
+      run: echo "message=$(git log -1 --pretty=%B | head -n 1)" >> $GITHUB_OUTPUT
+      
     - name: Publish to GitHub Packages
       working-directory: sdk/java/websocket-client
       env:
@@ -115,3 +119,19 @@ jobs:
       with:
         name: sbom-java-sdk
         path: sbom-java-sdk.spdx.json
+        
+    - name: Create release notes
+      run: |
+        echo "## Java SDK Release" > release-notes.md
+        echo "" >> release-notes.md
+        echo "**Changes:** ${{ steps.commit.outputs.message }}" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### Artifacts" >> release-notes.md
+        echo "- Maven Package: \`tech.hellsoft.trading:websocket-client:${{ github.sha }}\`" >> release-notes.md
+        echo "- Published to: GitHub Packages Maven" >> release-notes.md
+        
+    - name: Upload release notes
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-notes
+        path: release-notes.md
