@@ -99,8 +99,8 @@ spotless {
     java {
         target("src/**/*.java")
 
-        // Use Google Java Format
-        googleJavaFormat("1.19.2")
+        // Use Google Java Format (1.24.0 supports Java 25)
+        googleJavaFormat("1.24.0")
 
         // Remove unused imports
         removeUnusedImports()
@@ -146,9 +146,11 @@ tasks.named<Checkstyle>("checkstyleTest") {
     }
 }
 
-// Run spotless check before compilation
-tasks.withType<JavaCompile> {
-    dependsOn("spotlessApply")
+// Run spotless check before compilation (only in local development)
+if (!System.getenv().containsKey("CI")) {
+    tasks.withType<JavaCompile> {
+        dependsOn("spotlessApply")
+    }
 }
 
 // Add quality check task
