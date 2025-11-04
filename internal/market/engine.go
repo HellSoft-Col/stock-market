@@ -374,13 +374,15 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 					Msg("Failed to update buyer inventory, continuing with trade")
 			}
 
-			// Seller loses inventory
-			if err := m.inventoryService.UpdateInventory(context.Background(), sellOrder.TeamName, sellOrder.Product, -fillQty, "TRADE_SELL", sellOrder.ClOrdID, fillID); err != nil {
-				log.Warn().
-					Str("fillID", fillID).
-					Str("seller", sellOrder.TeamName).
-					Err(err).
-					Msg("Failed to update seller inventory, continuing with trade")
+			// Seller loses inventory (skip for SERVER virtual orders)
+			if sellOrder.TeamName != "SERVER" {
+				if err := m.inventoryService.UpdateInventory(context.Background(), sellOrder.TeamName, sellOrder.Product, -fillQty, "TRADE_SELL", sellOrder.ClOrdID, fillID); err != nil {
+					log.Warn().
+						Str("fillID", fillID).
+						Str("seller", sellOrder.TeamName).
+						Err(err).
+						Msg("Failed to update seller inventory, continuing with trade")
+				}
 			}
 		}
 
@@ -392,9 +394,11 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 			return nil, fmt.Errorf("failed to update buyer balance: %w", err)
 		}
 
-		// Seller gains balance
-		if err := m.teamRepo.UpdateBalanceBy(context.Background(), sellOrder.TeamName, totalCost); err != nil {
-			return nil, fmt.Errorf("failed to update seller balance: %w", err)
+		// Seller gains balance (skip for SERVER virtual orders)
+		if sellOrder.TeamName != "SERVER" {
+			if err := m.teamRepo.UpdateBalanceBy(context.Background(), sellOrder.TeamName, totalCost); err != nil {
+				return nil, fmt.Errorf("failed to update seller balance: %w", err)
+			}
 		}
 
 		return fill, nil
