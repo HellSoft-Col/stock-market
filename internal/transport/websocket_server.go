@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -24,23 +25,25 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebSocketServer struct {
-	config      *config.Config
-	server      *http.Server
-	clients     map[string]*WebSocketClientHandler   // addr -> client
-	teamClients map[string][]*WebSocketClientHandler // teamName -> clients
-	clientsMu   sync.RWMutex
-	shutdown    chan struct{}
-	wg          sync.WaitGroup
-	router      *MessageRouter
+	config           *config.Config
+	server           *http.Server
+	clients          map[string]*WebSocketClientHandler   // addr -> client
+	teamClients      map[string][]*WebSocketClientHandler // teamName -> clients
+	clientsMu        sync.RWMutex
+	shutdown         chan struct{}
+	wg               sync.WaitGroup
+	router           *MessageRouter
+	debugModeService domain.DebugModeService
 }
 
-func NewWebSocketServer(cfg *config.Config, router *MessageRouter) *WebSocketServer {
+func NewWebSocketServer(cfg *config.Config, router *MessageRouter, debugModeService domain.DebugModeService) *WebSocketServer {
 	return &WebSocketServer{
-		config:      cfg,
-		clients:     make(map[string]*WebSocketClientHandler),
-		teamClients: make(map[string][]*WebSocketClientHandler),
-		shutdown:    make(chan struct{}),
-		router:      router,
+		config:           cfg,
+		clients:          make(map[string]*WebSocketClientHandler),
+		teamClients:      make(map[string][]*WebSocketClientHandler),
+		shutdown:         make(chan struct{}),
+		router:           router,
+		debugModeService: debugModeService,
 	}
 }
 
@@ -48,6 +51,9 @@ func (s *WebSocketServer) Start() error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/ws", s.handleWebSocket)
+
+	// Admin API endpoints
+	mux.HandleFunc("/admin/api/debug-mode", s.handleDebugModeAPI)
 
 	mux.HandleFunc("/", s.serveStaticFiles)
 
@@ -75,20 +81,84 @@ func (s *WebSocketServer) Start() error {
 	return nil
 }
 
-func (s *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	s.clientsMu.RLock()
-	clientCount := len(s.clients)
-	s.clientsMu.RUnlock()
+// Admin API Endpoints
 
-	if clientCount >= s.config.Server.MaxConnections {
-		log.Warn().
-			Int("currentConnections", clientCount).
-			Int("maxConnections", s.config.Server.MaxConnections).
-			Msg("Connection limit reached, rejecting client")
-		http.Error(w, "Too many connections", http.StatusTooManyRequests)
+func (s *WebSocketServer) handleDebugModeAPI(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	// Handle preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
+	switch r.Method {
+	case "GET":
+		s.handleGetDebugMode(w, r)
+	case "POST":
+		s.handleSetDebugMode(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *WebSocketServer) handleGetDebugMode(w http.ResponseWriter, r *http.Request) {
+	enabled := s.debugModeService.IsEnabled()
+
+	response := map[string]interface{}{
+		"enabled": enabled,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *WebSocketServer) handleSetDebugMode(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled   bool   `json:"enabled"`
+		UpdatedBy string `json:"updatedBy"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate updatedBy is provided
+	if req.UpdatedBy == "" {
+		http.Error(w, "updatedBy field is required", http.StatusBadRequest)
+		return
+	}
+
+	// Update debug mode
+	ctx := r.Context()
+	if err := s.debugModeService.SetEnabled(ctx, req.Enabled, req.UpdatedBy); err != nil {
+		log.Error().Err(err).Msg("Failed to set debug mode")
+		http.Error(w, "Failed to update debug mode", http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast notification to all connected clients
+	notification := map[string]interface{}{
+		"type":      "SYSTEM_NOTIFICATION",
+		"message":   fmt.Sprintf("Debug mode %s by %s", map[bool]string{true: "ENABLED", false: "DISABLED"}[req.Enabled], req.UpdatedBy),
+		"debugMode": req.Enabled,
+	}
+	s.router.broadcaster.BroadcastToAll(notification)
+
+	response := map[string]interface{}{
+		"success":   true,
+		"debugMode": req.Enabled,
+		"message":   fmt.Sprintf("Debug mode %s successfully", map[bool]string{true: "enabled", false: "disabled"}[req.Enabled]),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to upgrade connection to WebSocket")

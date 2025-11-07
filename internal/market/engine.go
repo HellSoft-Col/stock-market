@@ -30,6 +30,7 @@ type MarketEngine struct {
 	OfferGenerator   *OfferGenerator
 	inventoryService domain.InventoryService
 	teamRepo         domain.TeamRepository
+	debugModeService domain.DebugModeService
 
 	orderChan chan OrderCommand
 	shutdown  chan struct{}
@@ -48,6 +49,7 @@ func NewMarketEngine(
 	broadcaster domain.Broadcaster,
 	inventoryService domain.InventoryService,
 	teamRepo domain.TeamRepository,
+	debugModeService domain.DebugModeService,
 ) *MarketEngine {
 	return &MarketEngine{
 		config:           cfg,
@@ -59,6 +61,7 @@ func NewMarketEngine(
 		broadcaster:      broadcaster,
 		inventoryService: inventoryService,
 		teamRepo:         teamRepo,
+		debugModeService: debugModeService,
 		matcher:          NewMatcher(orderBook, inventoryService, teamRepo),
 		orderChan:        make(chan OrderCommand, 1000), // Buffered channel
 		shutdown:         make(chan struct{}),
@@ -76,7 +79,7 @@ func (m *MarketEngine) Start(ctx context.Context) error {
 	log.Info().Msg("Starting market engine")
 
 	// Create and start offer generator
-	m.OfferGenerator = NewOfferGenerator(m.config, m.fillRepo, m.marketRepo, m.broadcaster, m)
+	m.OfferGenerator = NewOfferGenerator(m.config, m.fillRepo, m.marketRepo, m.broadcaster, m, m.debugModeService)
 	if err := m.OfferGenerator.Start(); err != nil {
 		return fmt.Errorf("failed to start offer generator: %w", err)
 	}

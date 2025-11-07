@@ -144,6 +144,76 @@
             </div>
         </div>
 
+        <!-- Debug Mode Control -->
+        <div class="bg-white rounded-lg shadow mb-6">
+            <div class="p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                            <i class="fas fa-bug text-yellow-600 mr-3"></i>
+                            Debug Mode Control
+                        </h3>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Global toggle for development and testing features
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <div class="text-sm text-gray-600">Current Status:</div>
+                            <div id="debug-mode-status" class="text-2xl font-bold">
+                                <span class="text-gray-400">Loading...</span>
+                            </div>
+                        </div>
+                        <button onclick="toggleDebugMode()" id="toggle-debug-btn" 
+                                class="px-6 py-3 rounded-lg font-medium transition-all shadow-sm hover:shadow-md">
+                            <i class="fas fa-sync mr-2"></i>Toggle Mode
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Info Section -->
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+                        <h4 class="font-semibold text-green-900 mb-2 flex items-center">
+                            <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                            When ENABLED
+                        </h4>
+                        <ul class="text-sm text-green-800 space-y-1">
+                            <li>• <code>AUTO_ACCEPT</code> orders fill instantly</li>
+                            <li>• Error injection available for testing</li>
+                            <li>• Production simulation enabled</li>
+                            <li>• Web UI debug features visible</li>
+                        </ul>
+                    </div>
+                    <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+                        <h4 class="font-semibold text-red-900 mb-2 flex items-center">
+                            <i class="fas fa-ban text-red-600 mr-2"></i>
+                            When DISABLED (Production Mode)
+                        </h4>
+                        <ul class="text-sm text-red-800 space-y-1">
+                            <li>• All debug requests rejected</li>
+                            <li>• <code>AUTO_ACCEPT</code> orders return errors</li>
+                            <li>• Debug features hidden from UI</li>
+                            <li>• Normal market operations only</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Change History -->
+                <div class="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50" id="debug-mode-history">
+                    <div class="flex items-center justify-between text-sm text-gray-600">
+                        <div>
+                            <i class="fas fa-history mr-2"></i>
+                            Last changed: <span id="debug-last-changed" class="font-medium">Never</span>
+                        </div>
+                        <div>
+                            Changed by: <span id="debug-changed-by" class="font-medium">N/A</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Tab Navigation -->
         <div class="bg-white rounded-lg shadow mb-6">
             <div class="border-b border-gray-200">
@@ -1332,6 +1402,92 @@
             showToast('Resetting tournament configuration...', 'info');
             closeTournamentResetModal();
         }
+
+        // Debug Mode Functions
+        async function loadDebugModeStatus() {
+            try {
+                const response = await fetch('/admin/api/debug-mode');
+                const data = await response.json();
+                updateDebugModeUI(data.enabled);
+            } catch (error) {
+                console.error('Failed to load debug mode status:', error);
+                showToast('Failed to load debug mode status', 'error');
+            }
+        }
+
+        function updateDebugModeUI(enabled) {
+            const statusEl = document.getElementById('debug-mode-status');
+            const toggleBtn = document.getElementById('toggle-debug-btn');
+            
+            if (enabled) {
+                statusEl.innerHTML = '<span class="text-yellow-600"><i class="fas fa-flask mr-2"></i>DEBUG MODE</span>';
+                toggleBtn.className = 'px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow-md';
+                toggleBtn.innerHTML = '<i class="fas fa-lock mr-2"></i>Disable Debug Mode';
+            } else {
+                statusEl.innerHTML = '<span class="text-green-600"><i class="fas fa-shield-alt mr-2"></i>REAL MODE</span>';
+                toggleBtn.className = 'px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow-md';
+                toggleBtn.innerHTML = '<i class="fas fa-flask mr-2"></i>Enable Debug Mode';
+            }
+        }
+
+        async function toggleDebugMode() {
+            try {
+                const response = await fetch('/admin/api/debug-mode');
+                const current = await response.json();
+                const newState = !current.enabled;
+                
+                // Confirmation dialog
+                const action = newState ? 'ENABLE' : 'DISABLE';
+                const warning = newState 
+                    ? '⚠️ WARNING: This will allow debug features like AUTO_ACCEPT orders.\n\nOnly enable this in development/staging environments.\n\nContinue?' 
+                    : '✅ This will disable all debug features and switch to production mode.\n\nAll AUTO_ACCEPT orders will be rejected.\n\nContinue?';
+                
+                if (!confirm(warning)) {
+                    return;
+                }
+
+                // Prompt for admin name/email
+                const updatedBy = prompt('Enter your name or email for audit trail:');
+                if (!updatedBy || updatedBy.trim() === '') {
+                    showToast('Admin name/email is required', 'warning');
+                    return;
+                }
+
+                // Update debug mode
+                const updateResponse = await fetch('/admin/api/debug-mode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        enabled: newState,
+                        updatedBy: updatedBy.trim()
+                    })
+                });
+
+                const result = await updateResponse.json();
+                
+                if (result.success) {
+                    updateDebugModeUI(result.debugMode);
+                    document.getElementById('debug-last-changed').textContent = new Date().toLocaleString();
+                    document.getElementById('debug-changed-by').textContent = updatedBy.trim();
+                    showToast(result.message, 'success');
+                    
+                    // Log to console
+                    console.log(`🔧 Debug Mode ${action}D by ${updatedBy.trim()} at ${new Date().toISOString()}`);
+                } else {
+                    showToast('Failed to toggle debug mode', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to toggle debug mode:', error);
+                showToast('Failed to toggle debug mode: ' + error.message, 'error');
+            }
+        }
+
+        // Load debug mode status on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDebugModeStatus();
+        });
     </script>
 </body>
 </html>

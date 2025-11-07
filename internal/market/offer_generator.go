@@ -19,11 +19,12 @@ type ActiveOffer struct {
 }
 
 type OfferGenerator struct {
-	config       *config.Config
-	fillRepo     domain.FillRepository
-	marketRepo   domain.MarketStateRepository
-	broadcaster  domain.Broadcaster
-	marketEngine *MarketEngine
+	config           *config.Config
+	fillRepo         domain.FillRepository
+	marketRepo       domain.MarketStateRepository
+	broadcaster      domain.Broadcaster
+	marketEngine     *MarketEngine
+	debugModeService domain.DebugModeService
 
 	activeOffers map[string]*ActiveOffer
 	mu           sync.RWMutex
@@ -40,15 +41,17 @@ func NewOfferGenerator(
 	marketRepo domain.MarketStateRepository,
 	broadcaster domain.Broadcaster,
 	marketEngine *MarketEngine,
+	debugModeService domain.DebugModeService,
 ) *OfferGenerator {
 	return &OfferGenerator{
-		config:       cfg,
-		fillRepo:     fillRepo,
-		marketRepo:   marketRepo,
-		broadcaster:  broadcaster,
-		marketEngine: marketEngine,
-		activeOffers: make(map[string]*ActiveOffer),
-		shutdown:     make(chan struct{}),
+		config:           cfg,
+		fillRepo:         fillRepo,
+		marketRepo:       marketRepo,
+		broadcaster:      broadcaster,
+		marketEngine:     marketEngine,
+		debugModeService: debugModeService,
+		activeOffers:     make(map[string]*ActiveOffer),
+		shutdown:         make(chan struct{}),
 	}
 }
 
@@ -237,6 +240,17 @@ func (og *OfferGenerator) GenerateOffer(buyOrder *domain.Order) error {
 }
 
 func (og *OfferGenerator) GenerateTargetedOffer(buyOrder *domain.Order, eligibleTeams []*domain.Team) error {
+	// Validate debug mode requests
+	if buyOrder.DebugMode != "" {
+		if err := og.debugModeService.ValidateDebugRequest(buyOrder.DebugMode); err != nil {
+			log.Warn().
+				Str("clOrdID", buyOrder.ClOrdID).
+				Str("debugMode", buyOrder.DebugMode).
+				Msg("Debug mode request rejected - debug mode is disabled")
+			return err
+		}
+	}
+
 	// Handle debug modes
 	if buyOrder.DebugMode == "AUTO_ACCEPT" {
 		return og.handleAutoAcceptOrder(buyOrder)

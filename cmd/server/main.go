@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/market"
 	"github.com/HellSoft-Col/stock-market/internal/repository/memory"
@@ -16,6 +15,7 @@ import (
 	"github.com/HellSoft-Col/stock-market/internal/service"
 	"github.com/HellSoft-Col/stock-market/internal/transport"
 	"github.com/HellSoft-Col/stock-market/pkg/logger"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -65,16 +65,21 @@ func main() {
 	fillRepo := mongodb.NewFillRepository(db.GetDatabase())
 	marketStateRepo := mongodb.NewMarketStateRepository(db.GetDatabase())
 	inventoryRepo := mongodb.NewInventoryRepository(db.GetDatabase())
+	systemSettingsRepo := mongodb.NewSystemSettingsRepository(db.GetDatabase())
 	orderBookRepo := memory.NewOrderBookRepository()
 
 	// Create broadcaster
 	broadcaster := transport.NewBroadcaster()
 
+	// Create debug mode service
+	debugModeService := service.NewDebugModeService(cfg, systemSettingsRepo)
+	log.Info().Bool("debugModeEnabled", debugModeService.IsEnabled()).Msg("Debug mode service initialized")
+
 	// Create inventory service
 	inventoryService := service.NewInventoryService(teamRepo, inventoryRepo, db)
 
 	// Create market engine
-	marketEngine := market.NewMarketEngine(cfg, db, orderRepo, fillRepo, marketStateRepo, orderBookRepo, broadcaster, inventoryService, teamRepo)
+	marketEngine := market.NewMarketEngine(cfg, db, orderRepo, fillRepo, marketStateRepo, orderBookRepo, broadcaster, inventoryService, teamRepo, debugModeService)
 
 	// Create rate limiter
 	rateLimitConfig := service.RateLimitConfig{
@@ -117,7 +122,7 @@ func main() {
 	}()
 
 	// Create and start WebSocket server
-	server := transport.NewWebSocketServer(cfg, router)
+	server := transport.NewWebSocketServer(cfg, router, debugModeService)
 	if err := server.Start(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start WebSocket server")
 	}

@@ -102,6 +102,12 @@ type PerformanceService interface {
 	SendTeamReport(ctx context.Context, teamName string, since time.Time) error
 }
 
+type DebugModeService interface {
+	IsEnabled() bool
+	SetEnabled(ctx context.Context, enabled bool, updatedBy string) error
+	ValidateDebugRequest(debugMode string) error
+}
+
 // Transport interfaces
 type ClientConnection interface {
 	SendMessage(msg any) error

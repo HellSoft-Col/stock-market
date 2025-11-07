@@ -40,6 +40,7 @@ type MarketConfig struct {
 	OrderBookDepth     int           `yaml:"orderBookDepth"`
 	EnablePartialFills bool          `yaml:"enablePartialFills"`
 	TransactionRetries int           `yaml:"transactionRetries"`
+	DebugModeEnabled   bool          `yaml:"debugModeEnabled"` // Global debug mode toggle - set to false for production
 }
 
 type TournamentConfig struct {

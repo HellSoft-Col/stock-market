@@ -330,6 +330,16 @@
                                     </button>
                                 </div>
                             </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Testing</h4>
+                                <div class="grid grid-cols-1 gap-1">
+                                    <button onclick="addTestTransaction()" 
+                                            class="bg-pink-600 hover:bg-pink-700 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Test Transaction
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -485,6 +495,19 @@
                                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message (optional)</label>
                                         <textarea id="message" placeholder="Optional message" rows="2" 
                                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white"></textarea>
+                                    </div>
+                                    
+                                    <!-- Auto Accept Toggle -->
+                                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                                        <label class="flex items-center cursor-pointer">
+                                            <input type="checkbox" id="auto-accept-toggle" class="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500">
+                                            <span class="ml-2 text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                                <i class="fas fa-bolt mr-1"></i>Auto-Accept (instant fill for testing)
+                                            </span>
+                                        </label>
+                                        <p class="text-xs text-yellow-700 dark:text-yellow-300 mt-1 ml-6">
+                                            When enabled, orders are automatically matched by the server (debug mode)
+                                        </p>
                                     </div>
                                     
                                     <button onclick="placeOrder()" id="place-order-btn" disabled
@@ -654,9 +677,52 @@
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                             <i class="fas fa-history mr-2 text-primary-600"></i>Transaction History
                         </h3>
-                        <div id="transactions-list" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-96 overflow-y-auto">
-                            <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                                <i class="fas fa-info-circle mr-2"></i>No transactions yet
+                        
+                        <!-- Info Box -->
+                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                            <div class="flex items-start">
+                                <i class="fas fa-info-circle text-blue-600 dark:text-blue-400 mr-3 mt-1"></i>
+                                <div class="text-sm text-blue-800 dark:text-blue-200">
+                                    <strong>How transactions work:</strong>
+                                    <ul class="mt-2 space-y-1 ml-4 list-disc">
+                                        <li><strong>Place Order:</strong> Your order is sent to the market (appears in "Pending Orders" below)</li>
+                                        <li><strong>Wait for Match:</strong> The order sits in the order book until matched with a counterparty</li>
+                                        <li><strong>Get Filled:</strong> When matched, you receive a FILL message and the transaction appears in "Completed Transactions"</li>
+                                    </ul>
+                                    <p class="mt-2"><em>💡 Tip: Enable "Auto-Accept" in Trading tab for instant fills!</em></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Pending Orders -->
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-md font-semibold text-gray-900 dark:text-white flex items-center">
+                                    <i class="fas fa-clock mr-2 text-yellow-600"></i>
+                                    Pending Orders
+                                    <span id="pending-count" class="ml-2 bg-yellow-500 text-white text-xs rounded-full px-2 py-0.5">0</span>
+                                </h4>
+                                <button onclick="clearPendingOrders()" class="text-xs bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded transition-colors">
+                                    <i class="fas fa-trash mr-1"></i>Clear
+                                </button>
+                            </div>
+                            <div id="pending-orders-list" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 max-h-48 overflow-y-auto">
+                                <div class="text-sm text-yellow-700 dark:text-yellow-300 text-center py-2">
+                                    <i class="fas fa-info-circle mr-2"></i>No pending orders
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Completed Transactions -->
+                        <div>
+                            <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+                                <i class="fas fa-check-circle mr-2 text-green-600"></i>
+                                Completed Transactions
+                            </h4>
+                            <div id="transactions-list" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-64 overflow-y-auto">
+                                <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-info-circle mr-2"></i>No transactions yet
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -957,7 +1023,12 @@
                                         <div class="border-l-4 border-green-500 pl-3">
                                             <h6 class="font-medium text-gray-900 dark:text-white">Place Order</h6>
                                             <p class="text-sm text-gray-600 dark:text-gray-300">Envía una orden real (MARKET o LIMIT) que afecta tu balance</p>
-                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Toast de confirmación + My Orders + cuando se ejecute aparece en History</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Toast de confirmación + History tab "Pending Orders" + cuando se ejecute aparece en "Completed Transactions"</p>
+                                        </div>
+                                        <div class="border-l-4 border-yellow-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Auto-Accept Toggle</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Activa el modo auto-accept para que tus órdenes se ejecuten instantáneamente (ideal para testing)</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Cuando está activado, las órdenes se ejecutan inmediatamente sin esperar match</p>
                                         </div>
                                         <div class="border-l-4 border-blue-500 pl-3">
                                             <h6 class="font-medium text-gray-900 dark:text-white">Refresh Orders</h6>
@@ -1018,6 +1089,11 @@
                                             <p class="text-sm text-gray-600 dark:text-gray-300">Reporte global del mercado con top traders y estadísticas</p>
                                             <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Panel "Market Activity" con tarjeta púrpura y ranking</p>
                                         </div>
+                                        <div class="border-l-4 border-pink-500 pl-3">
+                                            <h6 class="font-medium text-gray-900 dark:text-white">Test Transaction</h6>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Añade una transacción de prueba para verificar que la pestaña History funciona correctamente</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Verás el resultado en: Pestaña "History" con la transacción de prueba</p>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -1039,8 +1115,8 @@
                                         </div>
                                         <div class="border-l-4 border-purple-500 pl-3">
                                             <h6 class="font-medium text-gray-900 dark:text-white">History Tab</h6>
-                                            <p class="text-sm text-gray-600 dark:text-gray-300">Historial completo de todas tus transacciones ejecutadas</p>
-                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Se actualiza automáticamente cuando recibes FILL messages del servidor</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">Muestra dos secciones: "Pending Orders" (órdenes enviadas esperando match) y "Completed Transactions" (órdenes ejecutadas)</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400">📍 Pending Orders se actualiza al enviar órdenes. Completed Transactions se actualiza cuando recibes FILL messages</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1171,6 +1247,7 @@
         let isDarkMode = false;
         let myActiveOrders = [];
         let activeOffers = [];
+        let pendingOrders = []; // Track orders sent but not yet filled
         let heartbeatInterval = null;
         let reconnectAttempts = 0;
         let maxReconnectAttempts = 5;
@@ -1571,6 +1648,88 @@
             
             // Add to top of list
             transactionsList.insertBefore(transactionElement, transactionsList.firstChild);
+            
+            // Remove from pending orders if this order was pending
+            if (fillMessage.clOrdID) {
+                removePendingOrder(fillMessage.clOrdID);
+            }
+        }
+        
+        function addPendingOrder(orderData) {
+            // Add to pending orders array
+            pendingOrders.push({
+                clOrdID: orderData.clOrdID,
+                side: orderData.side,
+                mode: orderData.mode,
+                product: orderData.product,
+                qty: orderData.qty,
+                price: orderData.limitPrice,
+                message: orderData.message,
+                timestamp: Date.now(),
+                autoAccept: orderData.debugMode === "AUTO_ACCEPT"
+            });
+            
+            updatePendingOrdersDisplay();
+        }
+        
+        function removePendingOrder(clOrdID) {
+            pendingOrders = pendingOrders.filter(order => order.clOrdID !== clOrdID);
+            updatePendingOrdersDisplay();
+        }
+        
+        function updatePendingOrdersDisplay() {
+            const pendingList = document.getElementById('pending-orders-list');
+            const pendingCount = document.getElementById('pending-count');
+            
+            pendingCount.textContent = pendingOrders.length;
+            
+            if (pendingOrders.length === 0) {
+                pendingList.innerHTML = `
+                    <div class="text-sm text-yellow-700 dark:text-yellow-300 text-center py-2">
+                        <i class="fas fa-info-circle mr-2"></i>No pending orders
+                    </div>
+                `;
+                return;
+            }
+            
+            pendingList.innerHTML = pendingOrders.map(order => {
+                const priceText = order.price ? `$${order.price.toFixed(2)}` : 'MARKET';
+                const sideColor = order.side === 'BUY' ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300';
+                const timeAgo = Math.floor((Date.now() - order.timestamp) / 1000);
+                const timeStr = timeAgo < 60 ? `${timeAgo}s ago` : `${Math.floor(timeAgo / 60)}m ago`;
+                
+                return `
+                    <div class="p-2 bg-white dark:bg-gray-800 rounded border border-yellow-300 dark:border-yellow-700 mb-2">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="text-sm font-medium ${sideColor}">
+                                    ${order.side} ${order.qty} ${order.product} @ ${priceText}
+                                    ${order.autoAccept ? '<span class="text-xs bg-yellow-500 text-white px-1 rounded ml-1">⚡AUTO</span>' : ''}
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    ${order.mode} • ${timeStr}
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-400">
+                                <i class="fas fa-clock animate-spin"></i>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function clearPendingOrders() {
+            if (pendingOrders.length === 0) {
+                showToast('No pending orders to clear', 'info');
+                return;
+            }
+            
+            if (confirm(`Clear ${pendingOrders.length} pending orders from the list?\n\nNote: This only clears the UI display. Orders may still be active in the market.`)) {
+                pendingOrders = [];
+                updatePendingOrdersDisplay();
+                showToast('Pending orders list cleared', 'success');
+            }
         }
         
         function addMessageToLog(message) {
@@ -2087,10 +2246,11 @@
         }
         
         function handleFillMessage(message) {
+            console.log('🎯 FILL message received - Adding to transaction history:', message);
             addTransactionToList(message);
             updateDashboardAfterTrade(message);
             showNotification(`Trade executed: ${message.side} ${message.fillQty} ${message.product} @ $${message.fillPrice.toFixed(2)}`, 'success');
-            showToast(`✓ ${message.side} ${message.fillQty} ${message.product} @ $${message.fillPrice.toFixed(2)}`, 'success');
+            showToast(`✓ FILL: ${message.side} ${message.fillQty} ${message.product} @ $${message.fillPrice.toFixed(2)}`, 'success');
             
             if (isAuthenticated) {
                 setTimeout(() => refreshMyOrders(), 500);
@@ -2098,8 +2258,9 @@
         }
         
         function handleOrderAck(message) {
+            console.log('✅ ORDER_ACK received:', message);
             addMessageToLog(`Order ${message.clOrdID} acknowledged: ${message.status}`);
-            showToast(`Order ${message.status}`, 'success', 2000);
+            showToast(`✅ Order ${message.status} - waiting for match...`, 'info', 2000);
             
             if (isAuthenticated) {
                 setTimeout(() => refreshMyOrders(), 500);
@@ -2414,6 +2575,7 @@
             };
             
             sendMessage(orderMessage);
+            addPendingOrder(orderMessage);
             addMessageToLog(`Simulator order sent: ${side} ${qty} ${product} @ $${price.toFixed(2)}`);
             showToast(`Simulator order: ${side} ${qty} ${product} @ $${price.toFixed(2)}`, 'success');
             
@@ -2446,6 +2608,7 @@
             
             const timestamp = Date.now();
             const clOrdID = `WEB-${currentTeam.teamName}-${timestamp}`;
+            const autoAccept = document.getElementById('auto-accept-toggle').checked;
             
             const orderMessage = {
                 type: "ORDER",
@@ -2458,9 +2621,23 @@
                 message: message || ''
             };
             
+            // Add debug mode if auto-accept is enabled
+            if (autoAccept) {
+                orderMessage.debugMode = "AUTO_ACCEPT";
+            }
+            
             sendMessage(orderMessage);
-            addMessageToLog(`Order sent: ${side} ${qty} ${product} @ ${mode === 'LIMIT' ? '$' + price.toFixed(2) : 'MARKET'}`);
-            showToast(`Order placed: ${side} ${qty} ${product}`, 'success');
+            
+            // Add to pending orders list
+            addPendingOrder(orderMessage);
+            
+            const priceStr = mode === 'LIMIT' ? '$' + price.toFixed(2) : 'MARKET';
+            addMessageToLog(`Order sent: ${side} ${qty} ${product} @ ${priceStr}${autoAccept ? ' [AUTO-ACCEPT]' : ''}`);
+            const toastMsg = autoAccept 
+                ? `⚡ Order placed: ${side} ${qty} ${product} (auto-accept enabled - instant fill!)`
+                : `📤 Order placed: ${side} ${qty} ${product} (waiting for match...)`;
+            showToast(toastMsg, 'success');
+            console.log('📤 Order sent to server:', orderMessage);
             
             document.getElementById('qty').value = '';
             document.getElementById('price').value = '';
@@ -2492,6 +2669,7 @@
             };
             
             sendMessage(orderMessage);
+            addPendingOrder(orderMessage);
             showToast(`Quick ${side}: ${quantity} ${product}`, 'success');
         }
         
@@ -2549,6 +2727,7 @@
                 };
                 
                 sendMessage(orderMessage);
+                addPendingOrder(orderMessage);
                 addMessageToLog(`Auto MM: ${side} ${qty} ${product} @ $${price.toFixed(2)}`);
             }, 3000);
         }
@@ -2941,6 +3120,20 @@
             // Set initial state
             updateStatus('disconnected', 'Disconnected');
             disableButtons();
+            
+            // Test function to manually add a transaction (for debugging)
+            window.addTestTransaction = function() {
+                const testFill = {
+                    side: 'BUY',
+                    fillQty: 10,
+                    product: 'FOSFO',
+                    fillPrice: 15.50,
+                    counterparty: 'TestTeam',
+                    serverTime: Date.now()
+                };
+                addTransactionToList(testFill);
+                showToast('Test transaction added', 'success');
+            };
             
             // Add keyboard shortcuts
             document.addEventListener('keydown', function(e) {

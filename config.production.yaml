@@ -19,6 +19,7 @@ market:
   orderBookDepth: 100
   enablePartialFills: true
   transactionRetries: 3
+  debugModeEnabled: false  # PRODUCTION: Debug features disabled
 
 tournament:
   enabled: true
