@@ -1,15 +1,23 @@
-# Trading Server Simulation Scripts
+# Trading Server Scripts
 
-Este directorio contiene scripts de simulación para probar el servidor de trading con múltiples clientes concurrentes, validando órdenes, producción en ráfaga y condiciones competitivas.
+Este directorio contiene scripts esenciales para administrar y probar el servidor de trading.
 
-## 📋 Descripción
+## 📋 Scripts Disponibles
 
-El sistema de simulación crea múltiples clientes WebSocket que:
-- Se conectan con diferentes tokens de equipo
-- Realizan producción en ráfaga durante los primeros minutos
-- Ejecutan órdenes de compra/venta competitivas
-- Validan que el servidor procese las órdenes por orden de llegada
-- Monitorizan tiempos de respuesta y estadísticas de rendimiento
+### Scripts de Administración
+- **generate-team-tokens.py**: Genera tokens de autenticación para equipos
+- **set-initial-prices.py**: Configura los precios iniciales del mercado
+- **teacher-quick-setup.sh**: Script rápido de configuración inicial para profesores
+- **version.sh**: Script de gestión de versiones
+
+### Scripts de Simulación y Testing
+- **run_simulation.py**: Runner principal para ejecutar simulaciones de trading
+- **trading_simulation.py**: Sistema de simulación con múltiples clientes WebSocket que:
+  - Se conectan con diferentes tokens de equipo
+  - Realizan producción en ráfaga durante los primeros minutos
+  - Ejecutan órdenes de compra/venta competitivas
+  - Validan que el servidor procese las órdenes por orden de llegada
+  - Monitorizan tiempos de respuesta y estadísticas de rendimiento
 
 ## 🚀 Instalación y Configuración
 
@@ -17,18 +25,35 @@ El sistema de simulación crea múltiples clientes WebSocket que:
 - Python 3.8+
 - Servidor de trading ejecutándose (por defecto en `ws://localhost:8080`)
 
-### Instalación automática de dependencias
+### Instalación de dependencias
 ```bash
-# Opción 1: Instalación automática
-python3 run_simulation.py --install-deps
+# Opción 1: Usando pip
+pip install -r requirements.txt
 
-# Opción 2: Instalación manual
-pip install websockets
+# Opción 2: Instalación automática con el runner
+python3 run_simulation.py --install-deps
 ```
 
 ## 📖 Uso
 
-### Opción 1: Usando el script runner (Recomendado)
+### Generación de Tokens
+```bash
+python3 generate-team-tokens.py
+```
+
+### Configuración de Precios Iniciales
+```bash
+python3 set-initial-prices.py
+```
+
+### Setup Rápido (Profesores)
+```bash
+./teacher-quick-setup.sh
+```
+
+### Simulación de Trading
+
+#### Opción 1: Usando el script runner (Recomendado)
 ```bash
 # Simulación básica con tokens específicos
 python3 run_simulation.py --tokens TK-1001,TK-1002,TK-1003 --duration 15
@@ -40,9 +65,8 @@ python3 run_simulation.py --config simulation_config.json
 python3 run_simulation.py --tokens TK-1001,TK-1002,TK-1003 --verbose
 ```
 
-### Opción 2: Script directo
+#### Opción 2: Script directo
 ```bash
-# Después de instalar websockets manualmente
 python3 trading_simulation.py --tokens TK-1001,TK-1002,TK-1003 --duration 15
 ```
 
