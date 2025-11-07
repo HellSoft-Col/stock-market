@@ -224,3 +224,8 @@ server
 *.out
 output/
 
+# Java SDK - Configuration files with tokens
+sdk/java/spacial-trading-bot-base/config.json
+sdk/java/spacial-trading-bot-base/src/main/resources/config.json
+sdk/java/spacial-trading-bot-base/gradle.properties
+

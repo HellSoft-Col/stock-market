@@ -1,0 +1,6 @@
+{
+  "apiKey": "YOUR_TOKEN_HERE",
+  "team": "Your Team Name",
+  "host": "trading.hellsoft.tech",
+  "port": 443
+}
