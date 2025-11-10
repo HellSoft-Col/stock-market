@@ -25,7 +25,7 @@ public final class Main {
   private Main() {
   }
 
-  public static void main(String[] args) {
+  static void main(String[] args) {
     try {
       // 1. Load configuration (apiKey, team, host)
       Configuration config = ConfigLoader.load("src/main/resources/config.json");
