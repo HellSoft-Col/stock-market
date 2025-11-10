@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type TickerService struct {
@@ -45,10 +45,6 @@ func (t *TickerService) Start() error {
 		return nil
 	}
 
-	log.Info().
-		Dur("interval", t.config.Market.TickerInterval).
-		Msg("Starting ticker service")
-
 	t.running = true
 	t.ticker = time.NewTicker(t.config.Market.TickerInterval)
 
@@ -66,8 +62,6 @@ func (t *TickerService) Stop() error {
 		return nil
 	}
 
-	log.Info().Msg("Stopping ticker service")
-
 	close(t.shutdown)
 	t.running = false
 
@@ -84,7 +78,7 @@ func (t *TickerService) Stop() error {
 
 	select {
 	case <-done:
-		log.Info().Msg("Ticker service stopped")
+		// Stopped successfully
 	case <-time.After(5 * time.Second):
 		log.Warn().Msg("Ticker service stop timeout")
 	}
@@ -95,12 +89,9 @@ func (t *TickerService) Stop() error {
 func (t *TickerService) run() {
 	defer t.wg.Done()
 
-	log.Info().Msg("Ticker service processing loop started")
-
 	for {
 		select {
 		case <-t.shutdown:
-			log.Info().Msg("Ticker service processing loop stopping")
 			return
 
 		case <-t.ticker.C:
@@ -117,17 +108,13 @@ func (t *TickerService) broadcastTickers() {
 		ticker := t.generateTicker(product, serverTime)
 		if ticker != nil {
 			if err := t.broadcaster.BroadcastToAll(ticker); err != nil {
-				log.Warn().
+				log.Error().
 					Str("product", product).
 					Err(err).
 					Msg("Failed to broadcast ticker")
 			}
 		}
 	}
-
-	log.Debug().
-		Int("products", len(products)).
-		Msg("Tickers broadcasted")
 }
 
 func (t *TickerService) generateTicker(product, serverTime string) *domain.TickerMessage {
@@ -154,10 +141,6 @@ func (t *TickerService) generateTicker(product, serverTime string) *domain.Ticke
 	// Get market state for volume
 	marketState, err := t.marketRepo.GetByProduct(context.Background(), product)
 	if err != nil {
-		log.Debug().
-			Str("product", product).
-			Err(err).
-			Msg("Failed to get market state for ticker")
 		// Continue with empty market state
 		marketState = &domain.MarketState{Product: product, Volume24h: 0}
 	}
@@ -165,7 +148,7 @@ func (t *TickerService) generateTicker(product, serverTime string) *domain.Ticke
 	// Update market state with current best prices
 	if bestBid != nil || bestAsk != nil {
 		if err := t.marketRepo.UpdateBestPrices(context.Background(), product, bestBid, bestAsk); err != nil {
-			log.Warn().
+			log.Error().
 				Str("product", product).
 				Err(err).
 				Msg("Failed to update market state")
