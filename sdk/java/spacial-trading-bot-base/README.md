@@ -354,6 +354,23 @@ Edita `src/main/resources/config.json`:
 - **NO compartas tu token** con otros equipos
 - **NO subas `config.json` a Git** (está en `.gitignore`)
 
+### 3. Configuración de Logging (Opcional)
+
+El proyecto incluye `simplelogger.properties` para controlar los logs del SDK:
+
+```properties
+# src/main/resources/simplelogger.properties
+org.slf4j.simpleLogger.defaultLogLevel=WARN
+```
+
+**Para ver más detalles del SDK** (útil para debugging), cambia a `INFO` o `DEBUG`:
+
+```properties
+org.slf4j.simpleLogger.defaultLogLevel=INFO
+# O para debugging detallado:
+# org.slf4j.simpleLogger.defaultLogLevel=DEBUG
+```
+
 ---
 
 ## 📁 Estructura del Proyecto

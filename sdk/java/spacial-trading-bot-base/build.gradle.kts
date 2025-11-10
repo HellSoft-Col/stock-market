@@ -28,6 +28,9 @@ dependencies {
     // GSON for JSON processing
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // SLF4J Simple Logger (fixes SDK logging warnings)
+    implementation("org.slf4j:slf4j-simple:2.0.16")
+
     // Yavi for validation
     implementation("am.ik.yavi:yavi:0.13.0")
 
