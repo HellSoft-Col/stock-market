@@ -358,37 +358,80 @@ Edita `src/main/resources/config.json`:
 
 ## 📁 Estructura del Proyecto
 
+### Código Fuente (Simplificado - Solo 4 archivos)
+
+El proyecto base incluye **solo lo esencial** para que empieces:
+
+```
+src/main/java/tech/hellsoft/trading/
+├── Main.java                        # 🚀 TU PUNTO DE PARTIDA
+│                                    #    - Ejemplo simple de conexión
+│                                    #    - Clase MyTradingBot con TODOs
+│                                    #    - ¡Aquí implementas tu estrategia!
+│
+├── config/
+│   └── Configuration.java           # Record con apiKey, team, host
+│
+├── exception/
+│   └── ConfiguracionInvalidaException.java  # Errores de configuración
+│
+└── util/
+    └── ConfigLoader.java            # Carga config.json
+```
+
+**¡Solo 4 archivos!** Todo lo demás lo crearás tú según necesites.
+
+### Estructura Completa del Proyecto
+
 ```
 spacial-trading-bot-base/
-├── config/                          # Configuración de herramientas de calidad
-│   ├── checkstyle/
-│   │   └── checkstyle.xml
-│   ├── pmd/
-│   │   └── ruleset.xml
-│   └── eclipse-format.xml
-├── gradle/
-│   └── wrapper/                     # Gradle Wrapper (incluir en Git)
+├── config/                          # Herramientas de calidad de código
+│   ├── checkstyle/checkstyle.xml   # Reglas de estilo
+│   ├── pmd/ruleset.xml              # Análisis estático
+│   └── eclipse-format.xml           # Formato de código
+│
+├── gradle/wrapper/                  # Gradle wrapper (no tocar)
+│
 ├── src/
 │   └── main/
-│       ├── java/
-│       │   └── tech/hellsoft/trading/
-│       │       ├── config/          # Configuración y DTOs
-│       │       ├── exception/       # Excepciones de negocio
-│       │       ├── model/           # Modelos de dominio
-│       │       ├── service/         # Servicios y lógica de negocio
-│       │       └── util/            # Utilidades
+│       ├── java/                    # 👈 TU CÓDIGO AQUÍ (4 archivos base)
 │       └── resources/
 │           └── config.sample.json   # Plantilla de configuración
-├── build.gradle.kts                 # Configuración de Gradle
-├── settings.gradle.kts              # Configuración de Gradle
-├── gradle.properties.sample         # Plantilla de propiedades (¡copiar!)
-├── gradlew                          # Gradle Wrapper (Linux/Mac)
-├── gradlew.bat                      # Gradle Wrapper (Windows)
-├── .gitignore                       # Archivos ignorados por Git
-├── .editorconfig                    # Configuración de editor
-├── AGENTS.md                        # Guía de desarrollo
+│
+├── build.gradle.kts                 # Dependencias y plugins
+├── settings.gradle.kts              # Configuración Gradle
+├── gradle.properties.sample         # Plantilla (copiar y editar)
+├── .java-version                    # Java 25
+├── .gitignore                       # Archivos a ignorar
+├── AGENTS.md                        # 📖 Guía de diseño (léela!)
 └── README.md                        # Este archivo
 ```
+
+### ¿Qué Archivos Crearás Tú?
+
+Según `AGENTS.md`, probablemente necesitarás crear:
+
+```
+src/main/java/tech/hellsoft/trading/
+├── model/
+│   ├── Role.java                    # Datos de tu rol (especies, energía, etc.)
+│   └── Recipe.java                  # Recetas de producción
+│
+├── exception/                       # Tus excepciones de negocio (7 mínimo)
+│   ├── SaldoInsuficienteException.java
+│   ├── InventarioInsuficienteException.java
+│   ├── ProductoNoAutorizadoException.java
+│   ├── IngredientesInsuficientesException.java
+│   ├── RecetaNoEncontradaException.java
+│   └── ...                          # Y más según necesites
+│
+└── strategy/                        # Tu lógica de trading
+    ├── TradingStrategy.java
+    ├── ProductionCalculator.java    # Algoritmo recursivo
+    └── InventoryManager.java
+```
+
+**Principio clave**: Empieza simple, agrega complejidad solo cuando la necesites.
 
 ### Archivos que NO deben subirse a Git
 
