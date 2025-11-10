@@ -1,5 +1,6 @@
 package tech.hellsoft.trading.service.impl;
 
+import lombok.Getter;
 import tech.hellsoft.trading.config.Configuration;
 import tech.hellsoft.trading.exception.ConfiguracionInvalidaException;
 import tech.hellsoft.trading.exception.TradingException;
@@ -79,6 +80,7 @@ public class SDKTradingService implements TradingService {
 
   private static class TradingEventListener implements EventListener {
     private final UIService listenerUiService;
+    @Getter
     private boolean loggedIn = false;
 
     TradingEventListener(UIService uiService) {
@@ -151,8 +153,5 @@ public class SDKTradingService implements TradingService {
       listenerUiService.printError("Connection lost: " + throwable.getMessage());
     }
 
-    public boolean isLoggedIn() {
-      return loggedIn;
-    }
   }
 }
