@@ -193,6 +193,140 @@ O desde el terminal:
 
 ---
 
+## 📖 Entendiendo el Código de Ejemplo
+
+El archivo `Main.java` contiene un ejemplo **simple y minimal** que muestra cómo conectarse al servidor de trading. Es un punto de partida para que implementes tu propia lógica.
+
+### Estructura del Ejemplo
+
+```java
+public static void main(String[] args) {
+    // 1️⃣ Cargar configuración (apiKey, team, host)
+    Configuration config = ConfigLoader.load("src/main/resources/config.json");
+    
+    // 2️⃣ Crear conector y tu bot
+    ConectorBolsa connector = new ConectorBolsa();
+    MyTradingBot bot = new MyTradingBot();
+    connector.addListener(bot);
+    
+    // 3️⃣ Conectar al servidor
+    connector.conectar(config.host(), config.apiKey());
+    
+    // 4️⃣ Mantener el programa corriendo
+    Thread.currentThread().join();
+}
+```
+
+### Clase MyTradingBot (Tu Implementación)
+
+El ejemplo incluye una clase interna `MyTradingBot` que implementa `EventListener`. Aquí es donde **tú implementarás tu estrategia de trading**:
+
+#### Eventos Principales que Debes Manejar:
+
+| Evento | Cuándo se Dispara | Qué Hacer |
+|--------|-------------------|-----------|
+| `onLoginOk()` | Conexión exitosa | Inicializar tu estado (balance, inventario inicial) |
+| `onTicker()` | Actualización de precios | Decidir si comprar/vender basado en precios |
+| `onFill()` | Orden ejecutada | Actualizar tu inventario y balance local |
+| `onBalanceUpdate()` | Cambio en balance | Actualizar tu registro de dinero disponible |
+| `onInventoryUpdate()` | Cambio en inventario | Actualizar tu registro de productos |
+| `onError()` | Error del servidor | Manejar errores y reintentar si es necesario |
+
+### Patrón "No Else" (Guard Clauses)
+
+Nota cómo cada método usa **guard clauses** en lugar de `if-else`:
+
+```java
+@Override
+public void onTicker(TickerMessage ticker) {
+    // ✅ Guard clause: salir temprano si no hay datos
+    if (ticker == null) {
+        return;
+    }
+    
+    // Lógica principal cuando ticker es válido
+    System.out.println("Precio: " + ticker.getMid());
+    
+    // TODO: Tu estrategia de trading aquí
+}
+```
+
+Este patrón es **obligatorio** según `AGENTS.md`. Evita anidación y hace el código más legible.
+
+### ¿Qué Debes Implementar?
+
+1. **Estado del Bot**: Agrega variables de instancia para rastrear:
+   ```java
+   private double balance;
+   private Map<String, Integer> inventory;
+   private Map<String, Double> prices;
+   ```
+
+2. **Lógica de Trading**: En `onTicker()`, implementa:
+   - Detectar oportunidades de compra/venta
+   - Calcular ganancias potenciales
+   - Enviar órdenes usando el `ConectorBolsa`
+
+3. **Producción**: Si tu rol permite producir:
+   - Verifica ingredientes en `onInventoryUpdate()`
+   - Calcula cuánto producir (algoritmo recursivo)
+   - Envía comando de producción
+
+4. **Gestión de Errores**: En `onError()`:
+   - Registra errores
+   - Implementa lógica de retry
+   - Ajusta tu estrategia
+
+### Ejemplo de Extensión (Para Estudiantes)
+
+```java
+private static class MyTradingBot implements EventListener {
+    // Estado del bot
+    private double currentBalance = 0;
+    private Map<String, Integer> inventory = new HashMap<>();
+    private Map<String, Double> lastPrices = new HashMap<>();
+    
+    @Override
+    public void onLoginOk(LoginOKMessage loginOk) {
+        if (loginOk == null) {
+            return;
+        }
+        
+        // Inicializar estado
+        currentBalance = loginOk.getCurrentBalance();
+        System.out.println("Balance inicial: $" + currentBalance);
+    }
+    
+    @Override
+    public void onTicker(TickerMessage ticker) {
+        if (ticker == null) {
+            return;
+        }
+        
+        // Guardar precio
+        lastPrices.put(ticker.getProduct(), ticker.getMid());
+        
+        // Estrategia simple: comprar si el precio es bajo
+        if (ticker.getMid() < 50.0 && currentBalance > 100.0) {
+            // TODO: Enviar orden de compra usando ConectorBolsa
+            System.out.println("💡 Oportunidad de compra: " + ticker.getProduct());
+        }
+    }
+    
+    // ... otros métodos
+}
+```
+
+### Siguientes Pasos
+
+1. **Ejecuta el ejemplo** para ver cómo funciona
+2. **Lee los eventos** que llegan del servidor
+3. **Implementa tu estrategia** en los métodos TODO
+4. **Consulta AGENTS.md** para patrones de diseño
+5. **Agrega tests** para tu lógica
+
+---
+
 ## 🤖 Configuración del Bot
 
 ### 1. Crear el Archivo de Configuración
