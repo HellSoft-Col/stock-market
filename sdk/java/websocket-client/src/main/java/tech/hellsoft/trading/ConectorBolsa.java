@@ -34,6 +34,8 @@ import tech.hellsoft.trading.internal.connection.WebSocketHandler;
 import tech.hellsoft.trading.internal.routing.MessageRouter;
 import tech.hellsoft.trading.internal.routing.MessageSequencer;
 import tech.hellsoft.trading.internal.serialization.JsonSerializer;
+import tech.hellsoft.trading.tasks.TareaAutomatica;
+import tech.hellsoft.trading.tasks.TareaAutomaticaManager;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -77,6 +79,7 @@ public class ConectorBolsa {
   private final MessageRouter router = new MessageRouter();
   private final ExecutorService callbackExecutor = Executors.newVirtualThreadPerTaskExecutor();
   private final Semaphore sendLock = new Semaphore(1);
+  private final TareaAutomaticaManager tareaManager = new TareaAutomaticaManager();
 
   @Getter private volatile ConnectionState state = ConnectionState.DISCONNECTED;
   private volatile WebSocket webSocket;
@@ -143,6 +146,79 @@ public class ConectorBolsa {
 
     listeners.remove(listener);
     log.debug("Removed listener: {}", listener.getClass().getSimpleName());
+  }
+
+  /**
+   * Registers an automatic task that will start execution immediately.
+   *
+   * <p>Tasks are automatically managed and will stop when the connection is closed via {@link
+   * #shutdown()} or {@link #desconectar()}. Multiple tasks can be registered and they will execute
+   * concurrently using virtual threads.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * // Create a price monitoring task
+   * public class MonitorPreciosTarea extends TareaAutomatica {
+   *     private final ConectorBolsa connector;
+   *     private final String producto;
+   *
+   *     public MonitorPreciosTarea(ConectorBolsa connector, String producto) {
+   *         super("monitor-" + producto);
+   *         this.connector = connector;
+   *         this.producto = producto;
+   *     }
+   *
+   *     @Override
+   *     protected void ejecutar() {
+   *         // Check prices and send orders
+   *         log.info("Monitoring prices for {}", producto);
+   *     }
+   *
+   *     @Override
+   *     protected Duration intervalo() {
+   *         return Duration.ofMillis(100); // Fast execution
+   *     }
+   * }
+   *
+   * // Register the task
+   * ConectorBolsa connector = new ConectorBolsa();
+   * connector.conectar("wss://market.example.com", "token");
+   * connector.registrarTarea(new MonitorPreciosTarea(connector, "GUACA"));
+   * }</pre>
+   *
+   * <p>This method is thread-safe and can be called from any thread.
+   *
+   * @param tarea the task to register (must not be null)
+   * @throws IllegalArgumentException if tarea is null
+   * @see TareaAutomatica for creating custom tasks
+   * @see #detenerTarea(String) to stop a specific task
+   */
+  public void registrarTarea(TareaAutomatica tarea) {
+    if (tarea == null) {
+      throw new IllegalArgumentException("tarea cannot be null");
+    }
+    tareaManager.registrar(tarea);
+    log.debug("Registered automatic task: {}", tarea.getTaskKey());
+  }
+
+  /**
+   * Stops and removes a registered automatic task.
+   *
+   * <p>If the task is not currently registered, this method does nothing. The task will stop
+   * gracefully after completing its current execution cycle.
+   *
+   * <p>This method is thread-safe and can be called from any thread.
+   *
+   * @param taskKey the key of the task to stop (may be null)
+   * @see #registrarTarea(TareaAutomatica) to register tasks
+   */
+  public void detenerTarea(String taskKey) {
+    if (taskKey == null) {
+      return;
+    }
+    tareaManager.detener(taskKey);
+    log.debug("Stopped automatic task: {}", taskKey);
   }
 
   /**
@@ -656,16 +732,19 @@ public class ConectorBolsa {
   /**
    * Performs a complete shutdown of the SDK.
    *
-   * <p>This method disconnects from the server and releases all resources including thread pools
-   * and message sequencers. After calling this method, the ConectorBolsa instance cannot be reused.
+   * <p>This method disconnects from the server, stops all registered automatic tasks, and releases
+   * all resources including thread pools and message sequencers. After calling this method, the
+   * ConectorBolsa instance cannot be reused.
    *
    * <p>This method should be called when the application is shutting down or when the SDK instance
    * is no longer needed.
    *
    * @see #desconectar() for graceful disconnect without resource cleanup
+   * @see #detenerTarea(String) to stop individual tasks
    */
   public void shutdown() {
     desconectar();
+    tareaManager.shutdown();
     sequencer.shutdown();
     callbackExecutor.shutdown();
     log.info("SDK shutdown complete");
