@@ -756,44 +756,46 @@
             `).join('');
         }
 
-        function displayAllOrders(orders) {
-            const container = document.getElementById('all-orders-list');
-            if (!orders || orders.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No active orders</p></div>';
-                return;
-            }
+         function displayAllOrders(orders) {
+             const container = document.getElementById('all-orders-list');
+             if (!orders || orders.length === 0) {
+                 container.innerHTML = '<div class="text-center text-gray-500 py-8"><p>No active orders</p></div>';
+                 return;
+             }
 
-            container.innerHTML = `
-                <table class="w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Team</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Side</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Product</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Price</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Mode</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        ${orders.map(order => `
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm">${order.teamName}</td>
-                                <td class="px-4 py-3 text-sm">
-                                    <span class="px-2 py-1 rounded text-xs font-medium ${
-                                        order.side === 'BUY' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                    }">${order.side}</span>
-                                </td>
-                                <td class="px-4 py-3 text-sm font-mono">${order.product}</td>
-                                <td class="px-4 py-3 text-sm">${order.quantity}</td>
-                                <td class="px-4 py-3 text-sm">${order.price ? '$' + order.price.toFixed(2) : 'MARKET'}</td>
-                                <td class="px-4 py-3 text-sm">${order.mode}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
+             container.innerHTML = `
+                 <table class="w-full">
+                     <thead class="bg-gray-50">
+                         <tr>
+                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Team</th>
+                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Side</th>
+                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Product</th>
+                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
+                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Price</th>
+                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Mode</th>
+                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Message</th>
+                         </tr>
+                     </thead>
+                     <tbody class="divide-y divide-gray-200">
+                         ${orders.map(order => `
+                             <tr class="hover:bg-gray-50">
+                                 <td class="px-4 py-3 text-sm">${order.teamName}</td>
+                                 <td class="px-4 py-3 text-sm">
+                                     <span class="px-2 py-1 rounded text-xs font-medium ${
+                                         order.side === 'BUY' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                     }">${order.side}</span>
+                                 </td>
+                                 <td class="px-4 py-3 text-sm font-mono">${order.product}</td>
+                                 <td class="px-4 py-3 text-sm">${order.quantity}</td>
+                                 <td class="px-4 py-3 text-sm">${order.price ? '$' + order.price.toFixed(2) : 'MARKET'}</td>
+                                 <td class="px-4 py-3 text-sm">${order.mode}</td>
+                                 <td class="px-4 py-3 text-sm text-gray-600 italic">${order.message || '-'}</td>
+                             </tr>
+                         `).join('')}
+                     </tbody>
+                 </table>
+             `;
+         }
 
         function updateTeamSelector() {
             const select = document.getElementById('admin-order-team');
