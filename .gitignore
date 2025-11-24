@@ -229,3 +229,5 @@ sdk/java/spacial-trading-bot-base/config.json
 sdk/java/spacial-trading-bot-base/src/main/resources/config.json
 sdk/java/spacial-trading-bot-base/gradle.properties
 
+automated-clients.yaml
+.env
