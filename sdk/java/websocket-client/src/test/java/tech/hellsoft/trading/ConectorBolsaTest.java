@@ -175,7 +175,7 @@ class ConectorBolsaTest {
 
   @Test
   void shouldThrowExceptionWhenSendingNullOrder() {
-    assertThrows(IllegalStateException.class, () -> connector.enviarOrden(null));
+    assertThrows(IllegalArgumentException.class, () -> connector.enviarOrden(null));
   }
 
   @Test
@@ -185,17 +185,17 @@ class ConectorBolsaTest {
 
   @Test
   void shouldThrowExceptionWhenSendingCancelWithNullClOrdID() {
-    assertThrows(IllegalStateException.class, () -> connector.enviarCancelacion(null));
+    assertThrows(IllegalArgumentException.class, () -> connector.enviarCancelacion(null));
   }
 
   @Test
   void shouldThrowExceptionWhenSendingCancelWithEmptyClOrdID() {
-    assertThrows(IllegalStateException.class, () -> connector.enviarCancelacion(""));
+    assertThrows(IllegalArgumentException.class, () -> connector.enviarCancelacion(""));
   }
 
   @Test
   void shouldThrowExceptionWhenSendingCancelWithBlankClOrdID() {
-    assertThrows(IllegalStateException.class, () -> connector.enviarCancelacion("   "));
+    assertThrows(IllegalArgumentException.class, () -> connector.enviarCancelacion("   "));
   }
 
   @Test
@@ -209,7 +209,8 @@ class ConectorBolsaTest {
 
   @Test
   void shouldThrowExceptionWhenSendingNullProductionUpdate() {
-    assertThrows(IllegalStateException.class, () -> connector.enviarActualizacionProduccion(null));
+    assertThrows(
+        IllegalArgumentException.class, () -> connector.enviarActualizacionProduccion(null));
   }
 
   @Test
@@ -222,7 +223,7 @@ class ConectorBolsaTest {
 
   @Test
   void shouldThrowExceptionWhenSendingNullOfferResponse() {
-    assertThrows(IllegalStateException.class, () -> connector.enviarRespuestaOferta(null));
+    assertThrows(IllegalArgumentException.class, () -> connector.enviarRespuestaOferta(null));
   }
 
   @Test

@@ -4,10 +4,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import tech.hellsoft.trading.config.ConectorConfig;
 import tech.hellsoft.trading.dto.client.AcceptOfferMessage;
@@ -27,6 +30,7 @@ import tech.hellsoft.trading.dto.server.OrderAckMessage;
 import tech.hellsoft.trading.dto.server.PongMessage;
 import tech.hellsoft.trading.dto.server.TickerMessage;
 import tech.hellsoft.trading.enums.ConnectionState;
+import tech.hellsoft.trading.enums.ErrorCode;
 import tech.hellsoft.trading.enums.MessageType;
 import tech.hellsoft.trading.exception.ConexionFallidaException;
 import tech.hellsoft.trading.internal.connection.HeartbeatManager;
@@ -52,9 +56,9 @@ import lombok.extern.slf4j.Slf4j;
  * <pre>{@code
  * ConectorBolsa connector = new ConectorBolsa();
  * connector.addListener(new MyEventListener());
- * connector.conectar("market.example.com", 8080, "your-token");
+ * connector.conectar("wss://market.example.com/ws", "your-token");
  *
- * // Send orders after successful login
+ * // Send orders - SDK automatically waits for authentication
  * OrderMessage order = OrderMessage.builder()
  *     .clOrdID("order-123")
  *     .side(OrderSide.BUY)
@@ -63,6 +67,13 @@ import lombok.extern.slf4j.Slf4j;
  *     .mode(OrderMode.MARKET)
  *     .build();
  * connector.enviarOrden(order);
+ *
+ * // Send production updates - also waits automatically
+ * ProductionUpdateMessage update = ProductionUpdateMessage.builder()
+ *     .product(Product.GUACA)
+ *     .quantity(5)
+ *     .build();
+ * connector.enviarActualizacionProduccion(update);
  *
  * // Clean shutdown
  * connector.shutdown();
@@ -84,6 +95,7 @@ public class ConectorBolsa {
   @Getter private volatile ConnectionState state = ConnectionState.DISCONNECTED;
   private volatile WebSocket webSocket;
   private HeartbeatManager heartbeatManager;
+  private volatile CompletableFuture<LoginOKMessage> loginFuture;
 
   /**
    * Creates a new ConectorBolsa instance with custom configuration.
@@ -227,10 +239,20 @@ public class ConectorBolsa {
    * <p>This method supports both WS (ws://) and WSS (wss://) protocols. Use WSS for secure
    * connections (equivalent to HTTPS). This is the recommended method for production environments.
    *
+   * <p><strong>Note:</strong> Authentication happens asynchronously after connection. However, all
+   * send methods ({@link #enviarOrden(OrderMessage)}, {@link
+   * #enviarActualizacionProduccion(ProductionUpdateMessage)}, etc.) automatically wait for
+   * authentication to complete before sending, so you can call them immediately after this method
+   * without any additional waiting.
+   *
    * <p>Example usage:
    *
    * <pre>{@code
    * connector.conectar("wss://trading.hellsoft.tech/ws", "your-token");
+   *
+   * // Send methods automatically wait for authentication
+   * connector.enviarOrden(order);
+   * connector.enviarActualizacionProduccion(update);
    * }</pre>
    *
    * @param websocketUrl the full WebSocket URL (must not be null or blank)
@@ -256,6 +278,7 @@ public class ConectorBolsa {
 
     try {
       state = ConnectionState.CONNECTING;
+      loginFuture = new CompletableFuture<>();
 
       URI uri = URI.create(websocketUrl);
 
@@ -288,6 +311,7 @@ public class ConectorBolsa {
 
     } catch (Exception e) {
       state = ConnectionState.DISCONNECTED;
+      loginFuture = null;
       throw new ConexionFallidaException(
           "Failed to connect to " + websocketUrl, websocketUrl, 0, e);
     }
@@ -362,6 +386,7 @@ public class ConectorBolsa {
 
     try {
       state = ConnectionState.CONNECTING;
+      loginFuture = new CompletableFuture<>();
 
       String protocol = secure ? "wss" : "ws";
       URI uri = URI.create(String.format("%s://%s:%d", protocol, host, port));
@@ -388,6 +413,7 @@ public class ConectorBolsa {
 
     } catch (Exception e) {
       state = ConnectionState.DISCONNECTED;
+      loginFuture = null;
       throw new ConexionFallidaException(
           "Failed to connect to " + host + ":" + port, host, port, e);
     }
@@ -420,7 +446,32 @@ public class ConectorBolsa {
     }
 
     state = ConnectionState.DISCONNECTED;
+    loginFuture = null;
     log.info("Disconnected");
+  }
+
+  /**
+   * Waits internally for authentication to complete.
+   *
+   * <p>This is called automatically by send methods to ensure authentication has completed before
+   * sending messages.
+   */
+  private void waitForAuthentication() {
+    if (state == ConnectionState.AUTHENTICATED) {
+      return;
+    }
+
+    if (loginFuture == null) {
+      throw new IllegalStateException("Not connected");
+    }
+
+    try {
+      loginFuture.get(config.getConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
+    } catch (TimeoutException e) {
+      throw new IllegalStateException("Authentication timed out", e);
+    } catch (Exception e) {
+      throw new IllegalStateException("Authentication failed", e);
+    }
   }
 
   /**
@@ -460,9 +511,16 @@ public class ConectorBolsa {
    * asynchronously via {@link EventListener#onFill(FillMessage)} for executions and {@link
    * EventListener#onOrderAck(OrderAckMessage)} for acknowledgments.
    *
+   * <p><strong>Note:</strong> This method automatically waits for authentication to complete if
+   * called immediately after {@link #conectar(String, String)}. The SDK handles the timing
+   * internally, so you can call this method right after connecting.
+   *
    * <p>Example usage:
    *
    * <pre>{@code
+   * connector.conectar("wss://server/ws", "token");
+   *
+   * // SDK automatically waits for authentication to complete
    * OrderMessage order = OrderMessage.builder()
    *     .clOrdID("unique-order-id")
    *     .side(OrderSide.BUY)
@@ -475,20 +533,18 @@ public class ConectorBolsa {
    * }</pre>
    *
    * @param order the order to send (must not be null)
-   * @throws IllegalStateException if not authenticated
+   * @throws IllegalStateException if not connected or authentication fails
    * @throws IllegalArgumentException if order is null
    * @see EventListener#onFill(FillMessage) for order executions
    * @see EventListener#onOrderAck(OrderAckMessage) for order acknowledgments
    * @see EventListener#onError(ErrorMessage) for order rejections
    */
   public void enviarOrden(OrderMessage order) {
-    if (state != ConnectionState.AUTHENTICATED) {
-      throw new IllegalStateException("Not authenticated");
-    }
-
     if (order == null) {
       throw new IllegalArgumentException("order cannot be null");
     }
+
+    waitForAuthentication();
 
     order.setType(MessageType.ORDER);
     sendMessage(order);
@@ -500,20 +556,20 @@ public class ConectorBolsa {
    * <p>Cancels the order with the specified client order ID (clOrdID). The cancellation result
    * arrives asynchronously via {@link EventListener#onOrderAck(OrderAckMessage)}.
    *
+   * <p><strong>Note:</strong> This method automatically waits for authentication to complete.
+   *
    * @param clOrdID the client order ID of the order to cancel (must not be null or blank)
-   * @throws IllegalStateException if not authenticated
+   * @throws IllegalStateException if not connected or authentication fails
    * @throws IllegalArgumentException if clOrdID is null or blank
    * @see EventListener#onOrderAck(OrderAckMessage) for cancellation confirmation
    * @see EventListener#onError(ErrorMessage) for cancellation failures
    */
   public void enviarCancelacion(String clOrdID) {
-    if (state != ConnectionState.AUTHENTICATED) {
-      throw new IllegalStateException("Not authenticated");
-    }
-
     if (clOrdID == null || clOrdID.isBlank()) {
       throw new IllegalArgumentException("clOrdID cannot be null or blank");
     }
+
+    waitForAuthentication();
 
     CancelMessage cancel =
         CancelMessage.builder().type(MessageType.CANCEL).clOrdID(clOrdID).build();
@@ -527,20 +583,20 @@ public class ConectorBolsa {
    * <p>Production updates are used to report manufacturing or production activities that may affect
    * market conditions and inventory levels.
    *
+   * <p><strong>Note:</strong> This method automatically waits for authentication to complete.
+   *
    * @param update the production update message (must not be null)
-   * @throws IllegalStateException if not authenticated
+   * @throws IllegalStateException if not connected or authentication fails
    * @throws IllegalArgumentException if update is null
    * @see EventListener#onInventoryUpdate(InventoryUpdateMessage) for inventory changes
    * @see EventListener#onError(ErrorMessage) for update failures
    */
   public void enviarActualizacionProduccion(ProductionUpdateMessage update) {
-    if (state != ConnectionState.AUTHENTICATED) {
-      throw new IllegalStateException("Not authenticated");
-    }
-
     if (update == null) {
       throw new IllegalArgumentException("update cannot be null");
     }
+
+    waitForAuthentication();
 
     update.setType(MessageType.PRODUCTION_UPDATE);
     sendMessage(update);
@@ -552,21 +608,21 @@ public class ConectorBolsa {
    * <p>Used to accept or reject offers received via {@link EventListener#onOffer(OfferMessage)}.
    * The response should reference the original offer ID.
    *
+   * <p><strong>Note:</strong> This method automatically waits for authentication to complete.
+   *
    * @param response the offer response message (must not be null)
-   * @throws IllegalStateException if not authenticated
+   * @throws IllegalStateException if not connected or authentication fails
    * @throws IllegalArgumentException if response is null
    * @see EventListener#onOffer(OfferMessage) for receiving offers
    * @see EventListener#onFill(FillMessage) for offer executions
    * @see EventListener#onError(ErrorMessage) for response failures
    */
   public void enviarRespuestaOferta(AcceptOfferMessage response) {
-    if (state != ConnectionState.AUTHENTICATED) {
-      throw new IllegalStateException("Not authenticated");
-    }
-
     if (response == null) {
       throw new IllegalArgumentException("response cannot be null");
     }
+
+    waitForAuthentication();
 
     response.setType(MessageType.ACCEPT_OFFER);
     sendMessage(response);
@@ -616,6 +672,11 @@ public class ConectorBolsa {
       public void onLoginOk(LoginOKMessage message) {
         state = ConnectionState.AUTHENTICATED;
         log.info("Authenticated as team: {}", message.getTeam());
+
+        if (loginFuture != null) {
+          loginFuture.complete(message);
+        }
+
         notifyListeners(l -> l.onLoginOk(message));
       }
 
@@ -636,6 +697,13 @@ public class ConectorBolsa {
 
       @Override
       public void onError(ErrorMessage message) {
+        if (message.getCode() == ErrorCode.AUTH_FAILED
+            && loginFuture != null
+            && !loginFuture.isDone()) {
+          loginFuture.completeExceptionally(
+              new RuntimeException("Authentication failed: " + message.getReason()));
+        }
+
         notifyListeners(l -> l.onError(message));
       }
 
