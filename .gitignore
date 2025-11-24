@@ -219,7 +219,7 @@ Temporary Items
 bin/
 
 # End of https://www.toptal.com/developers/gitignore/api/go,goland+all,visualstudiocode,macos,emacs
-server
+/server
 .html
 *.out
 output/
