@@ -701,5 +701,8 @@ class ConectorBolsaIntegrationTest {
 
     @Override
     public void onConnectionLost(Throwable error) {}
+
+    @Override
+    public void onGlobalPerformanceReport(GlobalPerformanceReportMessage message) {}
   }
 }

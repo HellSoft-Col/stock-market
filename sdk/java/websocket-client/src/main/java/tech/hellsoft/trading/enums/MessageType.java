@@ -68,7 +68,10 @@ public enum MessageType {
   PING("PING"),
 
   /** Server heartbeat pong response. */
-  PONG("PONG");
+  PONG("PONG"),
+
+  /** Performance Reporte */
+  GLOBAL_PERFORMANCE_REPORT("GLOBAL_PERFORMANCE_REPORT");
 
   private final String value;
 

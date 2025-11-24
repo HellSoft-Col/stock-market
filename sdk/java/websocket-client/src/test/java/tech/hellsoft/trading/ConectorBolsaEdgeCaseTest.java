@@ -600,5 +600,8 @@ class ConectorBolsaEdgeCaseTest {
 
     @Override
     public void onConnectionLost(Throwable error) {}
+
+    @Override
+    public void onGlobalPerformanceReport(GlobalPerformanceReportMessage message) {}
   }
 }

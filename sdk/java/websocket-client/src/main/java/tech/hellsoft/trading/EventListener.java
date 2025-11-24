@@ -1,15 +1,6 @@
 package tech.hellsoft.trading;
 
-import tech.hellsoft.trading.dto.server.BalanceUpdateMessage;
-import tech.hellsoft.trading.dto.server.BroadcastNotificationMessage;
-import tech.hellsoft.trading.dto.server.ErrorMessage;
-import tech.hellsoft.trading.dto.server.EventDeltaMessage;
-import tech.hellsoft.trading.dto.server.FillMessage;
-import tech.hellsoft.trading.dto.server.InventoryUpdateMessage;
-import tech.hellsoft.trading.dto.server.LoginOKMessage;
-import tech.hellsoft.trading.dto.server.OfferMessage;
-import tech.hellsoft.trading.dto.server.OrderAckMessage;
-import tech.hellsoft.trading.dto.server.TickerMessage;
+import tech.hellsoft.trading.dto.server.*;
 
 /**
  * Callback interface for receiving server messages and connection events.
@@ -121,4 +112,11 @@ public interface EventListener {
    * @param error the cause of the connection loss
    */
   void onConnectionLost(Throwable error);
+
+  /**
+   * Called when you need to show the globar performance report
+   *
+   * @param message the message for global report
+   */
+  void onGlobalPerformanceReport(GlobalPerformanceReportMessage message);
 }
