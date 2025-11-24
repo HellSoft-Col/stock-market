@@ -20,7 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 public class JsonSerializer {
   private static final Gson GSON =
       new GsonBuilder()
-          .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+          // Use IDENTITY to match camelCase field names from Go server (baseEnergy, levelEnergy,
+          // etc.)
+          // Previously was LOWER_CASE_WITH_UNDERSCORES which expected base_energy, level_energy
+          .setFieldNamingPolicy(FieldNamingPolicy.IDENTITY)
           .serializeNulls()
           // Custom deserializers for messages with Product maps that may have null keys
           .registerTypeAdapter(LoginOKMessage.class, new LoginOKMessageDeserializer())

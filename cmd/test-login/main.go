@@ -80,6 +80,19 @@ func main() {
 		if species, ok := response["species"].(string); ok {
 			fmt.Printf("Species: %s\n", species)
 		}
+
+		// Check role fields specifically
+		if role, ok := response["role"].(map[string]any); ok {
+			fmt.Printf("\n📊 Role Information:\n")
+			fmt.Printf("  Branches: %v\n", role["branches"])
+			fmt.Printf("  MaxDepth: %v\n", role["maxDepth"])
+			fmt.Printf("  Decay: %v\n", role["decay"])
+			fmt.Printf("  Budget: %v\n", role["budget"])
+			fmt.Printf("  BaseEnergy: %v\n", role["baseEnergy"])
+			fmt.Printf("  LevelEnergy: %v\n", role["levelEnergy"])
+		} else {
+			fmt.Printf("\n⚠️ Role field missing or invalid format\n")
+		}
 	case "ERROR":
 		fmt.Printf("\n❌ LOGIN FAILED!\n")
 		if reason, ok := response["reason"].(string); ok {

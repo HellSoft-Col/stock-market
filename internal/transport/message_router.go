@@ -155,6 +155,21 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 		inventory = make(map[string]int)
 	}
 
+	// Ensure role has default energy values if missing or zero
+	role := team.Role
+	if role.BaseEnergy == 0 {
+		role.BaseEnergy = 3.0 // Default base energy
+		log.Warn().
+			Str("teamName", team.TeamName).
+			Msg("Team missing baseEnergy, using default value of 3.0")
+	}
+	if role.LevelEnergy == 0 {
+		role.LevelEnergy = 2.0 // Default level energy
+		log.Warn().
+			Str("teamName", team.TeamName).
+			Msg("Team missing levelEnergy, using default value of 2.0")
+	}
+
 	// Generate and send LOGIN_OK response
 	loginOKMsg := &domain.LoginOKMessage{
 		Type:               "LOGIN_OK",
@@ -165,15 +180,30 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 		Inventory:          inventory,
 		AuthorizedProducts: team.AuthorizedProducts,
 		Recipes:            team.Recipes,
-		Role:               team.Role,
+		Role:               role,
 		ServerTime:         time.Now().Format(time.RFC3339),
 	}
 
+	// Debug: Log the role values being sent
 	log.Info().
 		Str("teamName", team.TeamName).
 		Str("species", team.Species).
 		Str("clientAddr", client.GetRemoteAddr()).
+		Int("roleBranches", role.Branches).
+		Int("roleMaxDepth", role.MaxDepth).
+		Float64("roleDecay", role.Decay).
+		Float64("roleBudget", role.Budget).
+		Float64("roleBaseEnergy", role.BaseEnergy).
+		Float64("roleLevelEnergy", role.LevelEnergy).
 		Msg("Team logged in successfully")
+
+	// Debug: Log the full JSON being sent
+	if jsonBytes, err := json.Marshal(loginOKMsg); err == nil {
+		log.Debug().
+			Str("teamName", team.TeamName).
+			Str("loginJSON", string(jsonBytes)).
+			Msg("LOGIN_OK JSON payload")
+	}
 
 	return client.SendMessage(loginOKMsg)
 }
