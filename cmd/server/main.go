@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	var configFile = flag.String("config", "config.yaml", "Path to configuration file")
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
 	flag.Parse()
 
 	// Load configuration
@@ -79,7 +79,18 @@ func main() {
 	inventoryService := service.NewInventoryService(teamRepo, inventoryRepo, db)
 
 	// Create market engine
-	marketEngine := market.NewMarketEngine(cfg, db, orderRepo, fillRepo, marketStateRepo, orderBookRepo, broadcaster, inventoryService, teamRepo, debugModeService)
+	marketEngine := market.NewMarketEngine(
+		cfg,
+		db,
+		orderRepo,
+		fillRepo,
+		marketStateRepo,
+		orderBookRepo,
+		broadcaster,
+		inventoryService,
+		teamRepo,
+		debugModeService,
+	)
 
 	// Create rate limiter
 	rateLimitConfig := service.RateLimitConfig{
@@ -96,7 +107,18 @@ func main() {
 	performanceService := service.NewPerformanceService(teamRepo, fillRepo, broadcaster)
 
 	// Create message router
-	router := transport.NewMessageRouter(authService, orderService, broadcaster, marketEngine, resyncService, productionService, performanceService, rateLimiter, orderRepo, orderBookRepo)
+	router := transport.NewMessageRouter(
+		authService,
+		orderService,
+		broadcaster,
+		marketEngine,
+		resyncService,
+		productionService,
+		performanceService,
+		rateLimiter,
+		orderRepo,
+		orderBookRepo,
+	)
 
 	// Create ticker service
 	tickerService := market.NewTickerService(cfg, marketStateRepo, orderBookRepo, broadcaster)

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -21,7 +21,11 @@ func NewInventoryRepository(db *mongo.Database) *InventoryRepository {
 	}
 }
 
-func (r *InventoryRepository) RecordTransaction(ctx context.Context, session mongo.SessionContext, transaction *domain.InventoryTransaction) error {
+func (r *InventoryRepository) RecordTransaction(
+	ctx context.Context,
+	session mongo.SessionContext,
+	transaction *domain.InventoryTransaction,
+) error {
 	transaction.Timestamp = time.Now()
 	_, err := r.collection.InsertOne(session, transaction)
 	return err
@@ -64,7 +68,11 @@ func (r *InventoryRepository) GetTeamInventory(ctx context.Context, teamName str
 	return inventory, cursor.Err()
 }
 
-func (r *InventoryRepository) GetTeamTransactions(ctx context.Context, teamName string, since time.Time) ([]*domain.InventoryTransaction, error) {
+func (r *InventoryRepository) GetTeamTransactions(
+	ctx context.Context,
+	teamName string,
+	since time.Time,
+) ([]*domain.InventoryTransaction, error) {
 	filter := bson.M{
 		"teamName":  teamName,
 		"timestamp": bson.M{"$gte": since},

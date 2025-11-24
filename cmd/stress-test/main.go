@@ -20,13 +20,15 @@ type TestResult struct {
 	Duration      time.Duration
 }
 
-var products = []string{"FOSFO", "PITA", "GUACA", "PALTA-OIL", "SEBO"}
-var sides = []string{"BUY", "SELL"}
-var testTokens = []string{
-	"TK-ANDROMEDA-2025-AVOCULTORES",
-	"TK-ORION-2025-MONJES",
-	"TK-VEGA-2025-ALQUIMISTAS",
-}
+var (
+	products   = []string{"FOSFO", "PITA", "GUACA", "PALTA-OIL", "SEBO"}
+	sides      = []string{"BUY", "SELL"}
+	testTokens = []string{
+		"TK-ANDROMEDA-2025-AVOCULTORES",
+		"TK-ORION-2025-MONJES",
+		"TK-VEGA-2025-ALQUIMISTAS",
+	}
+)
 
 func main() {
 	if len(os.Args) < 2 {

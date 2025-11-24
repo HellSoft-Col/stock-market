@@ -89,7 +89,8 @@ func (s *AuthService) CreateSession(teamName, token, remoteAddr, userAgent strin
 
 	// Determine client type based on user agent
 	clientType := "Unknown"
-	if strings.Contains(userAgent, "Mozilla") || strings.Contains(userAgent, "Chrome") || strings.Contains(userAgent, "Safari") {
+	if strings.Contains(userAgent, "Mozilla") || strings.Contains(userAgent, "Chrome") ||
+		strings.Contains(userAgent, "Safari") {
 		clientType = "Web Browser"
 	} else if userAgent == "" {
 		clientType = "Java/Native Client"
@@ -207,7 +208,12 @@ func (s *AuthService) GetAllTeams(ctx context.Context) ([]*domain.Team, error) {
 	return s.teamRepo.GetAll(ctx)
 }
 
-func (s *AuthService) UpdateTeam(ctx context.Context, teamName string, balance float64, inventory map[string]int) error {
+func (s *AuthService) UpdateTeam(
+	ctx context.Context,
+	teamName string,
+	balance float64,
+	inventory map[string]int,
+) error {
 	if s.teamRepo == nil {
 		return fmt.Errorf("team repository is nil")
 	}

@@ -50,7 +50,12 @@ func (r *OrderRepository) GetByClOrdID(ctx context.Context, clOrdID string) (*do
 	return &order, nil
 }
 
-func (r *OrderRepository) UpdateToFilled(ctx context.Context, session mongo.SessionContext, clOrdID, fillID string, filledQty int) error {
+func (r *OrderRepository) UpdateToFilled(
+	ctx context.Context,
+	session mongo.SessionContext,
+	clOrdID, fillID string,
+	filledQty int,
+) error {
 	now := time.Now()
 	update := bson.M{
 		"$set": bson.M{
@@ -73,7 +78,12 @@ func (r *OrderRepository) UpdateToFilled(ctx context.Context, session mongo.Sess
 	return nil
 }
 
-func (r *OrderRepository) UpdateToPartiallyFilled(ctx context.Context, session mongo.SessionContext, clOrdID, fillID string, filledQty int) error {
+func (r *OrderRepository) UpdateToPartiallyFilled(
+	ctx context.Context,
+	session mongo.SessionContext,
+	clOrdID, fillID string,
+	filledQty int,
+) error {
 	now := time.Now()
 	update := bson.M{
 		"$set": bson.M{
@@ -98,7 +108,10 @@ func (r *OrderRepository) UpdateToPartiallyFilled(ctx context.Context, session m
 	return nil
 }
 
-func (r *OrderRepository) GetPendingByProductAndSide(ctx context.Context, product, side string) ([]*domain.Order, error) {
+func (r *OrderRepository) GetPendingByProductAndSide(
+	ctx context.Context,
+	product, side string,
+) ([]*domain.Order, error) {
 	filter := bson.M{
 		"product": product,
 		"side":    side,

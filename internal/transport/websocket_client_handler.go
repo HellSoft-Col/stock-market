@@ -21,7 +21,13 @@ type WebSocketClientHandler struct {
 	userAgent string
 }
 
-func NewWebSocketClientHandler(conn *websocket.Conn, config *config.Config, server *WebSocketServer, router *MessageRouter, userAgent string) *WebSocketClientHandler {
+func NewWebSocketClientHandler(
+	conn *websocket.Conn,
+	config *config.Config,
+	server *WebSocketServer,
+	router *MessageRouter,
+	userAgent string,
+) *WebSocketClientHandler {
 	return &WebSocketClientHandler{
 		conn:      conn,
 		config:    config,

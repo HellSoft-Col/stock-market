@@ -10,9 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	ErrDebugModeDisabled = errors.New("debug mode is disabled - this operation is not allowed in production mode")
-)
+var ErrDebugModeDisabled = errors.New("debug mode is disabled - this operation is not allowed in production mode")
 
 // DebugModeService manages the global debug mode setting
 type DebugModeService struct {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
+	"github.com/rs/zerolog/log"
 )
 
 type TCPServer struct {

@@ -13,8 +13,8 @@ import (
 )
 
 func main() {
-	var configFile = flag.String("config", "config.yaml", "Path to configuration file")
-	var apiKey = flag.String("apikey", "", "API key to test")
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
+	apiKey := flag.String("apikey", "", "API key to test")
 	flag.Parse()
 
 	if *apiKey == "" {

@@ -73,7 +73,11 @@ func (r *FillRepository) GetByTeamSince(ctx context.Context, teamName string, si
 	return fills, nil
 }
 
-func (r *FillRepository) GetRecentSellersByProduct(ctx context.Context, product string, since time.Time) ([]string, error) {
+func (r *FillRepository) GetRecentSellersByProduct(
+	ctx context.Context,
+	product string,
+	since time.Time,
+) ([]string, error) {
 	pipeline := []bson.M{
 		{
 			"$match": bson.M{

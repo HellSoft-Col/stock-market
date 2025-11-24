@@ -165,7 +165,11 @@ func (r *TeamRepository) UpdateBalanceBy(ctx context.Context, teamName string, d
 	return nil
 }
 
-func (r *TeamRepository) GetTeamsWithInventory(ctx context.Context, product string, minQuantity int) ([]*domain.Team, error) {
+func (r *TeamRepository) GetTeamsWithInventory(
+	ctx context.Context,
+	product string,
+	minQuantity int,
+) ([]*domain.Team, error) {
 	filter := bson.M{
 		fmt.Sprintf("inventory.%s", product): bson.M{"$gte": minQuantity},
 	}

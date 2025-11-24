@@ -15,7 +15,11 @@ type ProductionService struct {
 	broadcaster      domain.Broadcaster
 }
 
-func NewProductionService(teamRepo domain.TeamRepository, inventoryService domain.InventoryService, broadcaster domain.Broadcaster) *ProductionService {
+func NewProductionService(
+	teamRepo domain.TeamRepository,
+	inventoryService domain.InventoryService,
+	broadcaster domain.Broadcaster,
+) *ProductionService {
 	return &ProductionService{
 		teamRepo:         teamRepo,
 		inventoryService: inventoryService,
@@ -23,7 +27,11 @@ func NewProductionService(teamRepo domain.TeamRepository, inventoryService domai
 	}
 }
 
-func (s *ProductionService) ProcessProduction(ctx context.Context, teamName string, prodMsg *domain.ProductionUpdateMessage) error {
+func (s *ProductionService) ProcessProduction(
+	ctx context.Context,
+	teamName string,
+	prodMsg *domain.ProductionUpdateMessage,
+) error {
 	// Null checks
 	if s == nil {
 		return fmt.Errorf("production service is nil")

@@ -5,8 +5,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type OrderBook struct {

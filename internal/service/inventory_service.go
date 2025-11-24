@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -16,7 +16,11 @@ type InventoryService struct {
 	db            domain.Database
 }
 
-func NewInventoryService(teamRepo domain.TeamRepository, inventoryRepo domain.InventoryRepository, db domain.Database) *InventoryService {
+func NewInventoryService(
+	teamRepo domain.TeamRepository,
+	inventoryRepo domain.InventoryRepository,
+	db domain.Database,
+) *InventoryService {
 	return &InventoryService{
 		teamRepo:      teamRepo,
 		inventoryRepo: inventoryRepo,
@@ -24,7 +28,15 @@ func NewInventoryService(teamRepo domain.TeamRepository, inventoryRepo domain.In
 	}
 }
 
-func (s *InventoryService) UpdateInventory(ctx context.Context, teamName string, product string, change int, reason string, orderID string, fillID string) error {
+func (s *InventoryService) UpdateInventory(
+	ctx context.Context,
+	teamName string,
+	product string,
+	change int,
+	reason string,
+	orderID string,
+	fillID string,
+) error {
 	_, err := s.db.WithTransaction(ctx, func(sc mongo.SessionContext) (any, error) {
 		// Get current team data
 		team, err := s.teamRepo.GetByTeamName(ctx, teamName)
@@ -108,7 +120,11 @@ func (s *InventoryService) CanSell(ctx context.Context, teamName string, product
 }
 
 // Initialize inventory for a new team
-func (s *InventoryService) InitializeTeamInventory(ctx context.Context, teamName string, initialInventory map[string]int) error {
+func (s *InventoryService) InitializeTeamInventory(
+	ctx context.Context,
+	teamName string,
+	initialInventory map[string]int,
+) error {
 	for product, quantity := range initialInventory {
 		if err := s.UpdateInventory(ctx, teamName, product, quantity, "INITIAL", "", ""); err != nil {
 			return fmt.Errorf("failed to initialize inventory for %s: %w", product, err)
@@ -118,7 +134,11 @@ func (s *InventoryService) InitializeTeamInventory(ctx context.Context, teamName
 }
 
 // Get teams that have enough inventory to sell a product
-func (s *InventoryService) GetEligibleSellers(ctx context.Context, product string, minQuantity int) ([]*domain.Team, error) {
+func (s *InventoryService) GetEligibleSellers(
+	ctx context.Context,
+	product string,
+	minQuantity int,
+) ([]*domain.Team, error) {
 	return s.teamRepo.GetTeamsWithInventory(ctx, product, minQuantity)
 }
 

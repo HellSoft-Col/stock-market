@@ -77,7 +77,10 @@ func main() {
 			}
 		case <-interrupt:
 			fmt.Println("Interrupt received, closing connection...")
-			err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			err := conn.WriteMessage(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+			)
 			if err != nil {
 				fmt.Printf("Error sending close message: %v\n", err)
 				return

@@ -28,7 +28,11 @@ type OrderService struct {
 	broadcaster domain.Broadcaster
 }
 
-func NewOrderService(orderRepo domain.OrderRepository, marketSvc domain.MarketService, broadcaster domain.Broadcaster) *OrderService {
+func NewOrderService(
+	orderRepo domain.OrderRepository,
+	marketSvc domain.MarketService,
+	broadcaster domain.Broadcaster,
+) *OrderService {
 	return &OrderService{
 		orderRepo:   orderRepo,
 		marketSvc:   marketSvc,

@@ -6,11 +6,11 @@ import (
 	"flag"
 	"os"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
 	"github.com/HellSoft-Col/stock-market/internal/repository/mongodb"
 	"github.com/HellSoft-Col/stock-market/pkg/logger"
+	"github.com/rs/zerolog/log"
 )
 
 type TeamData struct {
@@ -65,8 +65,8 @@ func createDomainTeam(teamData TeamData) *domain.Team {
 }
 
 func main() {
-	var configFile = flag.String("config", "config.yaml", "Path to configuration file")
-	var teamsFile = flag.String("teams", "", "Path to teams JSON file")
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
+	teamsFile := flag.String("teams", "", "Path to teams JSON file")
 	flag.Parse()
 
 	if *teamsFile == "" {

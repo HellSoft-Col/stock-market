@@ -5,15 +5,15 @@ import (
 	"flag"
 	"math/rand"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
 	"github.com/HellSoft-Col/stock-market/internal/repository/mongodb"
 	"github.com/HellSoft-Col/stock-market/pkg/logger"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	var configFile = flag.String("config", "config.yaml", "Path to configuration file")
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
 	flag.Parse()
 
 	// Initialize logger

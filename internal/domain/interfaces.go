@@ -31,7 +31,12 @@ type OrderRepository interface {
 	Create(ctx context.Context, order *Order) error
 	GetByClOrdID(ctx context.Context, clOrdID string) (*Order, error)
 	UpdateToFilled(ctx context.Context, session mongo.SessionContext, clOrdID, fillID string, filledQty int) error
-	UpdateToPartiallyFilled(ctx context.Context, session mongo.SessionContext, clOrdID, fillID string, filledQty int) error
+	UpdateToPartiallyFilled(
+		ctx context.Context,
+		session mongo.SessionContext,
+		clOrdID, fillID string,
+		filledQty int,
+	) error
 	GetPendingByProductAndSide(ctx context.Context, product, side string) ([]*Order, error)
 	GetPendingOrders(ctx context.Context) ([]*Order, error)
 	Cancel(ctx context.Context, clOrdID string) error
@@ -86,7 +91,15 @@ type ProductionService interface {
 }
 
 type InventoryService interface {
-	UpdateInventory(ctx context.Context, teamName string, product string, change int, reason string, orderID string, fillID string) error
+	UpdateInventory(
+		ctx context.Context,
+		teamName string,
+		product string,
+		change int,
+		reason string,
+		orderID string,
+		fillID string,
+	) error
 	GetTeamInventory(ctx context.Context, teamName string) (map[string]int, error)
 	CanSell(ctx context.Context, teamName string, product string, quantity int) (bool, error)
 }

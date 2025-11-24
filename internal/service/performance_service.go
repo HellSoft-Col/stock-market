@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type PerformanceService struct {
@@ -16,7 +16,11 @@ type PerformanceService struct {
 	broadcaster domain.Broadcaster
 }
 
-func NewPerformanceService(teamRepo domain.TeamRepository, fillRepo domain.FillRepository, broadcaster domain.Broadcaster) *PerformanceService {
+func NewPerformanceService(
+	teamRepo domain.TeamRepository,
+	fillRepo domain.FillRepository,
+	broadcaster domain.Broadcaster,
+) *PerformanceService {
 	return &PerformanceService{
 		teamRepo:    teamRepo,
 		fillRepo:    fillRepo,
@@ -24,7 +28,11 @@ func NewPerformanceService(teamRepo domain.TeamRepository, fillRepo domain.FillR
 	}
 }
 
-func (s *PerformanceService) GenerateTeamReport(ctx context.Context, teamName string, since time.Time) (*domain.PerformanceReportMessage, error) {
+func (s *PerformanceService) GenerateTeamReport(
+	ctx context.Context,
+	teamName string,
+	since time.Time,
+) (*domain.PerformanceReportMessage, error) {
 	// Get team data
 	team, err := s.teamRepo.GetByTeamName(ctx, teamName)
 	if err != nil {
@@ -90,7 +98,10 @@ func (s *PerformanceService) GenerateTeamReport(ctx context.Context, teamName st
 	return report, nil
 }
 
-func (s *PerformanceService) GenerateGlobalReport(ctx context.Context, since time.Time) (*domain.GlobalPerformanceReportMessage, error) {
+func (s *PerformanceService) GenerateGlobalReport(
+	ctx context.Context,
+	since time.Time,
+) (*domain.GlobalPerformanceReportMessage, error) {
 	// Get all teams
 	teams, err := s.teamRepo.GetAll(ctx)
 	if err != nil {

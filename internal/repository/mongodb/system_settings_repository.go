@@ -10,8 +10,8 @@ import (
 )
 
 type SystemSettings struct {
-	Key       string    `bson:"_id" json:"key"`
-	Value     bool      `bson:"value" json:"value"`
+	Key       string    `bson:"_id"       json:"key"`
+	Value     bool      `bson:"value"     json:"value"`
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
 	UpdatedBy string    `bson:"updatedBy" json:"updatedBy"`
 }

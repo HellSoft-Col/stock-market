@@ -242,7 +242,12 @@ func (r *MessageRouter) handleOrder(ctx context.Context, rawMessage string, clie
 		return r.sendError(client, domain.ErrInvalidMessage, "Mode must be MARKET or LIMIT", orderMsg.ClOrdID)
 	}
 	if orderMsg.Mode == "LIMIT" && (orderMsg.LimitPrice == nil || *orderMsg.LimitPrice <= 0) {
-		return r.sendError(client, domain.ErrInvalidMessage, "Limit price must be positive for LIMIT orders", orderMsg.ClOrdID)
+		return r.sendError(
+			client,
+			domain.ErrInvalidMessage,
+			"Limit price must be positive for LIMIT orders",
+			orderMsg.ClOrdID,
+		)
 	}
 
 	// Process order
@@ -770,7 +775,11 @@ func (r *MessageRouter) handleRequestConnectedSessionsFallback(ctx context.Conte
 	return client.SendMessage(response)
 }
 
-func (r *MessageRouter) handleRequestPerformanceReport(ctx context.Context, rawMessage string, client MessageClient) error {
+func (r *MessageRouter) handleRequestPerformanceReport(
+	ctx context.Context,
+	rawMessage string,
+	client MessageClient,
+) error {
 	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
 	}
@@ -1407,7 +1416,11 @@ func (r *MessageRouter) handleResetTeamProduction(ctx context.Context, rawMessag
 	return client.SendMessage(response)
 }
 
-func (r *MessageRouter) handleResetTournamentConfig(ctx context.Context, rawMessage string, client MessageClient) error {
+func (r *MessageRouter) handleResetTournamentConfig(
+	ctx context.Context,
+	rawMessage string,
+	client MessageClient,
+) error {
 	if client == nil || client.GetTeamName() != "admin" {
 		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
 	}
@@ -1438,7 +1451,10 @@ func (r *MessageRouter) handleResetTournamentConfig(ctx context.Context, rawMess
 			for _, order := range allOrders {
 				if order != nil {
 					if err := r.orderRepo.Cancel(ctx, order.ClOrdID); err != nil {
-						log.Warn().Err(err).Str("clOrdID", order.ClOrdID).Msg("Failed to cancel order during tournament reset")
+						log.Warn().
+							Err(err).
+							Str("clOrdID", order.ClOrdID).
+							Msg("Failed to cancel order during tournament reset")
 					} else {
 						ordersCanceled++
 						// Remove from order book
@@ -1498,8 +1514,12 @@ func (r *MessageRouter) handleResetTournamentConfig(ctx context.Context, rawMess
 		Success:        true,
 		TeamsReset:     teamsReset,
 		OrdersCanceled: ordersCanceled,
-		Message:        fmt.Sprintf("Tournament reset: %d teams configured, %d orders cancelled", teamsReset, ordersCanceled),
-		ServerTime:     time.Now().Format(time.RFC3339),
+		Message: fmt.Sprintf(
+			"Tournament reset: %d teams configured, %d orders cancelled",
+			teamsReset,
+			ordersCanceled,
+		),
+		ServerTime: time.Now().Format(time.RFC3339),
 	}
 
 	log.Info().

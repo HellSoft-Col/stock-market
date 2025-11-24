@@ -31,17 +31,30 @@ func (m *MockOrderRepository) GetByClOrdID(ctx context.Context, clOrdID string) 
 	return args.Get(0).(*domain.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) UpdateToFilled(ctx context.Context, session mongo.SessionContext, clOrdID, fillID string, filledQty int) error {
+func (m *MockOrderRepository) UpdateToFilled(
+	ctx context.Context,
+	session mongo.SessionContext,
+	clOrdID, fillID string,
+	filledQty int,
+) error {
 	args := m.Called(ctx, session, clOrdID, fillID, filledQty)
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) UpdateToPartiallyFilled(ctx context.Context, session mongo.SessionContext, clOrdID, fillID string, filledQty int) error {
+func (m *MockOrderRepository) UpdateToPartiallyFilled(
+	ctx context.Context,
+	session mongo.SessionContext,
+	clOrdID, fillID string,
+	filledQty int,
+) error {
 	args := m.Called(ctx, session, clOrdID, fillID, filledQty)
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) GetPendingByProductAndSide(ctx context.Context, product, side string) ([]*domain.Order, error) {
+func (m *MockOrderRepository) GetPendingByProductAndSide(
+	ctx context.Context,
+	product, side string,
+) ([]*domain.Order, error) {
 	args := m.Called(ctx, product, side)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

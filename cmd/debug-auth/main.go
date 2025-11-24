@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/config"
 	"github.com/HellSoft-Col/stock-market/internal/repository/mongodb"
 	"github.com/HellSoft-Col/stock-market/internal/service"
 	"github.com/HellSoft-Col/stock-market/pkg/logger"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	var configFile = flag.String("config", "config.yaml", "Path to configuration file")
-	var token = flag.String("token", "", "Token to test")
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
+	token := flag.String("token", "", "Token to test")
 	flag.Parse()
 
 	if *token == "" {

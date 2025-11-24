@@ -36,7 +36,11 @@ type WebSocketServer struct {
 	debugModeService domain.DebugModeService
 }
 
-func NewWebSocketServer(cfg *config.Config, router *MessageRouter, debugModeService domain.DebugModeService) *WebSocketServer {
+func NewWebSocketServer(
+	cfg *config.Config,
+	router *MessageRouter,
+	debugModeService domain.DebugModeService,
+) *WebSocketServer {
 	return &WebSocketServer{
 		config:           cfg,
 		clients:          make(map[string]*WebSocketClientHandler),
@@ -143,8 +147,12 @@ func (s *WebSocketServer) handleSetDebugMode(w http.ResponseWriter, r *http.Requ
 
 	// Broadcast notification to all connected clients
 	notification := map[string]interface{}{
-		"type":      "SYSTEM_NOTIFICATION",
-		"message":   fmt.Sprintf("Debug mode %s by %s", map[bool]string{true: "ENABLED", false: "DISABLED"}[req.Enabled], req.UpdatedBy),
+		"type": "SYSTEM_NOTIFICATION",
+		"message": fmt.Sprintf(
+			"Debug mode %s by %s",
+			map[bool]string{true: "ENABLED", false: "DISABLED"}[req.Enabled],
+			req.UpdatedBy,
+		),
 		"debugMode": req.Enabled,
 	}
 	s.router.broadcaster.BroadcastToAll(notification)
@@ -152,7 +160,10 @@ func (s *WebSocketServer) handleSetDebugMode(w http.ResponseWriter, r *http.Requ
 	response := map[string]interface{}{
 		"success":   true,
 		"debugMode": req.Enabled,
-		"message":   fmt.Sprintf("Debug mode %s successfully", map[bool]string{true: "enabled", false: "disabled"}[req.Enabled]),
+		"message": fmt.Sprintf(
+			"Debug mode %s successfully",
+			map[bool]string{true: "enabled", false: "disabled"}[req.Enabled],
+		),
 	}
 
 	json.NewEncoder(w).Encode(response)

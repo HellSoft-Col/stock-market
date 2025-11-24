@@ -25,7 +25,11 @@ type Matcher struct {
 	teamRepo         domain.TeamRepository
 }
 
-func NewMatcher(orderBook domain.OrderBookRepository, inventoryService domain.InventoryService, teamRepo domain.TeamRepository) *Matcher {
+func NewMatcher(
+	orderBook domain.OrderBookRepository,
+	inventoryService domain.InventoryService,
+	teamRepo domain.TeamRepository,
+) *Matcher {
 	return &Matcher{
 		orderBook:        orderBook,
 		inventoryService: inventoryService,
@@ -86,7 +90,12 @@ func (m *Matcher) processBuyOrder(buyOrder *domain.Order) (*MatchResult, error) 
 
 		// Check if seller still has inventory
 		if m.inventoryService != nil {
-			canSell, err := m.inventoryService.CanSell(context.Background(), sellOrder.TeamName, sellOrder.Product, sellOrder.Quantity-sellOrder.FilledQty)
+			canSell, err := m.inventoryService.CanSell(
+				context.Background(),
+				sellOrder.TeamName,
+				sellOrder.Product,
+				sellOrder.Quantity-sellOrder.FilledQty,
+			)
 			if err != nil {
 				log.Warn().
 					Str("sellTeam", sellOrder.TeamName).
@@ -255,7 +264,12 @@ func (m *Matcher) canBuy(buyOrder *domain.Order) (bool, error) {
 func (m *Matcher) processSellOrder(sellOrder *domain.Order) (*MatchResult, error) {
 	// Validate seller has sufficient inventory before processing
 	if m.inventoryService != nil {
-		canSell, err := m.inventoryService.CanSell(context.Background(), sellOrder.TeamName, sellOrder.Product, sellOrder.Quantity)
+		canSell, err := m.inventoryService.CanSell(
+			context.Background(),
+			sellOrder.TeamName,
+			sellOrder.Product,
+			sellOrder.Quantity,
+		)
 		if err != nil {
 			log.Warn().
 				Str("sellTeam", sellOrder.TeamName).

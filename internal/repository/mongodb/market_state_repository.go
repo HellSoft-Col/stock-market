@@ -23,7 +23,12 @@ func NewMarketStateRepository(db *mongo.Database) *MarketStateRepository {
 	}
 }
 
-func (r *MarketStateRepository) UpdateLastTrade(ctx context.Context, product string, price float64, quantity int) error {
+func (r *MarketStateRepository) UpdateLastTrade(
+	ctx context.Context,
+	product string,
+	price float64,
+	quantity int,
+) error {
 	filter := bson.M{"product": product}
 	update := bson.M{
 		"$set": bson.M{

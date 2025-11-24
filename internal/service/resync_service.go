@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/HellSoft-Col/stock-market/internal/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type ResyncService struct {
@@ -18,7 +18,11 @@ func NewResyncService(fillRepo domain.FillRepository) *ResyncService {
 	}
 }
 
-func (s *ResyncService) GenerateEventDelta(ctx context.Context, teamName string, since time.Time) (*domain.EventDeltaMessage, error) {
+func (s *ResyncService) GenerateEventDelta(
+	ctx context.Context,
+	teamName string,
+	since time.Time,
+) (*domain.EventDeltaMessage, error) {
 	// Get all fills for this team since the specified time
 	fills, err := s.fillRepo.GetByTeamSince(ctx, teamName, since)
 	if err != nil {
