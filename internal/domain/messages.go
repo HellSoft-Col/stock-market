@@ -120,6 +120,14 @@ type TeamTournamentConfig struct {
 	Inventory map[string]int `json:"inventory"`
 }
 
+// SDK Debug/Emulator message - allows sending arbitrary messages to specific clients
+type SDKEmulatorMessage struct {
+	Type           string                 `json:"type"`
+	TargetTeam     string                 `json:"targetTeam"`     // Which team/client to send to
+	MessageType    string                 `json:"messageType"`    // Type of message to emulate (OFFER, FILL, ERROR, etc.)
+	MessagePayload map[string]interface{} `json:"messagePayload"` // The actual message content
+}
+
 // Server to Client Messages
 
 type LoginOKMessage struct {

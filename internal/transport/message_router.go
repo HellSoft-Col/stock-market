@@ -111,6 +111,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleResetTeamProduction(ctx, rawMessage, client)
 	case "RESET_TOURNAMENT_CONFIG":
 		return r.handleResetTournamentConfig(ctx, rawMessage, client)
+	case "SDK_EMULATOR":
+		return r.handleSDKEmulator(ctx, rawMessage, client)
 	default:
 		return r.handleEcho(ctx, baseMsg, client)
 	}
@@ -964,6 +966,61 @@ func (r *MessageRouter) handleAdminBroadcast(ctx context.Context, rawMessage str
 		Success:    true,
 		Message:    "Message broadcast to all users",
 		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleSDKEmulator(ctx context.Context, rawMessage string, client MessageClient) error {
+	// Parse the emulator message
+	var emulatorMsg domain.SDKEmulatorMessage
+	if err := json.Unmarshal([]byte(rawMessage), &emulatorMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid SDK_EMULATOR message format", "")
+	}
+
+	if emulatorMsg.TargetTeam == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "targetTeam is required", "")
+	}
+
+	if emulatorMsg.MessageType == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "messageType is required", "")
+	}
+
+	if r.broadcaster == nil {
+		log.Error().Msg("Broadcaster is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Broadcast service unavailable", "")
+	}
+
+	// Build the message to send - add the type field to the payload
+	messageToSend := make(map[string]interface{})
+	messageToSend["type"] = emulatorMsg.MessageType
+	for k, v := range emulatorMsg.MessagePayload {
+		messageToSend[k] = v
+	}
+
+	// Send the emulated message to the target team
+	if err := r.broadcaster.SendToClient(emulatorMsg.TargetTeam, messageToSend); err != nil {
+		log.Error().
+			Err(err).
+			Str("targetTeam", emulatorMsg.TargetTeam).
+			Str("messageType", emulatorMsg.MessageType).
+			Msg("Failed to send emulated message")
+		return r.sendError(client, domain.ErrServiceUnavailable, fmt.Sprintf("Failed to send message to %s", emulatorMsg.TargetTeam), "")
+	}
+
+	log.Info().
+		Str("sender", client.GetTeamName()).
+		Str("targetTeam", emulatorMsg.TargetTeam).
+		Str("messageType", emulatorMsg.MessageType).
+		Msg("SDK Emulator message sent")
+
+	// Send confirmation back to the emulator
+	response := map[string]interface{}{
+		"type":        "SDK_EMULATOR_ACK",
+		"success":     true,
+		"targetTeam":  emulatorMsg.TargetTeam,
+		"messageType": emulatorMsg.MessageType,
+		"timestamp":   time.Now().Format(time.RFC3339),
 	}
 
 	return client.SendMessage(response)

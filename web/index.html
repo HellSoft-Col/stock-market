@@ -366,6 +366,9 @@
                             <button onclick="switchMainTab('transactions')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="transactions-tab">
                                 <i class="fas fa-history mr-2"></i>History
                             </button>
+                            <button onclick="switchMainTab('sdk-emulator')" class="main-tab px-6 py-3 text-sm font-medium border-r border-gray-200 dark:border-gray-700 whitespace-nowrap" id="sdk-emulator-tab">
+                                <i class="fas fa-code mr-2"></i>SDK Emulator
+                            </button>
                             <button onclick="switchMainTab('docs')" class="main-tab px-6 py-3 text-sm font-medium whitespace-nowrap" id="docs-tab">
                                 <i class="fas fa-book mr-2"></i>Docs
                             </button>
@@ -723,6 +726,366 @@
                                 <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                                     <i class="fas fa-info-circle mr-2"></i>No transactions yet
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- SDK Emulator Content -->
+                    <div id="sdk-emulator-content" class="p-6" style="display: none;">
+                        <div class="mb-6">
+                            <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                <i class="fas fa-code mr-2 text-blue-600"></i>Java SDK Event Emulator
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">
+                                Test all Java SDK EventListener callbacks by emulating server messages. Perfect for debugging your Java trading bots!
+                            </p>
+                        </div>
+
+                        <!-- Info Box -->
+                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                            <div class="flex items-start">
+                                <i class="fas fa-info-circle text-blue-600 dark:text-blue-400 mr-3 mt-1"></i>
+                                <div class="text-sm text-blue-800 dark:text-blue-200">
+                                    <strong>How it works:</strong> This tool sends messages from the server to your connected Java SDK client, triggering the corresponding EventListener callbacks. Use this to test how your bot handles different scenarios without needing a second team.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Target Team Configuration -->
+                        <div class="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border-2 border-indigo-300 dark:border-indigo-700 rounded-lg p-4 mb-6">
+                            <h4 class="text-md font-semibold text-indigo-900 dark:text-indigo-200 mb-3">
+                                <i class="fas fa-bullseye mr-2"></i>Target Configuration
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Team Name</label>
+                                    <input type="text" id="sdk-target-team" placeholder="e.g., TEAM-BOT-01" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                                           value="">
+                                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                        The team name of your Java SDK client that will receive the emulated messages
+                                    </p>
+                                </div>
+                                <div class="flex items-end">
+                                    <div class="w-full">
+                                        <div class="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded p-3 text-xs text-yellow-800 dark:text-yellow-200">
+                                            <strong>💡 Tip:</strong> Make sure your Java SDK client is connected with the target team name before sending emulated messages!
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grid of Event Emulators -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- onOffer Event -->
+                            <div class="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-3">
+                                    <i class="fas fa-handshake mr-2"></i>onOffer(OfferMessage)
+                                </h4>
+                                <p class="text-xs text-yellow-700 dark:text-yellow-300 mb-4">
+                                    Simulate an offer from another team to buy your products
+                                </p>
+                                
+                                <div class="space-y-3">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Buyer Team</label>
+                                            <input type="text" id="sdk-offer-buyer" value="TEAM-BOT-01" 
+                                                   class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+                                            <select id="sdk-offer-product" class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                                <option value="FOSFO">FOSFO</option>
+                                                <option value="PITA">PITA</option>
+                                                <option value="PALTA-OIL">PALTA-OIL</option>
+                                                <option value="GUACA">GUACA</option>
+                                                <option value="SEBO">SEBO</option>
+                                                <option value="H-GUACA">H-GUACA</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+                                            <input type="number" id="sdk-offer-qty" value="10" min="1" 
+                                                   class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Max Price</label>
+                                            <input type="number" id="sdk-offer-price" value="25.00" step="0.01" 
+                                                   class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Expires In (ms)</label>
+                                        <input type="number" id="sdk-offer-expires" value="30000" min="1000" step="1000" 
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <button onclick="emulateOffer()" id="sdk-offer-btn" disabled
+                                            class="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-paper-plane mr-1"></i>Send OFFER to Client
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- onFill Event -->
+                            <div class="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-400 dark:border-green-600 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-green-800 dark:text-green-200 mb-3">
+                                    <i class="fas fa-check-circle mr-2"></i>onFill(FillMessage)
+                                </h4>
+                                <p class="text-xs text-green-700 dark:text-green-300 mb-4">
+                                    Simulate an order fill/execution
+                                </p>
+                                
+                                <div class="space-y-3">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Side</label>
+                                            <select id="sdk-fill-side" class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                                <option value="BUY">BUY</option>
+                                                <option value="SELL">SELL</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+                                            <select id="sdk-fill-product" class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                                <option value="FOSFO">FOSFO</option>
+                                                <option value="PITA">PITA</option>
+                                                <option value="PALTA-OIL">PALTA-OIL</option>
+                                                <option value="GUACA">GUACA</option>
+                                                <option value="SEBO">SEBO</option>
+                                                <option value="H-GUACA">H-GUACA</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+                                            <input type="number" id="sdk-fill-qty" value="5" min="1" 
+                                                   class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Fill Price</label>
+                                            <input type="number" id="sdk-fill-price" value="20.50" step="0.01" 
+                                                   class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Counterparty</label>
+                                        <input type="text" id="sdk-fill-counterparty" value="MARKET-MAKER" 
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <button onclick="emulateFill()" id="sdk-fill-btn" disabled
+                                            class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-paper-plane mr-1"></i>Send FILL to Client
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- onError Event -->
+                            <div class="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-red-800 dark:text-red-200 mb-3">
+                                    <i class="fas fa-exclamation-triangle mr-2"></i>onError(ErrorMessage)
+                                </h4>
+                                <p class="text-xs text-red-700 dark:text-red-300 mb-4">
+                                    Simulate error messages from the server
+                                </p>
+                                
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Error Code</label>
+                                        <select id="sdk-error-code" class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                            <option value="INSUFFICIENT_BALANCE">INSUFFICIENT_BALANCE</option>
+                                            <option value="UNAUTHORIZED_PRODUCT">UNAUTHORIZED_PRODUCT</option>
+                                            <option value="INVALID_ORDER">INVALID_ORDER</option>
+                                            <option value="OFFER_EXPIRED">OFFER_EXPIRED</option>
+                                            <option value="AUTH_FAILED">AUTH_FAILED</option>
+                                            <option value="RATE_LIMIT_EXCEEDED">RATE_LIMIT_EXCEEDED</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Error Message</label>
+                                        <textarea id="sdk-error-message" rows="2" 
+                                                  class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                                                  placeholder="Detailed error description">Insufficient balance to place this order</textarea>
+                                    </div>
+                                    <button onclick="emulateError()" id="sdk-error-btn" disabled
+                                            class="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-paper-plane mr-1"></i>Send ERROR to Client
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- onInventoryUpdate Event -->
+                            <div class="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-400 dark:border-purple-600 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-purple-800 dark:text-purple-200 mb-3">
+                                    <i class="fas fa-boxes mr-2"></i>onInventoryUpdate(InventoryUpdateMessage)
+                                </h4>
+                                <p class="text-xs text-purple-700 dark:text-purple-300 mb-4">
+                                    Simulate inventory changes
+                                </p>
+                                
+                                <div class="space-y-3">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+                                            <select id="sdk-inv-product" class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                                <option value="FOSFO">FOSFO</option>
+                                                <option value="PITA">PITA</option>
+                                                <option value="PALTA-OIL">PALTA-OIL</option>
+                                                <option value="GUACA">GUACA</option>
+                                                <option value="SEBO">SEBO</option>
+                                                <option value="H-GUACA">H-GUACA</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">New Quantity</label>
+                                            <input type="number" id="sdk-inv-qty" value="100" min="0" 
+                                                   class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        </div>
+                                    </div>
+                                    <div class="bg-purple-100 dark:bg-purple-900/30 rounded p-2 text-xs text-purple-800 dark:text-purple-200">
+                                        <strong>Tip:</strong> You can send full inventory updates with all products by entering JSON in the format: {"FOSFO": 50, "PITA": 30}
+                                    </div>
+                                    <button onclick="emulateInventoryUpdate()" id="sdk-inv-btn" disabled
+                                            class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-paper-plane mr-1"></i>Send INVENTORY_UPDATE to Client
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- onBalanceUpdate Event -->
+                            <div class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-400 dark:border-blue-600 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-3">
+                                    <i class="fas fa-dollar-sign mr-2"></i>onBalanceUpdate(BalanceUpdateMessage)
+                                </h4>
+                                <p class="text-xs text-blue-700 dark:text-blue-300 mb-4">
+                                    Simulate balance changes
+                                </p>
+                                
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">New Balance</label>
+                                        <input type="number" id="sdk-balance-amount" value="10000.00" step="0.01" 
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Reason (optional)</label>
+                                        <input type="text" id="sdk-balance-reason" value="Trade execution" placeholder="e.g., Trade execution, Deposit, etc." 
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <button onclick="emulateBalanceUpdate()" id="sdk-balance-btn" disabled
+                                            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-paper-plane mr-1"></i>Send BALANCE_UPDATE to Client
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- onBroadcast Event -->
+                            <div class="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border-2 border-indigo-400 dark:border-indigo-600 rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-indigo-800 dark:text-indigo-200 mb-3">
+                                    <i class="fas fa-bullhorn mr-2"></i>onBroadcast(BroadcastNotificationMessage)
+                                </h4>
+                                <p class="text-xs text-indigo-700 dark:text-indigo-300 mb-4">
+                                    Simulate broadcast messages to all clients
+                                </p>
+                                
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sender</label>
+                                        <input type="text" id="sdk-broadcast-sender" value="SYSTEM" 
+                                               class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Message</label>
+                                        <textarea id="sdk-broadcast-message" rows="2" 
+                                                  class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                                                  placeholder="Broadcast message">Market will close in 5 minutes!</textarea>
+                                    </div>
+                                    <button onclick="emulateBroadcast()" id="sdk-broadcast-btn" disabled
+                                            class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-paper-plane mr-1"></i>Send BROADCAST to Client
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Events -->
+                        <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                            <!-- onOrderAck -->
+                            <div class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4">
+                                <h5 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                                    <i class="fas fa-check mr-1"></i>onOrderAck
+                                </h5>
+                                <div class="space-y-2">
+                                    <input type="text" id="sdk-ack-orderid" placeholder="Order ID" 
+                                           class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    <select id="sdk-ack-status" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        <option value="ACCEPTED">ACCEPTED</option>
+                                        <option value="REJECTED">REJECTED</option>
+                                        <option value="CANCELLED">CANCELLED</option>
+                                    </select>
+                                    <button onclick="emulateOrderAck()" id="sdk-ack-btn" disabled
+                                            class="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Send ORDER_ACK
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- onTicker -->
+                            <div class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4">
+                                <h5 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                                    <i class="fas fa-chart-line mr-1"></i>onTicker
+                                </h5>
+                                <div class="space-y-2">
+                                    <select id="sdk-ticker-product" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                        <option value="FOSFO">FOSFO</option>
+                                        <option value="PITA">PITA</option>
+                                        <option value="PALTA-OIL">PALTA-OIL</option>
+                                        <option value="GUACA">GUACA</option>
+                                        <option value="SEBO">SEBO</option>
+                                        <option value="H-GUACA">H-GUACA</option>
+                                    </select>
+                                    <input type="number" id="sdk-ticker-price" placeholder="Price" value="15.50" step="0.01"
+                                           class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    <button onclick="emulateTicker()" id="sdk-ticker-btn" disabled
+                                            class="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Send TICKER
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- onEventDelta -->
+                            <div class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4">
+                                <h5 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                                    <i class="fas fa-sync mr-1"></i>onEventDelta
+                                </h5>
+                                <div class="space-y-2">
+                                    <input type="number" id="sdk-delta-count" placeholder="Event count" value="5" min="0"
+                                           class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white">
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">Sends resync response</div>
+                                    <button onclick="emulateEventDelta()" id="sdk-delta-btn" disabled
+                                            class="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs transition-colors">
+                                        Send EVENT_DELTA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Event Log -->
+                        <div class="mt-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                    <i class="fas fa-stream mr-2"></i>Emulation Log
+                                </h4>
+                                <button onclick="clearEmulationLog()" class="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded transition-colors">
+                                    <i class="fas fa-trash mr-1"></i>Clear
+                                </button>
+                            </div>
+                            <div id="sdk-emulation-log" class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-lg h-48 overflow-y-auto">
+                                <div class="text-gray-500">Ready to emulate SDK events... Connect to server first!</div>
                             </div>
                         </div>
                     </div>
@@ -1346,6 +1709,7 @@
             document.getElementById('ticker-content').style.display = 'none';
             document.getElementById('orderbook-content').style.display = 'none';
             document.getElementById('transactions-content').style.display = 'none';
+            document.getElementById('sdk-emulator-content').style.display = 'none';
             document.getElementById('docs-content').style.display = 'none';
             
             // Remove active class from all tabs
@@ -1793,7 +2157,10 @@
                 'refresh-orders-btn', 'cancel-mm-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
                 'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
                 'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
-                'team-perf-btn', 'global-perf-btn'
+                'team-perf-btn', 'global-perf-btn',
+                // SDK Emulator buttons
+                'sdk-offer-btn', 'sdk-fill-btn', 'sdk-error-btn', 'sdk-inv-btn', 
+                'sdk-balance-btn', 'sdk-broadcast-btn', 'sdk-ack-btn', 'sdk-ticker-btn', 'sdk-delta-btn'
             ];
             
             buttons.forEach(id => {
@@ -1808,7 +2175,10 @@
                 'refresh-orders-btn', 'cancel-mm-btn', 'cancel-all-btn', 'quick-buy-fosfo', 'quick-sell-fosfo',
                 'err-balance-btn', 'err-product-btn', 'err-disconnect-btn', 'err-expire-btn',
                 'prod-btn', 'ping-btn', 'resync-btn', 'all-orders-btn', 'sessions-btn',
-                'team-perf-btn', 'global-perf-btn'
+                'team-perf-btn', 'global-perf-btn',
+                // SDK Emulator buttons
+                'sdk-offer-btn', 'sdk-fill-btn', 'sdk-error-btn', 'sdk-inv-btn', 
+                'sdk-balance-btn', 'sdk-broadcast-btn', 'sdk-ack-btn', 'sdk-ticker-btn', 'sdk-delta-btn'
             ];
             
             buttons.forEach(id => {
@@ -3123,19 +3493,258 @@
             
             // Test function to manually add a transaction (for debugging)
             window.addTestTransaction = function() {
-                const testFill = {
-                    side: 'BUY',
-                    fillQty: 10,
-                    product: 'FOSFO',
-                    fillPrice: 15.50,
-                    counterparty: 'TestTeam',
-                    serverTime: Date.now()
-                };
-                addTransactionToList(testFill);
-                showToast('Test transaction added', 'success');
+            const testFill = {
+                side: 'BUY',
+                fillQty: 10,
+                product: 'FOSFO',
+                fillPrice: 15.50,
+                counterparty: 'TestTeam',
+                serverTime: Date.now()
+            };
+            addTransactionToList(testFill);
+            showToast('Test transaction added', 'success');
+        };
+        
+        // ===== SDK Emulator Functions =====
+        
+        function logToEmulator(message, type = 'info') {
+            const log = document.getElementById('sdk-emulation-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = type === 'sent' ? '📤' : type === 'received' ? '📥' : type === 'error' ? '❌' : 'ℹ️';
+            const color = type === 'sent' ? 'text-blue-400' : type === 'received' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-gray-400';
+            
+            const entry = document.createElement('div');
+            entry.className = `${color} mb-1`;
+            entry.innerHTML = `[${timestamp}] ${icon} ${message}`;
+            log.appendChild(entry);
+            
+            // Auto scroll to bottom
+            log.scrollTop = log.scrollHeight;
+            
+            // Keep only last 100 entries
+            while (log.children.length > 100) {
+                log.removeChild(log.firstChild);
+            }
+        }
+        
+        function clearEmulationLog() {
+            const log = document.getElementById('sdk-emulation-log');
+            log.innerHTML = '<div class="text-gray-500">Log cleared. Ready to emulate SDK events...</div>';
+        }
+        
+        // Helper function to send SDK emulator messages
+        function sendSDKEmulatorMessage(messageType, payload) {
+            const targetTeam = document.getElementById('sdk-target-team').value.trim();
+            
+            if (!targetTeam) {
+                showToast('Please enter a target team name', 'warning');
+                return false;
+            }
+            
+            if (!isAuthenticated) {
+                showToast('Please login first', 'warning');
+                return false;
+            }
+            
+            const emulatorMessage = {
+                type: 'SDK_EMULATOR',
+                targetTeam: targetTeam,
+                messageType: messageType,
+                messagePayload: payload
             };
             
-            // Add keyboard shortcuts
+            sendMessage(emulatorMessage);
+            return true;
+        }
+        
+        function emulateOffer() {
+            const offerId = 'OFFER-' + Date.now();
+            const buyer = document.getElementById('sdk-offer-buyer').value;
+            const product = document.getElementById('sdk-offer-product').value;
+            const qty = parseInt(document.getElementById('sdk-offer-qty').value);
+            const maxPrice = parseFloat(document.getElementById('sdk-offer-price').value);
+            const expiresIn = parseInt(document.getElementById('sdk-offer-expires').value);
+            
+            const payload = {
+                offerId: offerId,
+                buyer: buyer,
+                product: product,
+                quantityRequested: qty,
+                maxPrice: maxPrice,
+                expiresIn: expiresIn,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('OFFER', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`OFFER → ${targetTeam}: ${buyer} wants ${qty} ${product} @ $${maxPrice}`, 'sent');
+                showToast(`Offer sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        function emulateFill() {
+            const side = document.getElementById('sdk-fill-side').value;
+            const product = document.getElementById('sdk-fill-product').value;
+            const qty = parseInt(document.getElementById('sdk-fill-qty').value);
+            const fillPrice = parseFloat(document.getElementById('sdk-fill-price').value);
+            const counterparty = document.getElementById('sdk-fill-counterparty').value;
+            
+            const payload = {
+                clOrdID: 'ORD-' + Date.now(),
+                side: side,
+                product: product,
+                fillQty: qty,
+                fillPrice: fillPrice,
+                counterparty: counterparty,
+                serverTime: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('FILL', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`FILL → ${targetTeam}: ${side} ${qty} ${product} @ $${fillPrice}`, 'sent');
+                showToast(`Fill sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        function emulateError() {
+            const code = document.getElementById('sdk-error-code').value;
+            const reason = document.getElementById('sdk-error-message').value;
+            
+            const payload = {
+                code: code,
+                reason: reason,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('ERROR', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`ERROR → ${targetTeam}: ${code} - ${reason}`, 'sent');
+                showToast(`Error sent to ${targetTeam}`, 'error');
+            }
+        }
+        
+        function emulateInventoryUpdate() {
+            const product = document.getElementById('sdk-inv-product').value;
+            const qty = parseInt(document.getElementById('sdk-inv-qty').value);
+            
+            // Build inventory object
+            const inventory = {};
+            inventory[product] = qty;
+            
+            const payload = {
+                inventory: inventory,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('INVENTORY_UPDATE', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`INVENTORY_UPDATE → ${targetTeam}: ${product} = ${qty}`, 'sent');
+                showToast(`Inventory update sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        function emulateBalanceUpdate() {
+            const newBalance = parseFloat(document.getElementById('sdk-balance-amount').value);
+            const reason = document.getElementById('sdk-balance-reason').value;
+            
+            const payload = {
+                newBalance: newBalance,
+                reason: reason,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('BALANCE_UPDATE', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`BALANCE_UPDATE → ${targetTeam}: $${newBalance} (${reason})`, 'sent');
+                showToast(`Balance update sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        function emulateBroadcast() {
+            const sender = document.getElementById('sdk-broadcast-sender').value;
+            const message = document.getElementById('sdk-broadcast-message').value;
+            
+            const payload = {
+                sender: sender,
+                message: message,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('BROADCAST_NOTIFICATION', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`BROADCAST → ${targetTeam} from ${sender}: ${message}`, 'sent');
+                showToast(`Broadcast sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        function emulateOrderAck() {
+            const clOrdID = document.getElementById('sdk-ack-orderid').value || 'ORD-' + Date.now();
+            const status = document.getElementById('sdk-ack-status').value;
+            
+            const payload = {
+                clOrdID: clOrdID,
+                status: status,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('ORDER_ACK', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`ORDER_ACK → ${targetTeam}: ${clOrdID} - ${status}`, 'sent');
+                showToast(`Order ACK sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        function emulateTicker() {
+            const product = document.getElementById('sdk-ticker-product').value;
+            const price = parseFloat(document.getElementById('sdk-ticker-price').value);
+            
+            const payload = {
+                product: product,
+                price: price,
+                bid: price - 0.5,
+                ask: price + 0.5,
+                volume: Math.floor(Math.random() * 1000),
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('TICKER', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`TICKER → ${targetTeam}: ${product} @ $${price}`, 'sent');
+                showToast(`Ticker sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        function emulateEventDelta() {
+            const eventCount = parseInt(document.getElementById('sdk-delta-count').value);
+            
+            // Generate sample events
+            const events = [];
+            for (let i = 0; i < eventCount; i++) {
+                events.push({
+                    type: 'FILL',
+                    clOrdID: 'ORD-' + (Date.now() + i),
+                    side: i % 2 === 0 ? 'BUY' : 'SELL',
+                    product: 'FOSFO',
+                    fillQty: 5,
+                    fillPrice: 15.0 + (i * 0.1),
+                    counterparty: 'RESYNC-TEAM',
+                    serverTime: new Date().toISOString()
+                });
+            }
+            
+            const payload = {
+                events: events,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (sendSDKEmulatorMessage('EVENT_DELTA', payload)) {
+                const targetTeam = document.getElementById('sdk-target-team').value;
+                logToEmulator(`EVENT_DELTA → ${targetTeam} with ${eventCount} events`, 'sent');
+                showToast(`Event delta sent to ${targetTeam}`, 'success');
+            }
+        }
+        
+        // Add keyboard shortcuts
             document.addEventListener('keydown', function(e) {
                 if (e.ctrlKey && e.altKey) {
                     switch(e.key) {
