@@ -21,9 +21,9 @@ RUN if [ -f scripts/inject-version.sh ]; then \
         echo "Injecting version info..." && \
         COMMIT_SHORT=$(echo ${GIT_COMMIT:-unknown} | cut -c1-7) && \
         BUILD_DATE=${BUILD_DATE:-$(date -u +"%Y-%m-%d %H:%M:%S UTC")} && \
-        sed -i "s/BUILD_VERSION/$COMMIT_SHORT/g" web/index.html && \
-        sed -i "s/BUILD_COMMIT/${GIT_COMMIT:-unknown}/g" web/index.html && \
-        sed -i "s/BUILD_DATE/$BUILD_DATE/g" web/index.html && \
+        sed -i "s/{{VERSION}}/$COMMIT_SHORT/g" web/index.html && \
+        sed -i "s/{{COMMIT}}/${GIT_COMMIT:-unknown}/g" web/index.html && \
+        sed -i "s/{{BUILD_DATE}}/$BUILD_DATE/g" web/index.html && \
         echo "✅ Version $COMMIT_SHORT injected"; \
     fi
 

@@ -118,7 +118,7 @@
                     <!-- Version Info -->
                     <div class="hidden sm:flex items-center bg-white/10 rounded-lg px-3 py-1 text-xs" title="Deployed Version">
                         <i class="fas fa-code-branch mr-2"></i>
-                        <span id="version-info" class="font-mono">BUILD_VERSION</span>
+                        <span id="version-info" class="font-mono">{{VERSION}}</span>
                     </div>
                     <button onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-lg transition-colors">
                         <i id="theme-icon" class="fas fa-moon"></i>
@@ -1624,16 +1624,16 @@
     <!-- JavaScript placeholder for existing functionality -->
     <script>
         // Version info - will be replaced during build
-        const BUILD_VERSION = 'BUILD_VERSION';
-        const BUILD_COMMIT = 'BUILD_COMMIT';
-        const BUILD_DATE = 'BUILD_DATE';
+        const APP_VERSION = '{{VERSION}}';
+        const APP_COMMIT = '{{COMMIT}}';
+        const APP_BUILD_DATE = '{{BUILD_DATE}}';
         
         // Update version display on load
         document.addEventListener('DOMContentLoaded', function() {
             const versionEl = document.getElementById('version-info');
-            if (versionEl && BUILD_COMMIT !== 'BUILD_COMMIT') {
-                versionEl.textContent = BUILD_COMMIT.substring(0, 7);
-                versionEl.title = `Version: ${BUILD_VERSION}\nCommit: ${BUILD_COMMIT}\nBuilt: ${BUILD_DATE}`;
+            if (versionEl && APP_COMMIT !== '{{COMMIT}}') {
+                versionEl.textContent = APP_COMMIT.substring(0, 7);
+                versionEl.title = `Version: ${APP_VERSION}\nCommit: ${APP_COMMIT}\nBuilt: ${APP_BUILD_DATE}`;
             }
         });
         

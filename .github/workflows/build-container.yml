@@ -82,9 +82,9 @@ jobs:
         buildah run $CONTAINER -- sh -c "
           COMMIT_SHORT=\$(echo ${{ github.sha }} | cut -c1-7) && \
           BUILD_DATE=\$(date -u +\"%Y-%m-%d %H:%M:%S UTC\") && \
-          sed -i \"s/BUILD_VERSION/\$COMMIT_SHORT/g\" web/index.html && \
-          sed -i \"s/BUILD_COMMIT/${{ github.sha }}/g\" web/index.html && \
-          sed -i \"s/BUILD_DATE/\$BUILD_DATE/g\" web/index.html && \
+          sed -i \"s/{{VERSION}}/\$COMMIT_SHORT/g\" web/index.html && \
+          sed -i \"s/{{COMMIT}}/${{ github.sha }}/g\" web/index.html && \
+          sed -i \"s/{{BUILD_DATE}}/\$BUILD_DATE/g\" web/index.html && \
           echo \"✅ Version \$COMMIT_SHORT injected into web UI\"
         "
         
