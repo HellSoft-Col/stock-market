@@ -51,7 +51,7 @@ public class OrderMessage {
    *
    * <p>Must be unique across all orders from this client.
    */
-  @SerializedName("cl_ord_id")
+  @SerializedName("clOrdID")
   private String clOrdID;
 
   /** The order side (BUY or SELL). */
@@ -67,17 +67,17 @@ public class OrderMessage {
   private Integer qty;
 
   /** The limit price (required only for LIMIT orders). */
-  @SerializedName("limit_price")
+  @SerializedName("limitPrice")
   private Double limitPrice;
 
   /** Optional expiration timestamp for the order. */
-  @SerializedName("expires_at")
+  @SerializedName("expiresAt")
   private String expiresAt;
 
   /** Optional message or comment for the order. */
   private String message;
 
   /** Optional debug mode for testing. */
-  @SerializedName("debug_mode")
+  @SerializedName("debugMode")
   private String debugMode;
 }

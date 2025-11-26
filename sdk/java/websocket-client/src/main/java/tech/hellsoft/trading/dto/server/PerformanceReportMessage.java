@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PerformanceReportMessage {
-  private MessageType messageType;
+  private MessageType type;
   private String teamName;
   private Double startBalance;
   private Double finalBalance;
@@ -29,5 +29,5 @@ public class PerformanceReportMessage {
   private Map<String, Integer> finalInventory;
   private Integer rank;
   private Integer totalTeams;
-  private String severTime;
+  private String serverTime;
 }

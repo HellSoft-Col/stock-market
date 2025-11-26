@@ -18,17 +18,17 @@ public class TickerMessage {
   private MessageType type;
   private Product product;
 
-  @SerializedName("best_bid")
+  @SerializedName("bestBid")
   private Double bestBid;
 
-  @SerializedName("best_ask")
+  @SerializedName("bestAsk")
   private Double bestAsk;
 
   private Double mid;
 
-  @SerializedName("volume_24h")
+  @SerializedName("volume24h")
   private Integer volume24h;
 
-  @SerializedName("server_time")
+  @SerializedName("serverTime")
   private String serverTime;
 }

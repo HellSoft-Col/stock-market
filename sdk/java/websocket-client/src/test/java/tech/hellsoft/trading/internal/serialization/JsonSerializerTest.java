@@ -38,7 +38,7 @@ class JsonSerializerTest {
     String json = JsonSerializer.toJson(order);
 
     assertNotNull(json);
-    assertTrue(json.contains("\"cl_ord_id\":\"ORDER-123\""));
+    assertTrue(json.contains("\"clOrdID\":\"ORDER-123\""));
     assertTrue(json.contains("\"type\":\"ORDER\""));
     assertTrue(json.contains("\"side\":\"BUY\""));
   }
@@ -46,7 +46,7 @@ class JsonSerializerTest {
   @Test
   void shouldDeserializeJsonToObject() {
     String json =
-        "{\"type\":\"ORDER\",\"cl_ord_id\":\"ORDER-123\",\"side\":\"BUY\",\"mode\":\"LIMIT\",\"product\":\"GUACA\",\"qty\":10,\"limit_price\":100.0}";
+        "{\"type\":\"ORDER\",\"clOrdID\":\"ORDER-123\",\"side\":\"BUY\",\"mode\":\"LIMIT\",\"product\":\"GUACA\",\"qty\":10,\"limitPrice\":100.0}";
 
     OrderMessage result = JsonSerializer.fromJson(json, OrderMessage.class);
 
@@ -152,8 +152,8 @@ class JsonSerializerTest {
   }
 
   @Test
-  void shouldHandleSnakeCaseFieldNaming() {
-    String json = "{\"cl_ord_id\":\"TEST-123\",\"limit_price\":99.5}";
+  void shouldHandleCamelCaseFieldNaming() {
+    String json = "{\"clOrdID\":\"TEST-123\",\"limitPrice\":99.5}";
 
     OrderMessage result = JsonSerializer.fromJson(json, OrderMessage.class);
 
@@ -200,7 +200,7 @@ class JsonSerializerTest {
   @Test
   void shouldHandleComplexFieldValues() {
     String json =
-        "{\"type\":\"ORDER\",\"cl_ord_id\":\"ORD-1\",\"side\":\"BUY\",\"product\":\"GUACA\",\"qty\":15}";
+        "{\"type\":\"ORDER\",\"clOrdID\":\"ORD-1\",\"side\":\"BUY\",\"product\":\"GUACA\",\"qty\":15}";
 
     OrderMessage result = JsonSerializer.fromJson(json, OrderMessage.class);
 
@@ -270,7 +270,7 @@ class JsonSerializerTest {
 
   @Test
   void shouldHandleNumericFieldsInJson() {
-    String json = "{\"qty\":42,\"limit_price\":123.456}";
+    String json = "{\"qty\":42,\"limitPrice\":123.456}";
 
     OrderMessage result = JsonSerializer.fromJson(json, OrderMessage.class);
 

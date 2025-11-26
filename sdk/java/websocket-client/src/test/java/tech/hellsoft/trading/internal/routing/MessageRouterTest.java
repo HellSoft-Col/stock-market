@@ -56,7 +56,7 @@ class MessageRouterTest {
   @Test
   void shouldRouteTickerMessage() {
     String json =
-        "{\"type\":\"TICKER\",\"product\":\"GUACA\",\"best_bid\":99.5,\"best_ask\":100.5,\"mid\":100.0}";
+        "{\"type\":\"TICKER\",\"product\":\"GUACA\",\"bestBid\":99.5,\"bestAsk\":100.5,\"mid\":100.0}";
 
     router.routeMessage(json, handlers);
 
