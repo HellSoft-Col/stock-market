@@ -179,9 +179,16 @@ func (og *OfferGenerator) GenerateOffer(buyOrder *domain.Order) error {
 		timeoutMs := int(og.config.Market.OfferTimeout.Milliseconds())
 		expiresIn = &timeoutMs
 		expiresAt = time.Now().Add(og.config.Market.OfferTimeout)
+		log.Info().
+			Str("offerID", offerID).
+			Dur("timeout", og.config.Market.OfferTimeout).
+			Int("timeoutMs", timeoutMs).
+			Time("expiresAt", expiresAt).
+			Msg("Offer created with configured timeout")
 	} else {
 		// No expiration
 		expiresAt = time.Now().Add(24 * time.Hour) // Far future
+		log.Warn().Msg("No offer timeout configured, using 24 hour default")
 	}
 
 	// Create offer message
@@ -281,9 +288,16 @@ func (og *OfferGenerator) GenerateTargetedOffer(buyOrder *domain.Order, eligible
 		timeoutMs := int(og.config.Market.OfferTimeout.Milliseconds())
 		expiresIn = &timeoutMs
 		expiresAt = time.Now().Add(og.config.Market.OfferTimeout)
+		log.Info().
+			Str("offerID", offerID).
+			Dur("timeout", og.config.Market.OfferTimeout).
+			Int("timeoutMs", timeoutMs).
+			Time("expiresAt", expiresAt).
+			Msg("Targeted offer created with configured timeout")
 	} else {
 		// No expiration
 		expiresAt = time.Now().Add(24 * time.Hour) // Far future
+		log.Warn().Msg("No offer timeout configured for targeted offer, using 24 hour default")
 	}
 
 	// Create offer message
@@ -352,10 +366,20 @@ func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage
 	}
 
 	// Check expiration
-	if time.Now().After(offer.ExpiresAt) {
+	now := time.Now()
+	if now.After(offer.ExpiresAt) {
 		og.mu.Lock()
 		delete(og.activeOffers, acceptMsg.OfferID)
 		og.mu.Unlock()
+
+		log.Warn().
+			Str("offerID", acceptMsg.OfferID).
+			Str("acceptor", acceptorTeam).
+			Time("now", now).
+			Time("expiresAt", offer.ExpiresAt).
+			Dur("expiredAgo", now.Sub(offer.ExpiresAt)).
+			Msg("Offer acceptance rejected - offer has expired")
+
 		return fmt.Errorf("offer expired: %s", acceptMsg.OfferID)
 	}
 
