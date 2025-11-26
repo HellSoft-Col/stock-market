@@ -316,6 +316,30 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 		result.FillID = fillID
 
 		fillQty := result.TradeQty
+		totalCost := result.TradePrice * float64(fillQty)
+
+		// Check if buyer has enough balance (skip for SERVER virtual orders)
+		if buyOrder.TeamName != "SERVER" {
+			buyer, err := m.teamRepo.GetByTeamName(context.Background(), buyOrder.TeamName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get buyer team: %w", err)
+			}
+			if buyer.CurrentBalance < totalCost {
+				return nil, fmt.Errorf("buyer %s has insufficient balance: needs $%.2f, has $%.2f",
+					buyOrder.TeamName, totalCost, buyer.CurrentBalance)
+			}
+		}
+
+		// Check if seller has enough inventory (skip for SERVER virtual orders)
+		if sellOrder.TeamName != "SERVER" && m.inventoryService != nil {
+			canSell, err := m.inventoryService.CanSell(context.Background(), sellOrder.TeamName, sellOrder.Product, fillQty)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check seller inventory: %w", err)
+			}
+			if !canSell {
+				return nil, fmt.Errorf("seller %s has insufficient inventory for %s", sellOrder.TeamName, sellOrder.Product)
+			}
+		}
 
 		// Update buy order
 		if fillQty == (buyOrder.Quantity - buyOrder.FilledQty) {
@@ -390,7 +414,7 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 		}
 
 		// Update team balances
-		totalCost := result.TradePrice * float64(fillQty)
+		// (totalCost already calculated above for validation)
 
 		// Buyer loses balance
 		if err := m.teamRepo.UpdateBalanceBy(context.Background(), buyOrder.TeamName, -totalCost); err != nil {

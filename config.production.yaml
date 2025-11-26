@@ -15,7 +15,7 @@ mongodb:
 
 market:
   tickerInterval: 5s
-  offerTimeout: 5000ms
+  offerTimeout: 5m  # 5 minutes - gives teams enough time to accept offers
   orderBookDepth: 100
   enablePartialFills: true
   transactionRetries: 3

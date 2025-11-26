@@ -148,4 +148,17 @@ func (r *FillRepository) GetAll(ctx context.Context) ([]*domain.Fill, error) {
 	return fills, nil
 }
 
+func (r *FillRepository) DeleteAll(ctx context.Context) error {
+	result, err := r.collection.DeleteMany(ctx, bson.M{})
+	if err != nil {
+		return fmt.Errorf("failed to delete all fills: %w", err)
+	}
+
+	log.Info().
+		Int64("deletedCount", result.DeletedCount).
+		Msg("All fills deleted from database")
+
+	return nil
+}
+
 var _ domain.FillRepository = (*FillRepository)(nil)

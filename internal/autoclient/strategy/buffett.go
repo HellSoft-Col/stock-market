@@ -425,7 +425,7 @@ YOUR IDENTITY:
 YOUR PRODUCTION ROLE:
 - Branches: %d (parallel production streams)
 - Max Depth: %d (recipe complexity handling)
-- Base Energy: %d units per cycle
+- Base Energy: %.0f units per cycle
 - Focus Product: GUACA (premium quality product)
 
 WARREN BUFFETT'S WISDOM for the Andorian Avocado Exchange:`

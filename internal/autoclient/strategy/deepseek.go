@@ -376,7 +376,7 @@ SPECIES TRAITS: Patient value investors, quality-focused, long-term thinking, ph
 YOUR PRODUCTION CAPABILITIES:
 - Branches: %d (parallel production streams)
 - Max Depth: %d (recipe complexity you can handle)
-- Base Energy: %d units per production cycle
+- Base Energy: %.0f units per production cycle
 - YOUR SPECIALTY: %s - Focus on this for maximum profit!
 
 CURRENT STATUS:

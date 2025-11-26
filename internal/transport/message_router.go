@@ -23,6 +23,7 @@ type MessageRouter struct {
 	rateLimiter        *service.RateLimiter
 	orderRepo          domain.OrderRepository
 	orderBook          domain.OrderBookRepository
+	fillRepo           domain.FillRepository
 }
 
 func NewMessageRouter(
@@ -36,6 +37,7 @@ func NewMessageRouter(
 	rateLimiter *service.RateLimiter,
 	orderRepo domain.OrderRepository,
 	orderBook domain.OrderBookRepository,
+	fillRepo domain.FillRepository,
 ) *MessageRouter {
 	return &MessageRouter{
 		authService:        authService,
@@ -48,6 +50,7 @@ func NewMessageRouter(
 		rateLimiter:        rateLimiter,
 		orderRepo:          orderRepo,
 		orderBook:          orderBook,
+		fillRepo:           fillRepo,
 	}
 }
 
@@ -1500,7 +1503,16 @@ func (r *MessageRouter) handleResetTournamentConfig(
 		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
 	}
 
-	// Cancel all active orders first
+	// Delete all fill history to start fresh
+	if r.fillRepo != nil {
+		if err := r.fillRepo.DeleteAll(ctx); err != nil {
+			log.Warn().Err(err).Msg("Failed to delete fills during tournament reset")
+		} else {
+			log.Info().Msg("All fill history cleared for tournament reset")
+		}
+	}
+
+	// Cancel all active orders
 	ordersCanceled := 0
 	if r.orderRepo != nil {
 		allOrders, err := r.orderRepo.GetPendingOrders(ctx)
@@ -1531,15 +1543,15 @@ func (r *MessageRouter) handleResetTournamentConfig(
 			continue
 		}
 
-		// Set balance
-		if err := teamRepo.ResetTeamBalance(ctx, teamConfig.TeamName); err != nil {
-			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to reset team balance")
+		// Update to tournament balance (sets CurrentBalance)
+		if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, nil); err != nil {
+			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set tournament balance")
 			continue
 		}
 
-		// Update to tournament balance
-		if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, nil); err != nil {
-			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set tournament balance")
+		// Update InitialBalance to match new balance (for proper P&L calculation)
+		if err := teamRepo.UpdateInitialBalance(ctx, teamConfig.TeamName, tournamentMsg.Balance); err != nil {
+			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to update initial balance")
 			continue
 		}
 
@@ -1550,7 +1562,7 @@ func (r *MessageRouter) handleResetTournamentConfig(
 		}
 
 		// Set inventory from config
-		if teamConfig.Inventory != nil && len(teamConfig.Inventory) > 0 {
+		if len(teamConfig.Inventory) > 0 {
 			if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, teamConfig.Inventory); err != nil {
 				log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set team inventory")
 				continue

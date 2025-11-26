@@ -36,9 +36,11 @@ type DeepSeekConfig struct {
 	MaxRetries int           `yaml:"maxRetries"`
 }
 
-// GlobalConfig contains global risk limits
+// GlobalConfig contains global risk limits and trading settings
 type GlobalConfig struct {
-	RiskLimits RiskLimits `yaml:"riskLimits"`
+	RiskLimits           RiskLimits    `yaml:"riskLimits"`
+	TradingPace          time.Duration `yaml:"tradingPace"`          // How often to execute strategy (e.g., 5s, 10s)
+	MinTimeBetweenOrders time.Duration `yaml:"minTimeBetweenOrders"` // Minimum delay between sending orders (e.g., 500ms, 1s)
 }
 
 // RiskLimits defines trading risk constraints
@@ -50,12 +52,14 @@ type RiskLimits struct {
 
 // ClientConfig represents an automated client configuration
 type ClientConfig struct {
-	Name     string                 `yaml:"name"`
-	Token    string                 `yaml:"token"`
-	Species  string                 `yaml:"species"`
-	Strategy string                 `yaml:"strategy"`
-	Enabled  bool                   `yaml:"enabled"`
-	Config   map[string]interface{} `yaml:"config"`
+	Name                 string                 `yaml:"name"`
+	Token                string                 `yaml:"token"`
+	Species              string                 `yaml:"species"`
+	Strategy             string                 `yaml:"strategy"`
+	Enabled              bool                   `yaml:"enabled"`
+	TradingPace          *time.Duration         `yaml:"tradingPace,omitempty"`          // Optional: Override global trading pace
+	MinTimeBetweenOrders *time.Duration         `yaml:"minTimeBetweenOrders,omitempty"` // Optional: Override global min time between orders
+	Config               map[string]interface{} `yaml:"config"`
 }
 
 // LoadConfig loads configuration from a YAML file
@@ -132,4 +136,30 @@ func (c *Config) GetRole(species string) (*production.Role, error) {
 		return nil, fmt.Errorf("role not found for species: %s", species)
 	}
 	return role, nil
+}
+
+// GetTradingPace returns the effective trading pace for a client
+// If client has specific trading pace, use it; otherwise use global
+func (c *Config) GetTradingPace(clientCfg ClientConfig) time.Duration {
+	if clientCfg.TradingPace != nil {
+		return *clientCfg.TradingPace
+	}
+	if c.Global.TradingPace > 0 {
+		return c.Global.TradingPace
+	}
+	// Default to 1 second if not configured
+	return 1 * time.Second
+}
+
+// GetMinTimeBetweenOrders returns the effective minimum time between orders for a client
+// If client has specific setting, use it; otherwise use global
+func (c *Config) GetMinTimeBetweenOrders(clientCfg ClientConfig) time.Duration {
+	if clientCfg.MinTimeBetweenOrders != nil {
+		return *clientCfg.MinTimeBetweenOrders
+	}
+	if c.Global.MinTimeBetweenOrders > 0 {
+		return c.Global.MinTimeBetweenOrders
+	}
+	// Default to no delay (0) if not configured
+	return 0
 }

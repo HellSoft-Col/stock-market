@@ -70,6 +70,21 @@ func (s *ProductionService) ProcessProduction(
 		if err := s.validateAuthorization(team, prodMsg.Product); err != nil {
 			return err
 		}
+
+		// Check if this is premium production (requires ingredients)
+		recipe, hasRecipe := team.Recipes[prodMsg.Product]
+		if hasRecipe && recipe.Type == "PREMIUM" && len(recipe.Ingredients) > 0 {
+			// Validate and deduct ingredients for premium production
+			if err := s.deductIngredients(ctx, teamName, prodMsg.Product, prodMsg.Quantity, recipe.Ingredients); err != nil {
+				log.Warn().
+					Str("teamName", teamName).
+					Str("product", prodMsg.Product).
+					Int("quantity", prodMsg.Quantity).
+					Err(err).
+					Msg("Failed to deduct ingredients for premium production")
+				return fmt.Errorf("insufficient ingredients for premium production: %w", err)
+			}
+		}
 	}
 
 	// Update inventory
@@ -151,6 +166,51 @@ func (s *ProductionService) validateAuthorization(team *domain.Team, product str
 	}
 
 	return fmt.Errorf("team not authorized to produce %s", product)
+}
+
+// deductIngredients checks if team has enough ingredients and deducts them for premium production
+func (s *ProductionService) deductIngredients(
+	ctx context.Context,
+	teamName string,
+	product string,
+	quantity int,
+	ingredients map[string]int,
+) error {
+	if s.inventoryService == nil {
+		return fmt.Errorf("inventory service unavailable")
+	}
+
+	// Get current inventory
+	inventory, err := s.inventoryService.GetTeamInventory(ctx, teamName)
+	if err != nil {
+		return fmt.Errorf("failed to get inventory: %w", err)
+	}
+
+	// Check if team has enough of each ingredient
+	for ingredient, requiredPerUnit := range ingredients {
+		totalRequired := requiredPerUnit * quantity
+		available := inventory[ingredient]
+		if available < totalRequired {
+			return fmt.Errorf("insufficient %s: need %d, have %d", ingredient, totalRequired, available)
+		}
+	}
+
+	// Deduct all ingredients
+	for ingredient, requiredPerUnit := range ingredients {
+		totalRequired := requiredPerUnit * quantity
+		if err := s.inventoryService.UpdateInventory(ctx, teamName, ingredient, -totalRequired, "PRODUCTION_INGREDIENT", "", ""); err != nil {
+			return fmt.Errorf("failed to deduct %s: %w", ingredient, err)
+		}
+	}
+
+	log.Info().
+		Str("teamName", teamName).
+		Str("product", product).
+		Int("quantity", quantity).
+		Interface("ingredients", ingredients).
+		Msg("Ingredients deducted for premium production")
+
+	return nil
 }
 
 var _ domain.ProductionService = (*ProductionService)(nil)

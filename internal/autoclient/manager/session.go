@@ -40,6 +40,10 @@ type TradingSession struct {
 	serverPort int
 	useSSL     bool
 
+	// Trading config
+	tradingPace          time.Duration
+	minTimeBetweenOrders time.Duration
+
 	// Reconnection
 	reconnectInterval    time.Duration
 	maxReconnectAttempts int
@@ -55,6 +59,8 @@ func NewTradingSession(
 	useSSL bool,
 	reconnectInterval time.Duration,
 	maxReconnectAttempts int,
+	tradingPace time.Duration,
+	minTimeBetweenOrders time.Duration,
 	strat strategy.Strategy,
 ) *TradingSession {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,6 +73,8 @@ func NewTradingSession(
 		useSSL:               useSSL,
 		reconnectInterval:    reconnectInterval,
 		maxReconnectAttempts: maxReconnectAttempts,
+		tradingPace:          tradingPace,
+		minTimeBetweenOrders: minTimeBetweenOrders,
 		strategy:             strat,
 		ctx:                  ctx,
 		cancel:               cancel,
@@ -184,8 +192,14 @@ func (s *TradingSession) connectAndRun() error {
 	s.connected = true
 	s.mu.Unlock()
 
-	// Create agent
-	s.agent = agent.NewTradingAgent(s.id, s.client, s.strategy)
+	// Create agent with configured trading pace and order throttling
+	s.agent = agent.NewTradingAgentWithConfig(s.id, s.client, s.strategy, s.tradingPace, s.minTimeBetweenOrders)
+
+	log.Info().
+		Str("session", s.id).
+		Dur("tradingPace", s.tradingPace).
+		Dur("minTimeBetweenOrders", s.minTimeBetweenOrders).
+		Msg("Agent created with trading configuration")
 
 	// Login
 	if err := s.login(); err != nil {

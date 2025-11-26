@@ -256,3 +256,11 @@ func (s *AuthService) ResetTeamInventory(ctx context.Context, teamName string) e
 
 	return s.teamRepo.UpdateInventory(ctx, teamName, inventory)
 }
+
+func (s *AuthService) UpdateInitialBalance(ctx context.Context, teamName string, balance float64) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	return s.teamRepo.UpdateInitialBalance(ctx, teamName, balance)
+}

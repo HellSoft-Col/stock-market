@@ -80,6 +80,10 @@ func (cm *ClientManager) startClient(clientCfg config.ClientConfig) error {
 		return fmt.Errorf("failed to create strategy: %w", err)
 	}
 
+	// Get trading configuration for this client
+	tradingPace := cm.config.GetTradingPace(clientCfg)
+	minTimeBetweenOrders := cm.config.GetMinTimeBetweenOrders(clientCfg)
+
 	// Create session
 	session := NewTradingSession(
 		clientCfg.Name,
@@ -89,6 +93,8 @@ func (cm *ClientManager) startClient(clientCfg config.ClientConfig) error {
 		cm.config.Server.UseSSL,
 		cm.config.Server.ReconnectInterval,
 		cm.config.Server.MaxReconnectAttempts,
+		tradingPace,
+		minTimeBetweenOrders,
 		strat,
 	)
 

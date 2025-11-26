@@ -32,9 +32,11 @@ type TradingAgent struct {
 	state    *market.MarketState
 
 	// Execution
-	executionInterval time.Duration
-	stopCh            chan struct{}
-	wg                sync.WaitGroup
+	executionInterval    time.Duration
+	minTimeBetweenOrders time.Duration // Minimum delay between sending orders
+	lastOrderTime        time.Time     // Time last order was sent
+	stopCh               chan struct{}
+	wg                   sync.WaitGroup
 
 	// Order tracking
 	pendingOrders map[string]*PendingOrder // Track orders by ClOrdID
@@ -52,16 +54,27 @@ type TradingAgent struct {
 
 // NewTradingAgent creates a new trading agent
 func NewTradingAgent(name string, client *client.WebSocketClient, strat strategy.Strategy) *TradingAgent {
+	return NewTradingAgentWithConfig(name, client, strat, 1*time.Second, 0)
+}
+
+// NewTradingAgentWithInterval creates a new trading agent with custom execution interval
+func NewTradingAgentWithInterval(name string, client *client.WebSocketClient, strat strategy.Strategy, executionInterval time.Duration) *TradingAgent {
+	return NewTradingAgentWithConfig(name, client, strat, executionInterval, 0)
+}
+
+// NewTradingAgentWithConfig creates a new trading agent with full configuration
+func NewTradingAgentWithConfig(name string, client *client.WebSocketClient, strat strategy.Strategy, executionInterval, minTimeBetweenOrders time.Duration) *TradingAgent {
 	return &TradingAgent{
-		name:              name,
-		client:            client,
-		strategy:          strat,
-		state:             market.NewMarketState(name),
-		executionInterval: 1 * time.Second, // Execute strategy every second
-		orderTimeout:      5 * time.Minute, // Default 5 minute timeout (configurable)
-		pendingOrders:     make(map[string]*PendingOrder),
-		fillTimes:         make([]time.Duration, 0, 100),
-		stopCh:            make(chan struct{}),
+		name:                 name,
+		client:               client,
+		strategy:             strat,
+		state:                market.NewMarketState(name),
+		executionInterval:    executionInterval,
+		minTimeBetweenOrders: minTimeBetweenOrders,
+		orderTimeout:         5 * time.Minute, // Default 5 minute timeout (configurable)
+		pendingOrders:        make(map[string]*PendingOrder),
+		fillTimes:            make([]time.Duration, 0, 100),
+		stopCh:               make(chan struct{}),
 	}
 }
 
@@ -203,8 +216,29 @@ func (a *TradingAgent) executeStrategy(ctx context.Context) error {
 		return fmt.Errorf("strategy execute failed: %w", err)
 	}
 
-	// Execute each action
-	for _, action := range actions {
+	// Execute each action with delay between orders if configured
+	for i, action := range actions {
+		// Apply delay between orders if configured and this is not the first order
+		if i > 0 && a.minTimeBetweenOrders > 0 && action.Type == strategy.ActionTypeOrder {
+			a.mu.RLock()
+			timeSinceLastOrder := time.Since(a.lastOrderTime)
+			a.mu.RUnlock()
+
+			if timeSinceLastOrder < a.minTimeBetweenOrders {
+				sleepTime := a.minTimeBetweenOrders - timeSinceLastOrder
+				log.Debug().
+					Str("agent", a.name).
+					Dur("delay", sleepTime).
+					Msg("Delaying order to respect minTimeBetweenOrders")
+
+				select {
+				case <-time.After(sleepTime):
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+		}
+
 		if err := a.executeAction(action); err != nil {
 			log.Error().
 				Err(err).
@@ -212,6 +246,13 @@ func (a *TradingAgent) executeStrategy(ctx context.Context) error {
 				Str("actionType", string(action.Type)).
 				Msg("Action execution failed")
 			continue
+		}
+
+		// Update last order time for orders
+		if action.Type == strategy.ActionTypeOrder {
+			a.mu.Lock()
+			a.lastOrderTime = time.Now()
+			a.mu.Unlock()
 		}
 	}
 

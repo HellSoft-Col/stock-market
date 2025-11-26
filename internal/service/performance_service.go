@@ -13,17 +13,20 @@ import (
 type PerformanceService struct {
 	teamRepo    domain.TeamRepository
 	fillRepo    domain.FillRepository
+	marketRepo  domain.MarketStateRepository
 	broadcaster domain.Broadcaster
 }
 
 func NewPerformanceService(
 	teamRepo domain.TeamRepository,
 	fillRepo domain.FillRepository,
+	marketRepo domain.MarketStateRepository,
 	broadcaster domain.Broadcaster,
 ) *PerformanceService {
 	return &PerformanceService{
 		teamRepo:    teamRepo,
 		fillRepo:    fillRepo,
+		marketRepo:  marketRepo,
 		broadcaster: broadcaster,
 	}
 }
@@ -72,7 +75,16 @@ func (s *PerformanceService) GenerateTeamReport(
 		avgTradeSize = totalVolume / float64(totalTrades)
 	}
 
-	profitLoss := team.CurrentBalance - team.InitialBalance
+	// Calculate inventory value at current market prices
+	inventoryValue := s.calculateInventoryValue(ctx, team.Inventory)
+
+	// Calculate total portfolio value (cash + inventory)
+	finalPortfolioValue := team.CurrentBalance + inventoryValue
+
+	// For P&L, we need to compare total portfolio value vs initial balance
+	// Assuming initial inventory value was 0 (or we could track initial inventory value)
+	profitLoss := finalPortfolioValue - team.InitialBalance
+
 	roi := float64(0)
 	if team.InitialBalance > 0 {
 		roi = (profitLoss / team.InitialBalance) * 100
@@ -82,7 +94,7 @@ func (s *PerformanceService) GenerateTeamReport(
 		Type:           "PERFORMANCE_REPORT",
 		TeamName:       teamName,
 		StartBalance:   team.InitialBalance,
-		FinalBalance:   team.CurrentBalance,
+		FinalBalance:   finalPortfolioValue, // Include inventory value
 		ProfitLoss:     profitLoss,
 		ROI:            roi,
 		TotalTrades:    totalTrades,
@@ -243,6 +255,53 @@ func (s *PerformanceService) SendTeamReport(ctx context.Context, teamName string
 		Msg("Team performance report sent")
 
 	return nil
+}
+
+// calculateInventoryValue computes the total value of inventory at current market prices
+func (s *PerformanceService) calculateInventoryValue(ctx context.Context, inventory map[string]int) float64 {
+	if len(inventory) == 0 {
+		return 0
+	}
+
+	totalValue := float64(0)
+	for product, quantity := range inventory {
+		if quantity <= 0 {
+			continue
+		}
+
+		// Get current market state for this product
+		marketState, err := s.marketRepo.GetByProduct(ctx, product)
+		if err != nil {
+			log.Debug().
+				Err(err).
+				Str("product", product).
+				Msg("Failed to get market state for inventory valuation, using default price")
+			// Use a default price if market state not available
+			totalValue += float64(quantity) * 10.0
+			continue
+		}
+
+		// Use mid price if available, otherwise use best bid, or fallback to default
+		var price float64
+		if marketState.Mid != nil {
+			price = *marketState.Mid
+		} else if marketState.BestBid != nil {
+			price = *marketState.BestBid
+		} else {
+			price = 10.0 // Default price
+		}
+
+		totalValue += float64(quantity) * price
+
+		log.Debug().
+			Str("product", product).
+			Int("quantity", quantity).
+			Float64("price", price).
+			Float64("value", float64(quantity)*price).
+			Msg("Inventory item valued")
+	}
+
+	return totalValue
 }
 
 var _ domain.PerformanceService = (*PerformanceService)(nil)

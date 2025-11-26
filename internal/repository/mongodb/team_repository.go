@@ -200,4 +200,28 @@ func (r *TeamRepository) GetTeamsWithInventory(
 	return teams, nil
 }
 
+func (r *TeamRepository) UpdateInitialBalance(ctx context.Context, teamName string, initialBalance float64) error {
+	update := bson.M{
+		"$set": bson.M{
+			"initialBalance": initialBalance,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"teamName": teamName}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update initial balance: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return domain.ErrTeamNotFound
+	}
+
+	log.Info().
+		Str("teamName", teamName).
+		Float64("initialBalance", initialBalance).
+		Msg("Team initial balance updated")
+
+	return nil
+}
+
 var _ domain.TeamRepository = (*TeamRepository)(nil)
