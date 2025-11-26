@@ -79,7 +79,7 @@ func (m *MarketEngine) Start(ctx context.Context) error {
 	log.Info().Msg("Starting market engine")
 
 	// Create and start offer generator
-	m.OfferGenerator = NewOfferGenerator(m.config, m.fillRepo, m.marketRepo, m.broadcaster, m, m.debugModeService)
+	m.OfferGenerator = NewOfferGenerator(m.config, m.fillRepo, m.orderRepo, m.marketRepo, m.broadcaster, m, m.debugModeService)
 	if err := m.OfferGenerator.Start(); err != nil {
 		return fmt.Errorf("failed to start offer generator: %w", err)
 	}

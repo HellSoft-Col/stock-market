@@ -21,6 +21,7 @@ type ActiveOffer struct {
 type OfferGenerator struct {
 	config           *config.Config
 	fillRepo         domain.FillRepository
+	orderRepo        domain.OrderRepository
 	marketRepo       domain.MarketStateRepository
 	broadcaster      domain.Broadcaster
 	marketEngine     *MarketEngine
@@ -38,6 +39,7 @@ type OfferGenerator struct {
 func NewOfferGenerator(
 	cfg *config.Config,
 	fillRepo domain.FillRepository,
+	orderRepo domain.OrderRepository,
 	marketRepo domain.MarketStateRepository,
 	broadcaster domain.Broadcaster,
 	marketEngine *MarketEngine,
@@ -46,6 +48,7 @@ func NewOfferGenerator(
 	return &OfferGenerator{
 		config:           cfg,
 		fillRepo:         fillRepo,
+		orderRepo:        orderRepo,
 		marketRepo:       marketRepo,
 		broadcaster:      broadcaster,
 		marketEngine:     marketEngine,
@@ -451,19 +454,72 @@ func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage
 		FilledQty: 0,
 	}
 
+	// Check if the original buy order still exists and is valid
+	// The offer might reference an old order that has been cancelled or filled
+	currentBuyOrder, err := og.orderRepo.GetByClOrdID(context.Background(), offer.BuyOrder.ClOrdID)
+	if err != nil || currentBuyOrder == nil {
+		log.Warn().
+			Err(err).
+			Str("offerID", acceptMsg.OfferID).
+			Str("buyClOrdID", offer.BuyOrder.ClOrdID).
+			Str("buyer", offer.BuyOrder.TeamName).
+			Msg("Original buy order no longer exists - offer is stale")
+
+		// Remove the stale offer
+		og.mu.Lock()
+		delete(og.activeOffers, acceptMsg.OfferID)
+		og.mu.Unlock()
+
+		return fmt.Errorf("buy order no longer exists: offer is stale")
+	}
+
+	// Check if the buy order is still open (not filled or cancelled)
+	if currentBuyOrder.Status != "PENDING" && currentBuyOrder.Status != "PARTIAL" {
+		log.Warn().
+			Str("offerID", acceptMsg.OfferID).
+			Str("buyClOrdID", offer.BuyOrder.ClOrdID).
+			Str("status", currentBuyOrder.Status).
+			Msg("Buy order is no longer active - offer is stale")
+
+		// Remove the stale offer
+		og.mu.Lock()
+		delete(og.activeOffers, acceptMsg.OfferID)
+		og.mu.Unlock()
+
+		return fmt.Errorf("buy order is no longer active (status: %s)", currentBuyOrder.Status)
+	}
+
+	// Check if there's still quantity to fill
+	remainingQty := currentBuyOrder.Quantity - currentBuyOrder.FilledQty
+	if remainingQty <= 0 {
+		log.Warn().
+			Str("offerID", acceptMsg.OfferID).
+			Str("buyClOrdID", offer.BuyOrder.ClOrdID).
+			Int("filled", currentBuyOrder.FilledQty).
+			Int("total", currentBuyOrder.Quantity).
+			Msg("Buy order is already completely filled - offer is stale")
+
+		// Remove the stale offer
+		og.mu.Lock()
+		delete(og.activeOffers, acceptMsg.OfferID)
+		og.mu.Unlock()
+
+		return fmt.Errorf("buy order is already completely filled")
+	}
+
 	// Remove offer from active offers BEFORE executing to prevent double-acceptance
 	og.mu.Lock()
 	delete(og.activeOffers, acceptMsg.OfferID)
 	og.mu.Unlock()
 
-	// Execute immediate match
-	err := og.executeOfferMatch(offer.BuyOrder, virtualSellOrder)
+	// Execute immediate match with the current buy order state
+	err = og.executeOfferMatch(currentBuyOrder, virtualSellOrder)
 	if err != nil {
 		// If execution fails, we've already removed the offer, so log the error
 		log.Error().
 			Err(err).
 			Str("offerID", acceptMsg.OfferID).
-			Str("buyer", offer.BuyOrder.TeamName).
+			Str("buyer", currentBuyOrder.TeamName).
 			Str("seller", acceptorTeam).
 			Msg("Failed to execute offer match after removing from active offers")
 		return fmt.Errorf("failed to execute offer acceptance: %w", err)
