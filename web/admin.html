@@ -682,6 +682,10 @@
                     
                 case 'PERFORMANCE_REPORT':
                     displayPerformance(message);
+                    // Update tournament dashboard if active
+                    if (tournamentActive && liveUpdatesEnabled) {
+                        handlePerformanceUpdate(message);
+                    }
                     break;
                     
                 case 'GLOBAL_PERFORMANCE_REPORT':
@@ -718,7 +722,20 @@
                     updateTeamSelector();
                     break;
                     
+                case 'ALL_TEAMS_RESPONSE':
+                    if (message.teams) {
+                        displayTeamsList(message.teams);
+                        allTeamsData = message.teams || [];
+                        updateTeamSelector();
+                        // Update live dashboard if tournament is active
+                        if (tournamentActive && liveUpdatesEnabled) {
+                            updateLiveLeaderboard(message.teams);
+                        }
+                    }
+                    break;
+                    
                 case 'TEAM_UPDATED':
+                case 'TEAM_MEMBERS_UPDATED':
                     showToast('Team updated successfully', 'success');
                     refreshTeams();
                     break;
@@ -740,6 +757,14 @@
                     showToast(`Fill: ${message.fillQty} ${message.product} @ $${message.fillPrice}`, 'success');
                     refreshAllOrders();
                     refreshPerformance();
+                    // Update tournament dashboard if active
+                    if (tournamentActive && liveUpdatesEnabled) {
+                        const buyerTeam = message.buyer || message.teamName;
+                        if (teamPerformanceData[buyerTeam]) {
+                            teamPerformanceData[buyerTeam].trades = (teamPerformanceData[buyerTeam].trades || 0) + 1;
+                        }
+                        setTimeout(() => updateLiveDashboard(), 500);
+                    }
                     break;
                     
                 case 'ORDER_BOOK_UPDATE':
@@ -1864,36 +1889,6 @@
                 const totalTrades = Object.values(teamPerformanceData)
                     .reduce((sum, data) => sum + (data.trades || 0), 0);
                 document.getElementById('stat-total-trades').textContent = totalTrades;
-            }
-        }
-
-        // Update the message handler to process team data for live dashboard
-        const originalHandleMessage = handleMessage;
-        function handleMessage(message) {
-            // Call original handler
-            if (typeof originalHandleMessage === 'function') {
-                originalHandleMessage(message);
-            }
-            
-            // Process for live dashboard
-            if (tournamentActive && liveUpdatesEnabled) {
-                if (message.type === 'ALL_TEAMS_RESPONSE' && message.teams) {
-                    updateLiveLeaderboard(message.teams);
-                }
-                
-                if (message.type === 'PERFORMANCE_REPORT') {
-                    handlePerformanceUpdate(message);
-                }
-                
-                if (message.type === 'FILL') {
-                    // Increment trade count
-                    const buyerTeam = message.buyer || message.teamName;
-                    if (teamPerformanceData[buyerTeam]) {
-                        teamPerformanceData[buyerTeam].trades = (teamPerformanceData[buyerTeam].trades || 0) + 1;
-                    }
-                    // Trigger dashboard update
-                    setTimeout(() => updateLiveDashboard(), 500);
-                }
             }
         }
     </script>
