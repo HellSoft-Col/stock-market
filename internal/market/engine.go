@@ -3,6 +3,7 @@ package market
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -341,33 +342,37 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 			}
 		}
 
-		// Update buy order
-		if fillQty == (buyOrder.Quantity - buyOrder.FilledQty) {
-			// Full fill
-			err := m.orderRepo.UpdateToFilled(context.Background(), sc, buyOrder.ClOrdID, fillID, fillQty)
-			if err != nil {
-				return nil, fmt.Errorf("failed to update buy order to filled: %w", err)
-			}
-		} else {
-			// Partial fill
-			err := m.orderRepo.UpdateToPartiallyFilled(context.Background(), sc, buyOrder.ClOrdID, fillID, fillQty)
-			if err != nil {
-				return nil, fmt.Errorf("failed to update buy order to partially filled: %w", err)
+		// Update buy order (skip if it's a virtual order from server/offer system)
+		if !isVirtualOrder(buyOrder.ClOrdID) {
+			if fillQty == (buyOrder.Quantity - buyOrder.FilledQty) {
+				// Full fill
+				err := m.orderRepo.UpdateToFilled(context.Background(), sc, buyOrder.ClOrdID, fillID, fillQty)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update buy order to filled: %w", err)
+				}
+			} else {
+				// Partial fill
+				err := m.orderRepo.UpdateToPartiallyFilled(context.Background(), sc, buyOrder.ClOrdID, fillID, fillQty)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update buy order to partially filled: %w", err)
+				}
 			}
 		}
 
-		// Update sell order
-		if fillQty == (sellOrder.Quantity - sellOrder.FilledQty) {
-			// Full fill
-			err := m.orderRepo.UpdateToFilled(context.Background(), sc, sellOrder.ClOrdID, fillID, fillQty)
-			if err != nil {
-				return nil, fmt.Errorf("failed to update sell order to filled: %w", err)
-			}
-		} else {
-			// Partial fill
-			err := m.orderRepo.UpdateToPartiallyFilled(context.Background(), sc, sellOrder.ClOrdID, fillID, fillQty)
-			if err != nil {
-				return nil, fmt.Errorf("failed to update sell order to partially filled: %w", err)
+		// Update sell order (skip if it's a virtual order from server/offer system)
+		if !isVirtualOrder(sellOrder.ClOrdID) {
+			if fillQty == (sellOrder.Quantity - sellOrder.FilledQty) {
+				// Full fill
+				err := m.orderRepo.UpdateToFilled(context.Background(), sc, sellOrder.ClOrdID, fillID, fillQty)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update sell order to filled: %w", err)
+				}
+			} else {
+				// Partial fill
+				err := m.orderRepo.UpdateToPartiallyFilled(context.Background(), sc, sellOrder.ClOrdID, fillID, fillQty)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update sell order to partially filled: %w", err)
+				}
 			}
 		}
 
@@ -691,6 +696,13 @@ func (m *MarketEngine) broadcastOrderBookUpdate(product string) {
 		Int("buyOrders", len(buySummaries)).
 		Int("sellOrders", len(sellSummaries)).
 		Msg("Order book update sent to admin")
+}
+
+// isVirtualOrder checks if an order ClOrdID belongs to a virtual order
+// Virtual orders are created by the server for offer acceptances or auto-accept debug mode
+// and don't exist in the database
+func isVirtualOrder(clOrdID string) bool {
+	return strings.HasPrefix(clOrdID, "VIRT-") || strings.HasPrefix(clOrdID, "AUTO-")
 }
 
 var _ domain.MarketService = (*MarketEngine)(nil)
