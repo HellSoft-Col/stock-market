@@ -345,17 +345,64 @@ type AIDecisionResponse struct {
 
 // buildMarketContext creates a context string for the AI
 func (s *DeepSeekStrategy) buildMarketContext() string {
-	ctx := fmt.Sprintf(`You are an expert trading bot on the Andorian Avocado Exchange. Your goal is to maximize profit.
+	// Get market snapshot
+	var snapshot *market.MarketState
+	if s.marketState != nil {
+		snapshot = s.marketState.GetSnapshot()
+	}
+
+	// Add personalized species/team context
+	teamContext := ""
+	teamSpecialty := ""
+
+	switch s.teamName {
+	case "Mensajeros del Núcleo":
+		teamContext = `You are the MENSAJEROS DEL NÚCLEO - Elite NUCREM miners and cosmic messengers.
+SPECIES TRAITS: Efficient, strategic, technologically advanced. Masters of NUCREM extraction and trading.`
+		teamSpecialty = "NUCREM"
+
+	case "Monjes del Guacamole Estelar":
+		teamContext = `You are the MONJES DEL GUACAMOLE ESTELAR - Warren Buffett disciples of the avocado arts.
+SPECIES TRAITS: Patient value investors, quality-focused, long-term thinking, philosophical traders.`
+		teamSpecialty = "GUACA (premium)"
+
+	default:
+		teamContext = fmt.Sprintf(`You are %s - An expert trading team on the Andorian Avocado Exchange.`, s.teamName)
+		teamSpecialty = "Multiple products"
+	}
+
+	ctx := fmt.Sprintf(`%s
+
+YOUR PRODUCTION CAPABILITIES:
+- Branches: %d (parallel production streams)
+- Max Depth: %d (recipe complexity you can handle)
+- Base Energy: %d units per production cycle
+- YOUR SPECIALTY: %s - Focus on this for maximum profit!
 
 CURRENT STATUS:
 - Balance: $%.2f
-- Inventory: %v
+- Inventory: %v`,
+		teamContext,
+		s.role.Branches, s.role.MaxDepth, s.role.BaseEnergy, teamSpecialty,
+		s.balance, s.inventory)
 
-MARKET PRICES:`, s.balance, s.inventory)
+	// Add pending orders info
+	if snapshot != nil && len(snapshot.ActiveOrders) > 0 {
+		ctx += fmt.Sprintf("\n- Pending Orders: %d (waiting to be filled)", len(snapshot.ActiveOrders))
+		ctx += "\n  Active orders:"
+		for clOrdID, order := range snapshot.ActiveOrders {
+			priceStr := "MARKET"
+			if order.Price != nil {
+				priceStr = fmt.Sprintf("$%.2f", *order.Price)
+			}
+			ctx += fmt.Sprintf("\n    %s: %s %d %s @ %s", clOrdID[:8], order.Side, order.Quantity, order.Product, priceStr)
+		}
+	}
+
+	ctx += "\n\nMARKET PRICES:"
 
 	// Add market prices from tickers
-	if s.marketState != nil {
-		snapshot := s.marketState.GetSnapshot()
+	if snapshot != nil {
 		for product, ticker := range snapshot.Tickers {
 			bestBid := "-"
 			bestAsk := "-"
@@ -416,30 +463,50 @@ MARKET PRICES:`, s.balance, s.inventory)
 	ctx += `
 
 INSTRUCTIONS:
-Analyze the market and make 1-3 decisions from these options:
-1. BUY a product at market price (to resell later or use as ingredient)
-2. SELL a product you have in inventory
-3. PRODUCE a product (if you have production capability)
-4. HOLD (wait for better opportunities)
+You should make 2-4 DIFFERENT decisions per turn to maximize profit and market activity!
 
-You can make MULTIPLE actions simultaneously, for example:
-- BUY ingredients + PRODUCE product
-- SELL excess inventory + BUY undervalued product
-- PRODUCE multiple different products
+Available actions:
+1. BUY products (MARKET with price=0 OR LIMIT with specific price)
+2. SELL inventory products (MARKET or LIMIT)
+3. PRODUCE products (free or with ingredients)
+4. HOLD on specific products (wait for better price)
 
-IMPORTANT VALIDATION:
+🎯 DECISION STRATEGY - Make MULTIPLE actions per turn:
+✓ Example Turn: PRODUCE ` + teamSpecialty + ` (free) → SELL 50 ` + teamSpecialty + ` (LIMIT @ $X) → BUY 30 PITA (LIMIT @ $Y)
+✓ Diversify: Don't just produce OR sell - do BOTH plus strategic buying!
+✓ BE AGGRESSIVE: Your specialty product (` + teamSpecialty + `) costs ZERO - produce and sell it EVERY turn!
+
+📊 ORDER TYPE STRATEGY (60% LIMIT, 40% MARKET):
+- LIMIT orders (PREFERRED): Better profit margins, strategic positioning
+  * LIMIT BUY: Set 3-7% BELOW mid price (e.g., Mid $10 → Buy @ $9.30-$9.70)
+  * LIMIT SELL: Set 3-7% ABOVE mid price (e.g., Mid $10 → Sell @ $10.30-$10.70)
+- MARKET orders: When you need guaranteed execution
+  * Use when: Inventory full, urgent sale, or grabbing good deals
+
+💰 PROFIT MAXIMIZATION TACTICS:
+1. FREE PRODUCTION ADVANTAGE: Your specialty (` + teamSpecialty + `) has ZERO cost!
+   → Produce it EVERY turn and sell at ANY positive price = pure profit!
+   
+2. SPREAD CAPTURE: Place both buy and sell orders on same product
+   → Example: Buy FOSFO @ $7.50, Sell FOSFO @ $8.50 = $1 profit per unit
+   
+3. INVENTORY CHURN: Don't hoard - constantly produce and sell
+   → High turnover = more profit opportunities
+   
+4. INGREDIENT ARBITRAGE: Buy cheap ingredients, produce premium, sell high
+   → Calculate: Premium sell price > (ingredient costs + 10% margin)?
+
+5. MARKET MAKING: Help provide liquidity while earning spreads
+   → Place orders on multiple products simultaneously
+
+⚠️ VALIDATION RULES:
 - For SELL: Check you have enough inventory BEFORE selling
-- For BUY: Check you have enough balance BEFORE buying
+- For BUY: Check balance is sufficient (quantity × price ≤ current balance)
 - For PRODUCE: Check you have required ingredients BEFORE producing
-- Quantity must be positive integers
-- Price can be 0 for market orders or specific value for limit orders
-
-Consider:
-- Profit margins (buy low, sell high)
-- Production bonuses for premium products
-- Inventory management
-- Risk vs reward
-- Synergies between actions (e.g., buy ingredients then produce)
+- Quantity: Reasonable positive integers (typically 10-200 units)
+- Price: Set to 0 for MARKET orders, or specify price for LIMIT orders
+- NEVER use quantities over 500 - orders will fail validation
+- Always verify (quantity × estimated_price) <= your balance
 
 Respond ONLY with valid JSON in this exact format:
 {
@@ -456,19 +523,22 @@ Respond ONLY with valid JSON in this exact format:
 }
 
 Examples:
-1. Single action:
-   {"actions": [{"action": "BUY", "product": "FOSFO", "quantity": 50, "price": 0, "confidence": 0.8, "reasoning": "Price below average"}]}
+1. LIMIT buy below market:
+   {"actions": [{"action": "BUY", "product": "FOSFO", "quantity": 50, "price": 7.5, "confidence": 0.8, "reasoning": "Limit buy 5% below mid price"}]}
 
-2. Multiple actions:
+2. MARKET order (immediate):
+   {"actions": [{"action": "SELL", "product": "PALTA-OIL", "quantity": 100, "price": 0, "confidence": 0.9, "reasoning": "Quick liquidation needed"}]}
+
+3. Multiple actions (produce + sell):
    {"actions": [
-     {"action": "BUY", "product": "FOSFO", "quantity": 5, "price": 50, "confidence": 0.9, "reasoning": "Need ingredient"},
-     {"action": "PRODUCE", "product": "GUACA", "quantity": 1, "price": 0, "confidence": 0.85, "reasoning": "Have ingredients, good margin"}
+     {"action": "PRODUCE", "product": "PALTA-OIL", "quantity": 1, "price": 0, "confidence": 0.95, "reasoning": "Free production"},
+     {"action": "SELL", "product": "PALTA-OIL", "quantity": 80, "price": 10.5, "confidence": 0.85, "reasoning": "LIMIT sell 5% above market"}
    ]}
 
-3. Hold:
+4. Hold and wait:
    {"actions": [{"action": "HOLD", "product": "", "quantity": 0, "price": 0, "confidence": 0.5, "reasoning": "Waiting for better prices"}]}
 
-For market orders, set price to 0. Confidence should be 0-1.`
+Remember: Set price=0 for MARKET orders (instant), or specify price for LIMIT orders (better control). Confidence should be 0-1.`
 
 	return ctx
 }
@@ -634,129 +704,6 @@ func extractJSON(content string) string {
 	return content
 }
 
-// executeDecision converts an AI decision into trading actions
-func (s *DeepSeekStrategy) executeDecision(decision *AIDecision) []*Action {
-	var actions []*Action
-
-	switch decision.Action {
-	case "BUY":
-		// Place a buy order
-		if decision.Quantity > 0 {
-			order := &domain.OrderMessage{
-				Type:    "ORDER",
-				Product: decision.Product,
-				Side:    "BUY",
-				Mode:    "MARKET",
-				Qty:     decision.Quantity,
-			}
-
-			if decision.Price > 0 {
-				order.Mode = "LIMIT"
-				order.LimitPrice = &decision.Price
-			}
-
-			actions = append(actions, &Action{
-				Type:  ActionTypeOrder,
-				Order: order,
-			})
-		}
-
-	case "SELL":
-		// Check if we have inventory
-		if s.inventory[decision.Product] < decision.Quantity {
-			log.Warn().
-				Str("strategy", s.name).
-				Str("product", decision.Product).
-				Int("have", s.inventory[decision.Product]).
-				Int("want", decision.Quantity).
-				Msg("Insufficient inventory for SELL")
-			return nil
-		}
-
-		// Place a sell order
-		order := &domain.OrderMessage{
-			Type:    "ORDER",
-			Product: decision.Product,
-			Side:    "SELL",
-			Mode:    "MARKET",
-			Qty:     decision.Quantity,
-		}
-
-		if decision.Price > 0 {
-			order.Mode = "LIMIT"
-			order.LimitPrice = &decision.Price
-		}
-
-		actions = append(actions, &Action{
-			Type:  ActionTypeOrder,
-			Order: order,
-		})
-
-	case "PRODUCE":
-		if !s.includeProduction {
-			log.Warn().
-				Str("strategy", s.name).
-				Msg("PRODUCE action requested but production is disabled")
-			return nil
-		}
-
-		// Get recipe
-		recipe, err := s.recipeManager.GetRecipe(decision.Product)
-		if err != nil {
-			log.Warn().
-				Err(err).
-				Str("strategy", s.name).
-				Str("product", decision.Product).
-				Msg("Unknown recipe for PRODUCE")
-			return nil
-		}
-
-		// Check ingredients
-		for ingredient, qty := range recipe.Ingredients {
-			if s.inventory[ingredient] < qty {
-				log.Warn().
-					Str("strategy", s.name).
-					Str("product", decision.Product).
-					Str("ingredient", ingredient).
-					Int("have", s.inventory[ingredient]).
-					Int("need", qty).
-					Msg("Insufficient ingredients for PRODUCE")
-				return nil
-			}
-		}
-
-		// Calculate production units
-		baseUnits := s.calculator.CalculateUnits(s.role)
-
-		// Apply premium bonus if recipe has ingredients
-		totalUnits := baseUnits
-		if len(recipe.Ingredients) > 0 {
-			totalUnits = s.calculator.ApplyPremiumBonus(baseUnits, recipe.PremiumBonus)
-		}
-
-		// Create production action
-		production := &domain.ProductionUpdateMessage{
-			Type:     "PRODUCTION_UPDATE",
-			Product:  decision.Product,
-			Quantity: totalUnits,
-		}
-
-		actions = append(actions, &Action{
-			Type:       ActionTypeProduction,
-			Production: production,
-		})
-
-	case "HOLD":
-		// No action needed
-		log.Debug().
-			Str("strategy", s.name).
-			Str("reasoning", decision.Reasoning).
-			Msg("AI decided to HOLD")
-	}
-
-	return actions
-}
-
 // getAIDecisions calls the DeepSeek API to get multiple trading decisions
 func (s *DeepSeekStrategy) getAIDecisions(ctx context.Context, marketContext string) ([]AIDecision, error) {
 	request := DeepSeekRequest{
@@ -895,9 +842,14 @@ func (s *DeepSeekStrategy) executeDecisionWithValidation(decision AIDecision) ([
 
 	switch decision.Action {
 	case "BUY":
-		// Validate: check balance
+		// Validate: check quantity is reasonable
 		if decision.Quantity <= 0 {
 			return nil, fmt.Errorf("invalid quantity: %d", decision.Quantity)
+		}
+
+		// Cap excessive quantities and return error for AI feedback
+		if decision.Quantity > 500 {
+			return nil, fmt.Errorf("quantity too large: %d units requested (max 500)", decision.Quantity)
 		}
 
 		price := decision.Price
@@ -916,18 +868,12 @@ func (s *DeepSeekStrategy) executeDecisionWithValidation(decision AIDecision) ([
 			return nil, fmt.Errorf("insufficient balance: need $%.2f, have $%.2f", estimatedCost, s.balance)
 		}
 
-		// Create order
-		order := &domain.OrderMessage{
-			Type:    "ORDER",
-			Product: decision.Product,
-			Side:    "BUY",
-			Mode:    "MARKET",
-			Qty:     decision.Quantity,
-		}
-
+		// Create order with funny message
+		var order *domain.OrderMessage
 		if decision.Price > 0 {
-			order.Mode = "LIMIT"
-			order.LimitPrice = &decision.Price
+			order = CreateLimitBuyOrder(decision.Product, decision.Quantity, decision.Price, "")
+		} else {
+			order = CreateBuyOrder(decision.Product, decision.Quantity, "")
 		}
 
 		actions = append(actions, &Action{
@@ -936,9 +882,14 @@ func (s *DeepSeekStrategy) executeDecisionWithValidation(decision AIDecision) ([
 		})
 
 	case "SELL":
-		// Validate: check inventory
+		// Validate: check quantity is reasonable
 		if decision.Quantity <= 0 {
 			return nil, fmt.Errorf("invalid quantity: %d", decision.Quantity)
+		}
+
+		// Cap excessive quantities and return error for AI feedback
+		if decision.Quantity > 500 {
+			return nil, fmt.Errorf("quantity too large: %d units requested (max 500)", decision.Quantity)
 		}
 
 		have := s.inventory[decision.Product]
@@ -947,18 +898,12 @@ func (s *DeepSeekStrategy) executeDecisionWithValidation(decision AIDecision) ([
 				decision.Quantity, decision.Product, have)
 		}
 
-		// Create order
-		order := &domain.OrderMessage{
-			Type:    "ORDER",
-			Product: decision.Product,
-			Side:    "SELL",
-			Mode:    "MARKET",
-			Qty:     decision.Quantity,
-		}
-
+		// Create order with funny message
+		var order *domain.OrderMessage
 		if decision.Price > 0 {
-			order.Mode = "LIMIT"
-			order.LimitPrice = &decision.Price
+			order = CreateLimitSellOrder(decision.Product, decision.Quantity, decision.Price, "")
+		} else {
+			order = CreateSellOrder(decision.Product, decision.Quantity, "")
 		}
 
 		actions = append(actions, &Action{

@@ -86,6 +86,7 @@ func (cm *ClientManager) startClient(clientCfg config.ClientConfig) error {
 		clientCfg,
 		cm.config.Server.Host,
 		cm.config.Server.Port,
+		cm.config.Server.UseSSL,
 		cm.config.Server.ReconnectInterval,
 		cm.config.Server.MaxReconnectAttempts,
 		strat,

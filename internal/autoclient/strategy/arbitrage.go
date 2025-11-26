@@ -63,6 +63,9 @@ func (s *ArbitrageStrategy) Initialize(config map[string]interface{}) error {
 
 // OnLogin is called when connected and logged in
 func (s *ArbitrageStrategy) OnLogin(ctx context.Context, loginInfo *domain.LoginOKMessage) error {
+	// Initialize message generator for funny order messages
+	InitMessageGenerator(loginInfo.Team, "")
+
 	log.Info().
 		Str("strategy", s.name).
 		Str("team", loginInfo.Team).
@@ -89,15 +92,21 @@ func (s *ArbitrageStrategy) OnFill(ctx context.Context, fill *domain.FillMessage
 
 // OnOffer is called when an offer request arrives
 func (s *ArbitrageStrategy) OnOffer(ctx context.Context, offer *domain.OfferMessage) (*OfferResponse, error) {
-	// Arbitrage: Accept offers that have good spreads
-	// Calculate if accepting this offer creates a profit opportunity
+	// Arbitrage: Generally reject offers since we look for spread opportunities
+	// Only accept if price seems very favorable
 
-	// For simplicity, accept offers with good prices
-	// In a real implementation, check against current market prices
+	// Accept offers priced below typical market (speculative buy)
+	// In a real implementation, would check against current bid/ask
+
+	// For now, reject most offers - arbitrage prefers to initiate trades
+	log.Debug().
+		Str("strategy", s.name).
+		Str("product", offer.Product).
+		Msg("Arbitrage reviewing offer")
 
 	return &OfferResponse{
 		Accept: false,
-		Reason: "Analyzing spread",
+		Reason: "Arbitrage prefers to initiate trades",
 	}, nil
 }
 

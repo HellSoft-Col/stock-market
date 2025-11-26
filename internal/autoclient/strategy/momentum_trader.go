@@ -90,6 +90,9 @@ func (s *MomentumStrategy) Initialize(config map[string]interface{}) error {
 
 // OnLogin is called when connected and logged in
 func (s *MomentumStrategy) OnLogin(ctx context.Context, loginInfo *domain.LoginOKMessage) error {
+	// Initialize message generator for funny order messages
+	InitMessageGenerator(loginInfo.Team, "")
+
 	log.Info().
 		Str("strategy", s.name).
 		Str("team", loginInfo.Team).

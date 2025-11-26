@@ -19,7 +19,8 @@ import (
 // - Momentum: Follows trends and captures price movements
 // - Inventory Management: Optimizes what to buy, sell, and hold
 type HybridStrategy struct {
-	name string
+	name   string
+	apiKey string
 
 	// Configuration
 	productionInterval time.Duration
@@ -105,6 +106,9 @@ func (s *HybridStrategy) Name() string {
 
 // Initialize initializes the strategy with configuration
 func (s *HybridStrategy) Initialize(config map[string]interface{}) error {
+	// Read API key for funny messages
+	s.apiKey = GetConfigString(config, "apiKey", "")
+
 	// Production settings
 	s.productionInterval = GetConfigDuration(config, "productionInterval", 30*time.Second)
 	s.minProductionMargin = GetConfigFloat(config, "minProductionMargin", 0.10) // 10%
@@ -127,6 +131,9 @@ func (s *HybridStrategy) Initialize(config map[string]interface{}) error {
 	// Risk management
 	s.maxOrderSize = GetConfigInt(config, "maxOrderSize", 200)
 	s.maxDailyLoss = GetConfigFloat(config, "maxDailyLoss", 1000.0)
+
+	// Initialize message generator with API key
+	InitMessageGenerator(s.name, s.apiKey)
 
 	log.Info().
 		Str("strategy", s.name).
@@ -348,17 +355,26 @@ func (s *HybridStrategy) executeProduction(state *market.MarketState) []*Action 
 		// Calculate production cost
 		productionCost := s.calculateRecipeProductionCost(state, recipe)
 
-		// Get market price
+		// Get market price (or use default)
 		price := state.GetPrice(product)
+		var marketPrice float64
 		if price == nil {
-			continue
+			marketPrice = getDefaultPrice(product)
+		} else {
+			marketPrice = *price
 		}
-		marketPrice := *price
 
 		// Calculate profit margin
-		margin := (marketPrice - productionCost) / productionCost
+		var margin float64
+		if productionCost == 0 {
+			// Free production (basic products) - always produce!
+			margin = 999.0 // Very high margin to prioritize
+		} else {
+			margin = (marketPrice - productionCost) / productionCost
+		}
 
-		if margin > s.minProductionMargin {
+		// Produce if profitable OR if it's free (basic product)
+		if margin > s.minProductionMargin || productionCost == 0 {
 			// Calculate units
 			baseUnits := s.calculator.CalculateUnits(s.role)
 			units := baseUnits
@@ -408,12 +424,21 @@ func (s *HybridStrategy) executeProduction(state *market.MarketState) []*Action 
 		},
 	})
 
-	// After producing, place sell order at profitable price
-	sellPrice := bestOpp.MarketPrice * 0.98 // Slightly below market for quick sale
-	actions = append(actions, &Action{
-		Type:  ActionTypeOrder,
-		Order: CreateLimitSellOrder(bestOpp.Product, bestOpp.Units, sellPrice, "Sell production"),
-	})
+	// After producing, sell aggressively for liquidity
+	if bestOpp.ProductionCost == 0 {
+		// Free production - sell at MARKET for instant liquidity
+		actions = append(actions, &Action{
+			Type:  ActionTypeOrder,
+			Order: CreateSellOrder(bestOpp.Product, bestOpp.Units, "MARKET sell basic production"),
+		})
+	} else {
+		// Premium production - sell at LIMIT for better price
+		sellPrice := bestOpp.MarketPrice * 1.05 // 5% above market
+		actions = append(actions, &Action{
+			Type:  ActionTypeOrder,
+			Order: CreateLimitSellOrder(bestOpp.Product, bestOpp.Units, sellPrice, "LIMIT sell premium production"),
+		})
+	}
 
 	return actions
 }
@@ -511,31 +536,63 @@ func (s *HybridStrategy) executeArbitrage(state *market.MarketState) []*Action {
 func (s *HybridStrategy) executeMarketMaking(state *market.MarketState) []*Action {
 	actions := []*Action{}
 
-	for product, ticker := range state.Tickers {
-		if ticker.Mid == nil {
-			continue
+	// Get all products we know about (from recipes or tickers)
+	products := make(map[string]bool)
+	for product := range state.Tickers {
+		products[product] = true
+	}
+	for product := range s.recipeManager.GetAllRecipes() {
+		products[product] = true
+	}
+
+	for product := range products {
+		// Get or estimate mid price
+		var midPrice float64
+		ticker := state.Tickers[product]
+		if ticker != nil && ticker.Mid != nil {
+			midPrice = *ticker.Mid
+		} else {
+			midPrice = getDefaultPrice(product)
 		}
 
-		midPrice := *ticker.Mid
 		inventory := state.GetInventoryQuantity(product)
 
 		// Calculate bid/ask
 		bidPrice := midPrice * (1 - s.spread/2)
 		askPrice := midPrice * (1 + s.spread/2)
 
-		// Place buy quote if inventory not too high
-		if inventory < s.maxInventory && state.Balance > bidPrice*float64(s.quoteSize) {
+		// ALWAYS place buy quotes to provide liquidity (if we have balance)
+		if state.Balance > bidPrice*float64(s.quoteSize) {
+			// Vary buy size: 50-100% of quoteSize
+			buyQty := s.quoteSize/2 + int(time.Now().UnixNano()%int64(s.quoteSize/2))
+
+			// Primary buy order
 			actions = append(actions, &Action{
 				Type:  ActionTypeOrder,
-				Order: CreateLimitBuyOrder(product, s.quoteSize, bidPrice, "MM buy"),
+				Order: CreateLimitBuyOrder(product, buyQty, bidPrice, "MM buy liquidity"),
 			})
+
+			// Add SECOND deeper buy order for extra liquidity (if we have funds)
+			if state.Balance > bidPrice*float64(s.quoteSize)*2 {
+				deeperBidPrice := bidPrice * 0.98 // 2% below regular bid
+				deeperBuyQty := buyQty / 2
+				if deeperBuyQty > 10 {
+					actions = append(actions, &Action{
+						Type:  ActionTypeOrder,
+						Order: CreateLimitBuyOrder(product, deeperBuyQty, deeperBidPrice, "MM deeper buy"),
+					})
+				}
+			}
 		}
 
-		// Place sell quote if have inventory
-		if inventory > s.quoteSize {
+		// Place sell quote if have ANY inventory (not just > quoteSize)
+		if inventory > 10 {
 			sellQty := s.quoteSize
 			if sellQty > inventory {
-				sellQty = inventory
+				sellQty = inventory / 2 // Sell half
+				if sellQty < 10 {
+					sellQty = 10
+				}
 			}
 			actions = append(actions, &Action{
 				Type:  ActionTypeOrder,
@@ -606,29 +663,57 @@ func (s *HybridStrategy) executeMomentum(state *market.MarketState) []*Action {
 func (s *HybridStrategy) executeInventoryManagement(state *market.MarketState) []*Action {
 	actions := []*Action{}
 
-	// Sell excess inventory
+	// Actively manage inventory - sell excess but not too aggressively
 	for product, qty := range state.Inventory {
-		if qty > s.maxInventory {
+		// Sell at 1/3 capacity (less aggressive selling, more balanced)
+		threshold := s.maxInventory / 3
+		if threshold < 30 {
+			threshold = 30 // Lower minimum threshold
+		}
+
+		if qty > threshold {
 			price := state.GetPrice(product)
+			var useMarket bool
+			var sellPrice float64
+
 			if price == nil {
-				continue
+				// No market price, use default and LIMIT order
+				sellPrice = getDefaultPrice(product) * 1.03
+				useMarket = false
+			} else {
+				// Use mix: 50% MARKET, 50% LIMIT
+				useMarket = (time.Now().UnixNano() % 2) == 0
+				sellPrice = *price * 1.02 // 2% above market
 			}
 
-			excess := qty - s.maxInventory
+			excess := qty - threshold
 			sellQty := excess
 			if sellQty > s.maxOrderSize {
 				sellQty = s.maxOrderSize
 			}
+			// Sell at least 30 units to keep things moving
+			if sellQty < 30 && qty >= 30 {
+				sellQty = 30
+			}
 
 			log.Info().
 				Str("product", product).
-				Int("excess", excess).
-				Msg("🧹 Selling excess inventory")
+				Int("inventory", qty).
+				Int("sellQty", sellQty).
+				Bool("market", useMarket).
+				Msg("🧹 Actively managing inventory")
 
-			actions = append(actions, &Action{
-				Type:  ActionTypeOrder,
-				Order: CreateSellOrder(product, sellQty, "Clear excess"),
-			})
+			if useMarket {
+				actions = append(actions, &Action{
+					Type:  ActionTypeOrder,
+					Order: CreateSellOrder(product, sellQty, "Clear inventory MARKET"),
+				})
+			} else {
+				actions = append(actions, &Action{
+					Type:  ActionTypeOrder,
+					Order: CreateLimitSellOrder(product, sellQty, sellPrice, "Clear inventory LIMIT"),
+				})
+			}
 		}
 	}
 

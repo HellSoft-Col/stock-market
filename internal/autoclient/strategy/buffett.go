@@ -414,20 +414,38 @@ func (s *BuffettStrategy) calculateIntrinsicValues() {
 
 // buildBuffettContext creates Warren Buffett-style investment context
 func (s *BuffettStrategy) buildBuffettContext() string {
-	ctx := fmt.Sprintf(`You are Warren Buffett, the Oracle of Omaha, analyzing the Andorian Avocado Exchange.
+	// Add team identity and production context
+	teamContext := `You are the MONJES DEL GUACAMOLE ESTELAR - Warren Buffett disciples of the avocado arts.
 
-Your investment philosophy:
-1. "Price is what you pay, value is what you get"
-2. "Be fearful when others are greedy, greedy when others are fearful"
-3. "It's far better to buy a wonderful company at a fair price than a fair company at a wonderful price"
-4. "Our favorite holding period is forever"
-5. "Risk comes from not knowing what you're doing"
+YOUR IDENTITY:
+- Species: Philosophical avocado traders and value investors
+- Specialty: Premium GUACA production and quality-focused trading
+- Production Capability: Can produce premium products when ingredients are available
+
+YOUR PRODUCTION ROLE:
+- Branches: %d (parallel production streams)
+- Max Depth: %d (recipe complexity handling)
+- Base Energy: %d units per cycle
+- Focus Product: GUACA (premium quality product)
+
+WARREN BUFFETT'S WISDOM for the Andorian Avocado Exchange:`
+
+	ctx := fmt.Sprintf(teamContext, s.role.Branches, s.role.MaxDepth, s.role.BaseEnergy)
+
+	ctx += `
+1. "Price is what you pay, value is what you get" - Buy undervalued products
+2. "Be fearful when others are greedy, greedy when others are fearful" - Counter-trade
+3. "Buy wonderful products at fair prices" - Quality over quantity
+4. "Our favorite holding period is forever" - But sell when overpriced
+5. "Risk comes from not knowing what you're doing" - Understand production costs
 
 CURRENT PORTFOLIO:
 - Cash: $%.2f
 - Inventory: %v
 
-INTRINSIC VALUES (based on production fundamentals):`, s.balance, s.inventory)
+INTRINSIC VALUES (based on production fundamentals):`
+
+	ctx = fmt.Sprintf(ctx, s.balance, s.inventory)
 
 	// Show intrinsic values vs market prices
 	if s.marketState != nil {

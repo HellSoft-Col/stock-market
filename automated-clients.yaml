@@ -1,6 +1,7 @@
 server:
-  host: "localhost"
-  port: 9000
+  host: "trading.hellsoft.tech"
+  port: 443
+  useSSL: true
   reconnectInterval: 5s
   maxReconnectAttempts: 10
 
@@ -16,312 +17,199 @@ global:
     maxPositionSize: 5000
     maxDailyLoss: 10000.0
 
-# The 12 Species Production Roles
-species_roles:
-  avocultores:
-    branches: 2
-    maxDepth: 4
-    decay: 0.7651
-    baseEnergy: 3.0
-    levelEnergy: 2.0
-    
-  monjes:
-    branches: 2
-    maxDepth: 3
-    decay: 0.8
-    baseEnergy: 4.0
-    levelEnergy: 1.5
-    
-  cosechadores:
-    branches: 3
-    maxDepth: 2
-    decay: 0.9
-    baseEnergy: 2.0
-    levelEnergy: 3.0
-    
-  herreros:
-    branches: 2
-    maxDepth: 3
-    decay: 0.75
-    baseEnergy: 3.5
-    levelEnergy: 2.5
-    
-  extractores:
-    branches: 2
-    maxDepth: 4
-    decay: 0.77
-    baseEnergy: 2.5
-    levelEnergy: 2.0
-    
-  tejemanteles:
-    branches: 2
-    maxDepth: 3
-    decay: 0.8
-    baseEnergy: 3.0
-    levelEnergy: 2.2
-    
-  cremeros:
-    branches: 3
-    maxDepth: 2
-    decay: 0.85
-    baseEnergy: 3.0
-    levelEnergy: 2.0
-    
-  mineros:
-    branches: 2
-    maxDepth: 4
-    decay: 0.76
-    baseEnergy: 2.8
-    levelEnergy: 2.1
-    
-  nucleo:
-    branches: 2
-    maxDepth: 3
-    decay: 0.79
-    baseEnergy: 3.2
-    levelEnergy: 1.8
-    
-  destiladores:
-    branches: 2
-    maxDepth: 3
-    decay: 0.78
-    baseEnergy: 3.1
-    levelEnergy: 2.0
-    
-  cartografos:
-    branches: 2
-    maxDepth: 3
-    decay: 0.8
-    baseEnergy: 3.0
-    levelEnergy: 1.9
-    
-  someliers:
-    branches: 2
-    maxDepth: 4
-    decay: 0.765
-    baseEnergy: 2.9
-    levelEnergy: 2.0
-
-# Production Recipes
-recipes:
-  # Avocultores recipes
-  PALTA-OIL:
-    product: "PALTA-OIL"
-    ingredients: null
-    premiumBonus: 1.0
-    
-  GUACA:
-    product: "GUACA"
-    ingredients:
-      FOSFO: 5
-      PITA: 3
-    premiumBonus: 1.30
-    
-  SEBO:
-    product: "SEBO"
-    ingredients:
-      NUCREM: 8
-    premiumBonus: 1.30
-    
-  # Other products
-  FOSFO:
-    product: "FOSFO"
-    ingredients: null
-    premiumBonus: 1.0
-    
-  PITA:
-    product: "PITA"
-    ingredients: null
-    premiumBonus: 1.0
-    
-  CASCAR-ALLOY:
-    product: "CASCAR-ALLOY"
-    ingredients: null
-    premiumBonus: 1.0
-    
-  QUANTUM-PULP:
-    product: "QUANTUM-PULP"
-    ingredients: null
-    premiumBonus: 1.0
-    
-  SKIN-WRAP:
-    product: "SKIN-WRAP"
-    ingredients: null
-    premiumBonus: 1.0
-    
-  ASTRO-BUTTER:
-    product: "ASTRO-BUTTER"
-    ingredients: null
-    premiumBonus: 1.0
-    
-  NUCREM:
-    product: "NUCREM"
-    ingredients:
-      SEBO: 6
-    premiumBonus: 1.30
-
-# Automated Client Configurations
+# Automated Client Configurations for 12 Teams
 clients:
-  # Auto-Producer Bot (Avocultores)
-  - name: "auto-producer-1"
-    token: "TK-PROD-001"
-    species: "avocultores"
+  # Team 1: Alquimistas de Palta - Auto Producer (PALTA-OIL specialist)
+  - name: "Alquimistas de Palta"
+    token: "TK-09jKZrvn0NF11v99j10vT4Fx"
     strategy: "auto_producer"
     enabled: true
     config:
-      productionInterval: "60s"
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "20s"  # Faster: was 45s
       basicProduct: "PALTA-OIL"
-      premiumProduct: "GUACA"
+      premiumProduct: "GUACA"  # Requires FOSFO + PITA
       autoSellBasic: true
-      minProfitMargin: 0.05
+      minProfitMargin: 0.08
       
-  # Auto-Producer Bot (Monjes)
-  - name: "auto-producer-2"
-    token: "TK-PROD-002"
-    species: "monjes"
-    strategy: "auto_producer"
-    enabled: true
-    config:
-      productionInterval: "45s"
-      basicProduct: "FOSFO"
-      premiumProduct: "GUACA"
-      autoSellBasic: true
-      minProfitMargin: 0.05
-      
-  # Market Maker Bot
-  - name: "market-maker-1"
-    token: "TK-MM-001"
-    species: "herreros"
-    strategy: "market_maker"
-    enabled: true
-    config:
-      spread: 0.02
-      quoteSize: 100
-      maxInventory: 1000
-      updateFrequency: "5s"
-      products:
-        - "PALTA-OIL"
-        - "FOSFO"
-        - "GUACA"
-        
-  # Liquidity Provider Bot
-  - name: "liquidity-provider-1"
-    token: "TK-LP-001"
-    species: "extractores"
-    strategy: "liquidity_provider"
-    enabled: true
-    config:
-      fillRate: 0.8
-      responseTime: "500ms"
-      priceImprovement: 0.005
-      targetProducts:
-        - "FOSFO"
-        - "PITA"
-        - "NUCREM"
-        
-  # AI Trader with Production (DeepSeek)
-  - name: "ai-trader-1"
-    token: "TK-AI-001"
-    species: "avocultores"
-    strategy: "deepseek"
-    enabled: false  # Requires DEEPSEEK_API_KEY
-    config:
-      decisionInterval: "15s"
-      temperature: 0.7
-      maxTokens: 500
-      minConfidence: 0.6
-      fallbackStrategy: "market_maker"
-      includeProduction: true
-      
-  # Random Trader (Market Chaos)
-  - name: "random-trader-1"
-    token: "TK-RAND-001"
-    species: "cosechadores"
-    strategy: "random_trader"
-    enabled: true
-    config:
-      minInterval: "10s"
-      maxInterval: "30s"
-      orderSizeMin: 50
-      orderSizeMax: 200
-      
-  # Momentum Trader (Trend Following)
-  - name: "momentum-trader-1"
-    token: "TK-MOM-001"
-    species: "mineros"
-    strategy: "momentum_trader"
-    enabled: true
-    config:
-      products:
-        - "PALTA-OIL"
-        - "FOSFO"
-        - "GUACA"
-      lookbackPeriod: "5m"
-      momentumThreshold: 0.03  # 3% momentum to trigger
-      maxPosition: 500
-      positionSize: 100
-      updateFrequency: "10s"
-      stopLoss: 0.10      # 10% stop loss
-      takeProfit: 0.15    # 15% take profit
-      
-  # Arbitrage Trader (Spread Capture)
-  - name: "arbitrage-trader-1"
-    token: "TK-ARB-001"
-    species: "cartografos"
-    strategy: "arbitrage"
-    enabled: true
-    config:
-      minSpread: 0.05         # 5% minimum spread
-      positionSize: 50
-      maxPositions: 5
-      checkFrequency: "5s"
-      
-  # Hybrid Intelligent Trader (ALL-IN-ONE)
-  - name: "hybrid-trader-1"
-    token: "TK-HYBRID-001"
-    species: "someliers"
+  # Team 2: Arpistas de Pita-Pita - Hybrid Market Maker + Producer (PITA)
+  - name: "Arpistas de Pita-Pita"
+    token: "TK-NVUoEHwzH1BRcgcyyDdhx2a4"
     strategy: "hybrid"
     enabled: true
     config:
-      # Production settings
-      productionInterval: "30s"
-      minProductionMargin: 0.10    # 10% min margin to produce
-      maxProductionRuns: 5
-      
-      # Market making settings
-      quoteInterval: "5s"
-      spread: 0.02                 # 2% bid-ask spread
-      quoteSize: 50
-      maxInventory: 500
-      
-      # Arbitrage settings
-      minArbitrageSpread: 0.05     # 5% min spread
-      tradeInterval: "3s"
-      
-      # Momentum settings
-      momentumThreshold: 0.03      # 3% price change
-      maxPosition: 300
-      
-      # Risk management
-      maxOrderSize: 200
-      maxDailyLoss: 1000.0
-      
-  # Warren Buffett Value Investor (AI-Powered)
-  - name: "warren-buffett-bot"
-    token: "TK-BUFFETT-001"
-    species: "nucleo"
-    strategy: "buffett"
-    enabled: false  # Requires DEEPSEEK_API_KEY
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "18s"  # Faster: was 44s
+      minProductionMargin: 0.09
+      quoteInterval: "3s"  # Faster: was 4s
+      spread: 0.03
+      quoteSize: 80
+      maxInventory: 800
+      minArbitrageSpread: 0.045
+      tradeInterval: "2s"  # Faster: was 4s
+      momentumThreshold: 0.032
+      maxPosition: 450
+      maxOrderSize: 190
+      maxDailyLoss: 1900.0
+        
+  # Team 3: Avocultores del Hueso Cósmico - Hybrid All-in-One
+  - name: "Avocultores del Hueso Cósmico"
+    token: "TK-XqnoG2blE3DFmApa75iexwvC"
+    strategy: "hybrid"
+    enabled: true
     config:
       apiKey: "${DEEPSEEK_API_KEY}"
-      decisionInterval: "30s"      # Patient, long-term thinking
-      temperature: 0.5             # Conservative, disciplined
+      productionInterval: "16s"  # Faster: was 40s
+      minProductionMargin: 0.12
+      quoteInterval: "3s"  # Faster: was 6s
+      spread: 0.025
+      quoteSize: 60
+      maxInventory: 600
+      minArbitrageSpread: 0.06
+      tradeInterval: "2s"  # Faster: was 4s
+      momentumThreshold: 0.04
+      maxPosition: 400
+      maxOrderSize: 150
+      maxDailyLoss: 1500.0
+      
+  # Team 4: Cartógrafos de Fosfolima - Auto Producer (FOSFO specialist)
+  - name: "Cartógrafos de Fosfolima"
+    token: "TK-egakIjLDHsuRF4KgObBILmlE"
+    strategy: "auto_producer"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "22s"  # Faster: was 40s
+      basicProduct: "FOSFO"
+      premiumProduct: "GUACA"  # Can make with PITA
+      autoSellBasic: true
+      minProfitMargin: 0.07
+      
+  # Team 5: Cosechadores de Semillas - Auto Producer (PITA specialist)
+  - name: "Cosechadores de Semillas"
+    token: "TK-QJ3a6pYMPtJS62xpuclWe1pH"
+    strategy: "auto_producer"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "21s"  # Faster: was 38s
+      basicProduct: "PITA"
+      premiumProduct: "GUACA"  # Can make with FOSFO
+      autoSellBasic: true
+      minProfitMargin: 0.06
+      
+  # Team 6: Forjadores Holográficos - Hybrid with Production (CASCAR-ALLOY)
+  - name: "Forjadores Holográficos"
+    token: "TK-B8YdOACQCKTf0ZEjqRawhXhQ"
+    strategy: "hybrid"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "19s"  # Faster: was 42s
+      minProductionMargin: 0.10
+      quoteInterval: "3s"  # Faster: was 7s
+      spread: 0.03
+      quoteSize: 55
+      maxInventory: 550
+      minArbitrageSpread: 0.05
+      tradeInterval: "2s"  # Faster: was 5s
+      momentumThreshold: 0.035
+      maxPosition: 380
+      maxOrderSize: 160
+      maxDailyLoss: 1800.0
+      
+  # Team 7: Ingenieros Holo-Aguacate - Hybrid with High Liquidity (NUCREM)
+  - name: "Ingenieros Holo-Aguacate"
+    token: "TK-SO4U3Kr25DbMLNiooci5U0YT"
+    strategy: "hybrid"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "17s"  # Faster: was 36s
+      minProductionMargin: 0.08
+      quoteInterval: "2s"  # Faster: was 4s
+      spread: 0.02
+      quoteSize: 75
+      maxInventory: 750
+      minArbitrageSpread: 0.04
+      tradeInterval: "2s"  # Faster: was 3s
+      momentumThreshold: 0.03
+      maxPosition: 420
+      maxOrderSize: 180
+      maxDailyLoss: 1700.0
+        
+  # Team 8: Mensajeros del Núcleo - DeepSeek AI (NUCREM specialist)
+  - name: "Mensajeros del Núcleo"
+    token: "TK-XKAG1T8R9smShyRc6akllOUl"
+    strategy: "deepseek"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      decisionInterval: "8s"  # Much faster: was 20s
+      temperature: 0.75
       maxTokens: 800
-      minConfidence: 0.7           # High confidence threshold
+      minConfidence: 0.65
       includeProduction: true
       
-      # Buffett-specific parameters
-      minValueMargin: 0.30         # 30% margin of safety
-      maxPriceEarnings: 15.0       # Conservative P/E ratio
-      longTermHorizon: "24h"       # Long-term perspective
-      qualityThreshold: 0.8        # Focus on quality
+  # Team 9: Mineros de Guacatrones - Auto Producer Aggressive (H-GUACA)
+  - name: "Mineros de Guacatrones"
+    token: "TK-easOq988WJaYn9tVhYyPukAr"
+    strategy: "auto_producer"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "23s"  # Faster: was 35s
+      basicProduct: "H-GUACA"
+      premiumProduct: "GUACA"
+      autoSellBasic: true
+      minProfitMargin: 0.06
+      
+  # Team 10: Monjes del Guacamole Estelar - Warren Buffett Value Investor
+  - name: "Monjes del Guacamole Estelar"
+    token: "TK-3h1JhNyu8oKT0DChOD5LKpN1"
+    strategy: "buffett"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      decisionInterval: "12s"  # Faster: was 35s (still more conservative than DeepSeek)
+      temperature: 0.45
+      maxTokens: 800
+      minConfidence: 0.75
+      includeProduction: true
+      minValueMargin: 0.35
+      maxPriceEarnings: 12.0
+      longTermHorizon: "48h"
+      qualityThreshold: 0.85
+      
+  # Team 11: Orfebres de Cáscara - Auto Producer (CASCAR-ALLOY specialist)
+  - name: "Orfebres de Cáscara"
+    token: "TK-6fAQHLCn9oiw7ITU4ywtHW2x"
+    strategy: "auto_producer"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "24s"  # Faster: was 42s
+      basicProduct: "CASCAR-ALLOY"
+      premiumProduct: "GUACA"
+      autoSellBasic: true
+      minProfitMargin: 0.07
+        
+  # Team 12: Someliers de Aceite - Hybrid with Production Focus (PALTA-OIL)
+  - name: "Someliers de Aceite"
+    token: "TK-TUkY6A0GaXzJw0LEKiVmosYw"
+    strategy: "hybrid"
+    enabled: true
+    config:
+      apiKey: "${DEEPSEEK_API_KEY}"
+      productionInterval: "15s"  # Faster: was 30s
+      minProductionMargin: 0.10
+      quoteInterval: "2s"  # Faster: was 5s
+      spread: 0.02
+      quoteSize: 70
+      maxInventory: 700
+      minArbitrageSpread: 0.05
+      tradeInterval: "2s"  # Faster: was 3s
+      momentumThreshold: 0.03
+      maxPosition: 350
+      maxOrderSize: 200
+      maxDailyLoss: 2000.0

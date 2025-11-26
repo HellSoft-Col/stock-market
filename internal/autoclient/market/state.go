@@ -161,6 +161,29 @@ func (ms *MarketState) RemoveOffer(offerID string) {
 	ms.LastUpdate = time.Now()
 }
 
+// AddActiveOrder records an order we sent
+func (ms *MarketState) AddActiveOrder(clOrdID string, order *domain.OrderSummary) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	ms.ActiveOrders[clOrdID] = order
+	ms.LastUpdate = time.Now()
+}
+
+// RemoveActiveOrder removes an order (filled or cancelled)
+func (ms *MarketState) RemoveActiveOrder(clOrdID string) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	delete(ms.ActiveOrders, clOrdID)
+	ms.LastUpdate = time.Now()
+}
+
+// GetActiveOrdersCount returns number of pending orders
+func (ms *MarketState) GetActiveOrdersCount() int {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return len(ms.ActiveOrders)
+}
+
 // CalculatePnL calculates profit and loss percentage
 func (ms *MarketState) CalculatePnL() float64 {
 	ms.mu.RLock()

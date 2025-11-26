@@ -23,6 +23,7 @@ type Config struct {
 type ServerConfig struct {
 	Host                 string        `yaml:"host"`
 	Port                 int           `yaml:"port"`
+	UseSSL               bool          `yaml:"useSSL"`
 	ReconnectInterval    time.Duration `yaml:"reconnectInterval"`
 	MaxReconnectAttempts int           `yaml:"maxReconnectAttempts"`
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/HellSoft-Col/stock-market/internal/autoclient/config"
 	"github.com/HellSoft-Col/stock-market/internal/autoclient/manager"
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -22,6 +23,9 @@ var (
 
 func main() {
 	flag.Parse()
+
+	// Load .env file if it exists (ignore errors if not found)
+	_ = godotenv.Load()
 
 	// Setup logging
 	setupLogging(*logLevel)

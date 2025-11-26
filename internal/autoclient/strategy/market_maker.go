@@ -49,6 +49,9 @@ func (s *MarketMakerStrategy) Initialize(config map[string]interface{}) error {
 	s.updateFrequency = GetConfigDuration(config, "updateFrequency", 5*time.Second)
 	s.products = GetConfigStringSlice(config, "products")
 
+	// Initialize message generator for funny order messages
+	InitMessageGenerator(s.name, "")
+
 	log.Info().
 		Str("strategy", s.name).
 		Float64("spread", s.spread).
@@ -87,10 +90,49 @@ func (s *MarketMakerStrategy) OnFill(ctx context.Context, fill *domain.FillMessa
 
 // OnOffer is called when an offer request arrives
 func (s *MarketMakerStrategy) OnOffer(ctx context.Context, offer *domain.OfferMessage) (*OfferResponse, error) {
-	// Market maker doesn't respond to offers (uses limit orders)
+	// Check if this is one of our products
+	isOurProduct := false
+	for _, product := range s.products {
+		if product == offer.Product {
+			isOurProduct = true
+			break
+		}
+	}
+
+	if !isOurProduct {
+		return &OfferResponse{
+			Accept: false,
+			Reason: "Not a product we make markets in",
+		}, nil
+	}
+
+	// Accept offers to rebalance inventory when we're short
+	// Note: We can't check current inventory here since we don't track it in strategy
+	// But we can accept offers opportunistically to provide liquidity
+
+	// Accept 50% of offers to provide two-sided liquidity
+	// In production, would check inventory levels
+	accept := true // For now, accept all offers for our products
+
+	if accept {
+		log.Info().
+			Str("strategy", s.name).
+			Str("product", offer.Product).
+			Int("qty", offer.QuantityRequested).
+			Float64("price", offer.MaxPrice).
+			Msg("Market maker accepting offer for liquidity")
+
+		return &OfferResponse{
+			Accept:          true,
+			QuantityOffered: offer.QuantityRequested,
+			PriceOffered:    offer.MaxPrice,
+			Reason:          "Providing liquidity",
+		}, nil
+	}
+
 	return &OfferResponse{
 		Accept: false,
-		Reason: "Market maker uses limit orders",
+		Reason: "Inventory level adequate",
 	}, nil
 }
 
@@ -121,35 +163,62 @@ func (s *MarketMakerStrategy) Execute(ctx context.Context, state *market.MarketS
 	// Place limit orders for each product
 	for _, product := range s.products {
 		price := state.GetPrice(product)
+		var midPrice float64
+
 		if price == nil {
-			continue
+			// No market price yet - use a reasonable starting price
+			midPrice = getDefaultPrice(product)
+			log.Debug().
+				Str("strategy", s.name).
+				Str("product", product).
+				Float64("defaultPrice", midPrice).
+				Msg("Using default price (no market data)")
+		} else {
+			midPrice = *price
 		}
 
-		midPrice := *price
 		inventory := state.GetInventoryQuantity(product)
 
-		// Calculate bid/ask prices based on spread
+		// Calculate bid/ask prices with tighter spread for more liquidity
 		bidPrice := midPrice * (1 - s.spread/2)
 		askPrice := midPrice * (1 + s.spread/2)
 
-		// Place buy order if inventory not too high
+		// Place two-sided quotes to create liquid market
+		// BUY side: Always place to provide bids
 		if inventory < s.maxInventory {
 			actions = append(actions, &Action{
 				Type:  ActionTypeOrder,
-				Order: CreateLimitBuyOrder(product, s.quoteSize, bidPrice, "MM buy"),
+				Order: CreateLimitBuyOrder(product, s.quoteSize, bidPrice, "MM BID"),
 			})
+
+			log.Debug().
+				Str("strategy", s.name).
+				Str("product", product).
+				Float64("bidPrice", bidPrice).
+				Int("bidQty", s.quoteSize).
+				Msg("Placing BID quote")
 		}
 
-		// Place sell order if have inventory
+		// SELL side: Only place if we have inventory
+		// Can't sell what we don't have!
 		if inventory > 0 {
 			sellQty := s.quoteSize
-			if sellQty > inventory {
+			if inventory < sellQty {
 				sellQty = inventory
 			}
+
 			actions = append(actions, &Action{
 				Type:  ActionTypeOrder,
-				Order: CreateLimitSellOrder(product, sellQty, askPrice, "MM sell"),
+				Order: CreateLimitSellOrder(product, sellQty, askPrice, "MM ASK"),
 			})
+
+			log.Debug().
+				Str("strategy", s.name).
+				Str("product", product).
+				Float64("askPrice", askPrice).
+				Int("askQty", sellQty).
+				Int("inventory", inventory).
+				Msg("Placing ASK quote")
 		}
 	}
 

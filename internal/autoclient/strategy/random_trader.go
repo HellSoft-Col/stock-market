@@ -78,6 +78,9 @@ func (s *RandomTraderStrategy) scheduleNextTrade() {
 
 // OnLogin is called when connected and logged in
 func (s *RandomTraderStrategy) OnLogin(ctx context.Context, loginInfo *domain.LoginOKMessage) error {
+	// Initialize message generator for funny order messages
+	InitMessageGenerator(loginInfo.Team, "")
+
 	log.Info().
 		Str("strategy", s.name).
 		Str("team", loginInfo.Team).
@@ -138,9 +141,23 @@ func (s *RandomTraderStrategy) Execute(ctx context.Context, state *market.Market
 
 	snapshot := state.GetSnapshot()
 
-	// Get available products (ones with prices)
-	availableProducts := []string{}
+	// Get ALL known products (from tickers AND all known game products)
+	productsMap := make(map[string]bool)
+
+	// Add products from market tickers
 	for product := range snapshot.Tickers {
+		productsMap[product] = true
+	}
+
+	// Add ALL known products from the game (trade even without market data)
+	knownProducts := []string{"PALTA-OIL", "FOSFO", "PITA", "H-GUACA", "GUACA", "NUCREM", "CASCAR-ALLOY"}
+	for _, product := range knownProducts {
+		productsMap[product] = true
+	}
+
+	// Convert map to slice
+	availableProducts := make([]string, 0, len(productsMap))
+	for product := range productsMap {
 		availableProducts = append(availableProducts, product)
 	}
 
@@ -158,20 +175,45 @@ func (s *RandomTraderStrategy) Execute(ctx context.Context, state *market.Market
 	// Random side (buy or sell)
 	isBuy := s.rng.Float64() < 0.5
 
+	// 50% chance to use LIMIT orders instead of MARKET
+	useLimitOrder := s.rng.Float64() < 0.5
+
+	// Get current market price
+	currentPrice := snapshot.Tickers[product].Mid
+	if currentPrice == nil {
+		cp := getDefaultPrice(product)
+		currentPrice = &cp
+	}
+
 	var action *Action
 
 	if isBuy {
 		// Random buy
-		action = &Action{
-			Type:  ActionTypeOrder,
-			Order: CreateBuyOrder(product, quantity, "Random buy"),
+		if useLimitOrder && currentPrice != nil {
+			// LIMIT buy with random price variation (-5% to +5%)
+			variation := 0.95 + s.rng.Float64()*0.1 // 0.95 to 1.05
+			limitPrice := *currentPrice * variation
+			action = &Action{
+				Type:  ActionTypeOrder,
+				Order: CreateLimitBuyOrder(product, quantity, limitPrice, ""),
+			}
+			log.Info().
+				Str("strategy", s.name).
+				Str("product", product).
+				Int("qty", quantity).
+				Float64("price", limitPrice).
+				Msg("Random LIMIT BUY order")
+		} else {
+			action = &Action{
+				Type:  ActionTypeOrder,
+				Order: CreateBuyOrder(product, quantity, ""),
+			}
+			log.Info().
+				Str("strategy", s.name).
+				Str("product", product).
+				Int("qty", quantity).
+				Msg("Random MARKET BUY order")
 		}
-
-		log.Info().
-			Str("strategy", s.name).
-			Str("product", product).
-			Int("qty", quantity).
-			Msg("Random BUY order")
 	} else {
 		// Random sell (only if have inventory)
 		inventory := snapshot.Inventory[product]
@@ -181,16 +223,31 @@ func (s *RandomTraderStrategy) Execute(ctx context.Context, state *market.Market
 				sellQty = inventory
 			}
 
-			action = &Action{
-				Type:  ActionTypeOrder,
-				Order: CreateSellOrder(product, sellQty, "Random sell"),
+			if useLimitOrder && currentPrice != nil {
+				// LIMIT sell with random price variation (-5% to +5%)
+				variation := 0.95 + s.rng.Float64()*0.1
+				limitPrice := *currentPrice * variation
+				action = &Action{
+					Type:  ActionTypeOrder,
+					Order: CreateLimitSellOrder(product, sellQty, limitPrice, ""),
+				}
+				log.Info().
+					Str("strategy", s.name).
+					Str("product", product).
+					Int("qty", sellQty).
+					Float64("price", limitPrice).
+					Msg("Random LIMIT SELL order")
+			} else {
+				action = &Action{
+					Type:  ActionTypeOrder,
+					Order: CreateSellOrder(product, sellQty, ""),
+				}
+				log.Info().
+					Str("strategy", s.name).
+					Str("product", product).
+					Int("qty", sellQty).
+					Msg("Random MARKET SELL order")
 			}
-
-			log.Info().
-				Str("strategy", s.name).
-				Str("product", product).
-				Int("qty", sellQty).
-				Msg("Random SELL order")
 		}
 	}
 

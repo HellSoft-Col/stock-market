@@ -9,13 +9,26 @@ import (
 )
 
 type WebSocketClient struct {
-	conn *websocket.Conn
-	url  string
+	conn   *websocket.Conn
+	url    string
+	useSSL bool
 }
 
 func NewWebSocketClient(host string) *WebSocketClient {
 	return &WebSocketClient{
-		url: fmt.Sprintf("ws://%s/ws", host),
+		url:    fmt.Sprintf("ws://%s/ws", host),
+		useSSL: false,
+	}
+}
+
+func NewWebSocketClientWithSSL(host string, useSSL bool) *WebSocketClient {
+	protocol := "ws"
+	if useSSL {
+		protocol = "wss"
+	}
+	return &WebSocketClient{
+		url:    fmt.Sprintf("%s://%s/ws", protocol, host),
+		useSSL: useSSL,
 	}
 }
 

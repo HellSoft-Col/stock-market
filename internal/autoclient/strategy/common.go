@@ -87,7 +87,7 @@ func CreateLimitSellOrder(product string, quantity int, price float64, message s
 // CreateProduction creates a production update message
 func CreateProduction(product string, quantity int) *domain.ProductionUpdateMessage {
 	return &domain.ProductionUpdateMessage{
-		Type:     "PRODUCTION",
+		Type:     "PRODUCTION_UPDATE",
 		Product:  product,
 		Quantity: quantity,
 	}
@@ -195,4 +195,25 @@ func GetMessageGenerator() *MessageGenerator {
 		globalMessageGenerator = NewMessageGenerator("Team", "")
 	}
 	return globalMessageGenerator
+}
+
+// getDefaultPrice returns a reasonable starting price for a product when no market data exists
+func getDefaultPrice(product string) float64 {
+	// Default prices based on product type
+	defaults := map[string]float64{
+		"PALTA-OIL":    10.0,
+		"FOSFO":        8.0,
+		"PITA":         7.0,
+		"H-GUACA":      12.0,
+		"GUACA":        25.0,
+		"NUCREM":       15.0,
+		"CASCAR-ALLOY": 20.0,
+	}
+
+	if price, ok := defaults[product]; ok {
+		return price
+	}
+
+	// Generic default for unknown products
+	return 10.0
 }

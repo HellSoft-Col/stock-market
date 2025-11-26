@@ -255,11 +255,26 @@ func (a *TradingAgent) sendOrder(order *domain.OrderMessage) error {
 	}
 	a.mu.Unlock()
 
+	// Add to market state for strategy visibility
+	pricePtr := &price
+	if price == 0 {
+		pricePtr = nil
+	}
+	a.state.AddActiveOrder(order.ClOrdID, &domain.OrderSummary{
+		ClOrdID:  order.ClOrdID,
+		Product:  order.Product,
+		Side:     order.Side,
+		Mode:     order.Mode,
+		Quantity: order.Qty,
+		Price:    pricePtr,
+	})
+
 	if err := a.client.SendMessage(order); err != nil {
 		// Remove from pending if send fails
 		a.mu.Lock()
 		delete(a.pendingOrders, order.ClOrdID)
 		a.mu.Unlock()
+		a.state.RemoveActiveOrder(order.ClOrdID)
 		return fmt.Errorf("failed to send order: %w", err)
 	}
 
@@ -297,7 +312,10 @@ func (a *TradingAgent) sendAcceptOffer(accept *domain.AcceptOfferMessage) error 
 	log.Info().
 		Str("agent", a.name).
 		Str("offerID", accept.OfferID).
-		Msg("Accept offer sent")
+		Bool("accepting", accept.Accept).
+		Int("qty", accept.QuantityOffered).
+		Float64("price", accept.PriceOffered).
+		Msg("🤝 ACCEPTING OFFER: We're filling another team's order!")
 
 	return nil
 }
@@ -359,10 +377,17 @@ func (a *TradingAgent) HandleFill(fill *domain.FillMessage) error {
 			Float64("price", fill.FillPrice).
 			Dur("fillTime", fillTime).
 			Dur("avgFillTime", a.avgFillTime).
-			Msg("✅ Fill received")
+			Str("counterparty", fill.Counterparty).
+			Str("counterpartyMessage", fill.CounterpartyMessage).
+			Msg("✅ FILL: Our order accepted by another team!")
 
 		// Remove from pending
 		delete(a.pendingOrders, fill.ClOrdID)
+
+		// Remove from market state
+		a.mu.Unlock()
+		a.state.RemoveActiveOrder(fill.ClOrdID)
+		a.mu.Lock()
 	} else {
 		log.Debug().
 			Str("clOrdID", fill.ClOrdID).

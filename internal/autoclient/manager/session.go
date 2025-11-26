@@ -38,6 +38,7 @@ type TradingSession struct {
 	// Server config
 	serverHost string
 	serverPort int
+	useSSL     bool
 
 	// Reconnection
 	reconnectInterval    time.Duration
@@ -51,6 +52,7 @@ func NewTradingSession(
 	clientConfig config.ClientConfig,
 	serverHost string,
 	serverPort int,
+	useSSL bool,
 	reconnectInterval time.Duration,
 	maxReconnectAttempts int,
 	strat strategy.Strategy,
@@ -62,6 +64,7 @@ func NewTradingSession(
 		config:               clientConfig,
 		serverHost:           serverHost,
 		serverPort:           serverPort,
+		useSSL:               useSSL,
 		reconnectInterval:    reconnectInterval,
 		maxReconnectAttempts: maxReconnectAttempts,
 		strategy:             strat,
@@ -165,7 +168,7 @@ func (s *TradingSession) connectionLoop() {
 // connectAndRun connects to server and runs the message loop
 func (s *TradingSession) connectAndRun() error {
 	// Create WebSocket client
-	s.client = client.NewWebSocketClient(fmt.Sprintf("%s:%d", s.serverHost, s.serverPort))
+	s.client = client.NewWebSocketClientWithSSL(fmt.Sprintf("%s:%d", s.serverHost, s.serverPort), s.useSSL)
 
 	// Connect
 	if err := s.client.Connect(); err != nil {

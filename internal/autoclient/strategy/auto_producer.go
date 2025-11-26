@@ -18,7 +18,8 @@ import (
 // 3. Use capital to buy ingredients from students
 // 4. Repeat cycle to maximize profit
 type AutoProducerStrategy struct {
-	name string
+	name   string
+	apiKey string
 
 	// Configuration
 	productionInterval time.Duration
@@ -56,6 +57,7 @@ func (s *AutoProducerStrategy) Name() string {
 
 // Initialize initializes the strategy with configuration
 func (s *AutoProducerStrategy) Initialize(config map[string]interface{}) error {
+	s.apiKey = GetConfigString(config, "apiKey", "")
 	s.productionInterval = GetConfigDuration(config, "productionInterval", 60*time.Second)
 	s.basicProduct = GetConfigString(config, "basicProduct", "")
 	s.premiumProduct = GetConfigString(config, "premiumProduct", "")
@@ -69,6 +71,9 @@ func (s *AutoProducerStrategy) Initialize(config map[string]interface{}) error {
 	if s.premiumProduct == "" {
 		return fmt.Errorf("premiumProduct is required")
 	}
+
+	// Initialize message generator for funny order messages (with API key for AI messages)
+	InitMessageGenerator(s.name, s.apiKey)
 
 	log.Info().
 		Str("strategy", s.name).
@@ -132,10 +137,50 @@ func (s *AutoProducerStrategy) OnFill(ctx context.Context, fill *domain.FillMess
 
 // OnOffer is called when an offer request arrives
 func (s *AutoProducerStrategy) OnOffer(ctx context.Context, offer *domain.OfferMessage) (*OfferResponse, error) {
-	// Auto-producer doesn't respond to offers (focuses on production)
+	// Check if this is an ingredient we need for premium production
+	if s.recipeManager == nil {
+		return &OfferResponse{
+			Accept: false,
+			Reason: "No recipe manager initialized",
+		}, nil
+	}
+
+	premiumRecipe, err := s.recipeManager.GetRecipe(s.premiumProduct)
+	if err != nil {
+		return &OfferResponse{
+			Accept: false,
+			Reason: "Premium recipe not found",
+		}, nil
+	}
+
+	// Check if offered product is an ingredient we need
+	neededQty, isIngredient := premiumRecipe.Ingredients[offer.Product]
+	if !isIngredient {
+		return &OfferResponse{
+			Accept: false,
+			Reason: fmt.Sprintf("Not an ingredient for %s", s.premiumProduct),
+		}, nil
+	}
+
+	// Accept the quantity we need (partial fill is OK)
+	quantityToAccept := offer.QuantityRequested
+	if quantityToAccept > neededQty*2 { // Don't over-buy
+		quantityToAccept = neededQty * 2
+	}
+
+	log.Info().
+		Str("strategy", s.name).
+		Str("product", offer.Product).
+		Int("needed", neededQty).
+		Int("accepting", quantityToAccept).
+		Float64("price", offer.MaxPrice).
+		Msg("Accepting offer for ingredient")
+
 	return &OfferResponse{
-		Accept: false,
-		Reason: "Auto-producer strategy does not accept offers",
+		Accept:          true,
+		QuantityOffered: quantityToAccept,
+		PriceOffered:    offer.MaxPrice,
+		Reason:          fmt.Sprintf("Need for %s production", s.premiumProduct),
 	}, nil
 }
 
@@ -212,37 +257,26 @@ func (s *AutoProducerStrategy) Execute(ctx context.Context, state *market.Market
 				Interface("consumed", recipe.Ingredients).
 				Msg("Premium production completed")
 
-			// Optionally sell premium if price is excellent
-			if price := state.GetPrice(s.premiumProduct); price != nil {
-				recipe, _ := s.recipeManager.GetRecipe(s.premiumProduct)
-				if recipe.Ingredients != nil {
-					// Calculate cost of ingredients
-					ingredientCost := 0.0
-					for ing, qty := range recipe.Ingredients {
-						if ingPrice := state.GetPrice(ing); ingPrice != nil {
-							ingredientCost += *ingPrice * float64(qty)
-						}
-					}
-
-					// Sell if profit margin is good
-					profitPerUnit := *price - (ingredientCost / float64(premiumUnits))
-					margin := profitPerUnit / *price
-					if margin >= s.minProfitMargin {
-						actions = append(actions, &Action{
-							Type:  ActionTypeOrder,
-							Order: CreateSellOrder(s.premiumProduct, premiumUnits, "Premium auto-sell"),
-						})
-
-						log.Info().
-							Str("strategy", s.name).
-							Str("product", s.premiumProduct).
-							Int("units", premiumUnits).
-							Float64("price", *price).
-							Float64("margin", margin).
-							Msg("Selling premium production")
-					}
-				}
+			// Sell premium at LIMIT price (20% above market or default)
+			price := state.GetPrice(s.premiumProduct)
+			var sellPrice float64
+			if price != nil {
+				sellPrice = *price * 1.20 // 20% premium
+			} else {
+				sellPrice = getDefaultPrice(s.premiumProduct) * 1.20
 			}
+
+			actions = append(actions, &Action{
+				Type:  ActionTypeOrder,
+				Order: CreateLimitSellOrder(s.premiumProduct, premiumUnits, sellPrice, "Premium product - LIMIT sell"),
+			})
+
+			log.Info().
+				Str("strategy", s.name).
+				Str("product", s.premiumProduct).
+				Int("units", premiumUnits).
+				Float64("limitPrice", sellPrice).
+				Msg("Selling premium production at LIMIT price")
 
 			s.lastProduction = time.Now()
 			return actions, nil
@@ -272,18 +306,44 @@ func (s *AutoProducerStrategy) Execute(ctx context.Context, state *market.Market
 		Int("units", baseUnits).
 		Msg("Basic production completed")
 
-	// Auto-sell basic to generate capital for buying ingredients
-	if s.autoSellBasic && baseUnits > 0 {
-		actions = append(actions, &Action{
-			Type:  ActionTypeOrder,
-			Order: CreateSellOrder(s.basicProduct, baseUnits, "Basic auto-sell for capital"),
-		})
+	// ALWAYS auto-sell basic - use mix of MARKET and LIMIT for variety
+	if baseUnits > 0 {
+		// 40% MARKET orders for liquidity, 60% LIMIT orders for better prices (more balanced)
+		useMarketOrder := (time.Now().UnixNano() % 10) < 4
 
-		log.Info().
-			Str("strategy", s.name).
-			Str("product", s.basicProduct).
-			Int("units", baseUnits).
-			Msg("Selling basic production immediately")
+		if useMarketOrder {
+			actions = append(actions, &Action{
+				Type:  ActionTypeOrder,
+				Order: CreateSellOrder(s.basicProduct, baseUnits, "MARKET sell for instant liquidity"),
+			})
+			log.Info().
+				Str("strategy", s.name).
+				Str("product", s.basicProduct).
+				Int("units", baseUnits).
+				Msg("🔥 MARKET selling basic production")
+		} else {
+			// LIMIT sell at market price or slightly above
+			price := state.GetPrice(s.basicProduct)
+			var limitPrice float64
+			if price != nil {
+				// Randomize between 98% and 105% of market
+				variation := 0.98 + float64(time.Now().UnixNano()%8)/100.0 // 0.98 to 1.05
+				limitPrice = *price * variation
+			} else {
+				limitPrice = getDefaultPrice(s.basicProduct) * 1.02
+			}
+
+			actions = append(actions, &Action{
+				Type:  ActionTypeOrder,
+				Order: CreateLimitSellOrder(s.basicProduct, baseUnits, limitPrice, "LIMIT sell for better price"),
+			})
+			log.Info().
+				Str("strategy", s.name).
+				Str("product", s.basicProduct).
+				Int("units", baseUnits).
+				Float64("limitPrice", limitPrice).
+				Msg("💰 LIMIT selling basic production")
+		}
 	}
 
 	s.lastProduction = time.Now()
