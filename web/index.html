@@ -758,18 +758,18 @@
                             </h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Team Name</label>
-                                    <input type="text" id="sdk-target-team" placeholder="e.g., TEAM-BOT-01" 
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Team Name (Auto-filled with your team)</label>
+                                    <input type="text" id="sdk-target-team" placeholder="Will auto-fill when you login" 
                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                                            value="">
                                     <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                        The team name of your Java SDK client that will receive the emulated messages
+                                        Messages will be sent to this team's Java SDK client. By default, this is YOUR team name.
                                     </p>
                                 </div>
                                 <div class="flex items-end">
                                     <div class="w-full">
-                                        <div class="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded p-3 text-xs text-yellow-800 dark:text-yellow-200">
-                                            <strong>💡 Tip:</strong> Make sure your Java SDK client is connected with the target team name before sending emulated messages!
+                                        <div class="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded p-3 text-xs text-green-800 dark:text-green-200">
+                                            <strong>✓ Testing with yourself:</strong> You can send events to your own team! Just make sure you have a Java SDK client connected with the same team name shown above.
                                         </div>
                                     </div>
                                 </div>
@@ -2255,6 +2255,14 @@
                     showToast(`📢 ${message.sender}: ${message.message}`, 'info', 5000);
                     addMessageToLog(`📢 Broadcast from ${message.sender}: ${message.message}`);
                     break;
+                case 'SDK_EMULATOR_ACK':
+                    if (message.success) {
+                        logToEmulator(`✓ Emulated ${message.messageType} delivered to ${message.targetTeam}`, 'received');
+                    } else {
+                        logToEmulator(`✗ Failed to deliver ${message.messageType} to ${message.targetTeam}`, 'error');
+                        showToast(`Failed to send ${message.messageType}`, 'error');
+                    }
+                    break;
                 default:
                     console.log('Unknown message type:', message.type);
                     addMessageToLog(`Unknown message: ${message.type}`);
@@ -2480,6 +2488,14 @@
             showTeamInfo(message.team);
             enableButtons();
             updateDashboard(currentTeam);
+            
+            // Auto-populate SDK Emulator target team
+            const sdkTargetTeam = document.getElementById('sdk-target-team');
+            if (sdkTargetTeam && !sdkTargetTeam.value) {
+                sdkTargetTeam.value = message.team;
+                sdkTargetTeam.placeholder = message.team;
+            }
+            
             showToast(`Welcome, ${message.team}!`, 'success');
         }
         
@@ -3485,27 +3501,7 @@
             showToast(`Creating ${action} order to fill...`, 'info');
         }
         
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set initial state
-            updateStatus('disconnected', 'Disconnected');
-            disableButtons();
-            
-            // Test function to manually add a transaction (for debugging)
-            window.addTestTransaction = function() {
-            const testFill = {
-                side: 'BUY',
-                fillQty: 10,
-                product: 'FOSFO',
-                fillPrice: 15.50,
-                counterparty: 'TestTeam',
-                serverTime: Date.now()
-            };
-            addTransactionToList(testFill);
-            showToast('Test transaction added', 'success');
-        };
-        
-        // ===== SDK Emulator Functions =====
+        // ===== SDK Emulator Functions (Global Scope) =====
         
         function logToEmulator(message, type = 'info') {
             const log = document.getElementById('sdk-emulation-log');
@@ -3744,8 +3740,29 @@
             }
         }
         
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial state
+            updateStatus('disconnected', 'Disconnected');
+            disableButtons();
+            
+            // Test function to manually add a transaction (for debugging)
+            window.addTestTransaction = function() {
+                const testFill = {
+                    side: 'BUY',
+                    fillQty: 10,
+                    product: 'FOSFO',
+                    fillPrice: 15.50,
+                    counterparty: 'TestTeam',
+                    serverTime: Date.now()
+                };
+                addTransactionToList(testFill);
+                showToast('Test transaction added', 'success');
+            };
+        });
+        
         // Add keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function(e) {
                 if (e.ctrlKey && e.altKey) {
                     switch(e.key) {
                         case 'd':
