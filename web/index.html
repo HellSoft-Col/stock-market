@@ -2949,10 +2949,10 @@
             showToast('Requesting global report...', 'info');
         }
 
-        // Trading functions (placeholder implementations)
+        // Trading functions
         function createMarketOrder() {
             if (!isAuthenticated) {
-                alert('Please authenticate first');
+                showToast('Please authenticate first', 'warning');
                 return;
             }
             
