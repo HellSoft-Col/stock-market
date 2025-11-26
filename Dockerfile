@@ -2,8 +2,8 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Install ca-certificates and tzdata in builder stage
-RUN apk --no-cache add ca-certificates tzdata
+# Install ca-certificates, tzdata, git, and bash in builder stage
+RUN apk --no-cache add ca-certificates tzdata git bash
 
 # Copy go mod and sum files
 COPY go.mod go.sum ./
@@ -13,6 +13,19 @@ RUN go mod download
 
 # Copy source code
 COPY . .
+
+# Inject version information into web files
+ARG BUILD_DATE
+ARG GIT_COMMIT
+RUN if [ -f scripts/inject-version.sh ]; then \
+        echo "Injecting version info..." && \
+        COMMIT_SHORT=$(echo ${GIT_COMMIT:-unknown} | cut -c1-7) && \
+        BUILD_DATE=${BUILD_DATE:-$(date -u +"%Y-%m-%d %H:%M:%S UTC")} && \
+        sed -i "s/BUILD_VERSION/$COMMIT_SHORT/g" web/index.html && \
+        sed -i "s/BUILD_COMMIT/${GIT_COMMIT:-unknown}/g" web/index.html && \
+        sed -i "s/BUILD_DATE/$BUILD_DATE/g" web/index.html && \
+        echo "✅ Version $COMMIT_SHORT injected"; \
+    fi
 
 # Build the application with CGO disabled for static binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags='-w -s -extldflags "-static"' -o exchange-server ./cmd/server
