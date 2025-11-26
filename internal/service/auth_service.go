@@ -264,3 +264,11 @@ func (s *AuthService) UpdateInitialBalance(ctx context.Context, teamName string,
 
 	return s.teamRepo.UpdateInitialBalance(ctx, teamName, balance)
 }
+
+func (s *AuthService) UpdateTeamMembers(ctx context.Context, teamName string, members string) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	return s.teamRepo.UpdateMembers(ctx, teamName, members)
+}

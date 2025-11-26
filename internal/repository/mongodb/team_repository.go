@@ -224,4 +224,28 @@ func (r *TeamRepository) UpdateInitialBalance(ctx context.Context, teamName stri
 	return nil
 }
 
+func (r *TeamRepository) UpdateMembers(ctx context.Context, teamName string, members string) error {
+	update := bson.M{
+		"$set": bson.M{
+			"members": members,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"teamName": teamName}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update team members: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return domain.ErrTeamNotFound
+	}
+
+	log.Info().
+		Str("teamName", teamName).
+		Str("members", members).
+		Msg("Team members updated")
+
+	return nil
+}
+
 var _ domain.TeamRepository = (*TeamRepository)(nil)

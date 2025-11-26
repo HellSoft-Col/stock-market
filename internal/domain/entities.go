@@ -11,6 +11,7 @@ type Team struct {
 	APIKey              string             `bson:"apiKey"              json:"apiKey"`
 	TeamName            string             `bson:"teamName"            json:"teamName"`
 	Species             string             `bson:"species"             json:"species"`
+	Members             string             `bson:"members,omitempty"   json:"members,omitempty"` // Team member names with emojis
 	InitialBalance      float64            `bson:"initialBalance"      json:"initialBalance"`
 	CurrentBalance      float64            `bson:"currentBalance"      json:"currentBalance"`
 	AuthorizedProducts  []string           `bson:"authorizedProducts"  json:"authorizedProducts"`

@@ -94,6 +94,12 @@ type UpdateTeamMessage struct {
 	Inventory map[string]int `json:"inventory"`
 }
 
+type UpdateTeamMembersMessage struct {
+	Type     string `json:"type"`
+	TeamName string `json:"teamName"`
+	Members  string `json:"members"`
+}
+
 type ResetTeamBalanceMessage struct {
 	Type     string `json:"type"`
 	TeamName string `json:"teamName"`

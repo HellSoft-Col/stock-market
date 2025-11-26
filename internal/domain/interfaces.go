@@ -17,6 +17,7 @@ type TeamRepository interface {
 	UpdateBalance(ctx context.Context, teamName string, balance float64) error
 	UpdateBalanceBy(ctx context.Context, teamName string, deltaBalance float64) error
 	UpdateInitialBalance(ctx context.Context, teamName string, initialBalance float64) error
+	UpdateMembers(ctx context.Context, teamName string, members string) error
 	Create(ctx context.Context, team *Team) error
 	GetAll(ctx context.Context) ([]*Team, error)
 	GetTeamsWithInventory(ctx context.Context, product string, minQuantity int) ([]*Team, error)

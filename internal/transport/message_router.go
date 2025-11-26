@@ -106,6 +106,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleGetAllTeams(ctx, client)
 	case "UPDATE_TEAM":
 		return r.handleUpdateTeam(ctx, rawMessage, client)
+	case "UPDATE_TEAM_MEMBERS":
+		return r.handleUpdateTeamMembers(ctx, rawMessage, client)
 	case "RESET_TEAM_BALANCE":
 		return r.handleResetTeamBalance(ctx, rawMessage, client)
 	case "RESET_TEAM_INVENTORY":
@@ -1363,6 +1365,48 @@ func (r *MessageRouter) handleUpdateTeam(ctx context.Context, rawMessage string,
 		Str("targetTeam", updateMsg.TeamName).
 		Float64("balance", updateMsg.Balance).
 		Msg("Admin updated team")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleUpdateTeamMembers(ctx context.Context, rawMessage string, client MessageClient) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	var updateMsg domain.UpdateTeamMembersMessage
+	if err := json.Unmarshal([]byte(rawMessage), &updateMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid UPDATE_TEAM_MEMBERS message format", "")
+	}
+
+	if updateMsg.TeamName == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Team name is required", "")
+	}
+
+	// Get team repository
+	teamRepo, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	// Access the underlying repository to update members
+	if err := teamRepo.UpdateTeamMembers(ctx, updateMsg.TeamName, updateMsg.Members); err != nil {
+		log.Error().Err(err).Str("team", updateMsg.TeamName).Msg("Failed to update team members")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to update team members", "")
+	}
+
+	response := &domain.TeamUpdatedResponse{
+		Type:       "TEAM_MEMBERS_UPDATED",
+		Success:    true,
+		Message:    fmt.Sprintf("Team %s members updated successfully", updateMsg.TeamName),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("targetTeam", updateMsg.TeamName).
+		Str("members", updateMsg.Members).
+		Msg("Admin updated team members")
 
 	return client.SendMessage(response)
 }
