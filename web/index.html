@@ -742,35 +742,56 @@
                         </div>
 
                         <!-- Info Box -->
-                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 mb-6">
                             <div class="flex items-start">
-                                <i class="fas fa-info-circle text-blue-600 dark:text-blue-400 mr-3 mt-1"></i>
+                                <i class="fas fa-lightbulb text-blue-600 dark:text-blue-400 mr-3 mt-1 text-2xl"></i>
                                 <div class="text-sm text-blue-800 dark:text-blue-200">
-                                    <strong>How it works:</strong> This tool sends messages from the server to your connected Java SDK client, triggering the corresponding EventListener callbacks. Use this to test how your bot handles different scenarios without needing a second team.
+                                    <strong class="text-lg">💡 Quick Setup:</strong>
+                                    <ol class="mt-2 ml-4 space-y-2 list-decimal">
+                                        <li><strong>Connect your Java SDK client</strong> using the same token you're using in this web UI</li>
+                                        <li><strong>Both sessions will share the same team name</strong> (shown below)</li>
+                                        <li><strong>Click any button below</strong> to send events to your Java client's EventListener callbacks</li>
+                                        <li><strong>Watch your Java console</strong> to see the callbacks being triggered!</li>
+                                    </ol>
+                                    <div class="mt-3 p-2 bg-blue-100 dark:bg-blue-800/40 rounded border border-blue-300 dark:border-blue-600">
+                                        <strong>Example:</strong> If you're logged in as <code class="bg-white dark:bg-gray-700 px-1 rounded">TEAM-BOT-01</code>, your Java SDK should also connect as <code class="bg-white dark:bg-gray-700 px-1 rounded">TEAM-BOT-01</code> using the same token.
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Target Team Configuration -->
-                        <div class="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border-2 border-indigo-300 dark:border-indigo-700 rounded-lg p-4 mb-6">
-                            <h4 class="text-md font-semibold text-indigo-900 dark:text-indigo-200 mb-3">
-                                <i class="fas fa-bullseye mr-2"></i>Target Configuration
-                            </h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-400 dark:border-green-600 rounded-lg p-4 mb-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-md font-semibold text-green-900 dark:text-green-200">
+                                    <i class="fas fa-check-circle mr-2"></i>Your Team (Ready to Test)
+                                </h4>
+                                <span class="text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full font-semibold">
+                                    Same Token = Same Team
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Team Name (Auto-filled with your team)</label>
-                                    <input type="text" id="sdk-target-team" placeholder="Will auto-fill when you login" 
-                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                                           value="">
-                                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                        Messages will be sent to this team's Java SDK client. By default, this is YOUR team name.
-                                    </p>
-                                </div>
-                                <div class="flex items-end">
-                                    <div class="w-full">
-                                        <div class="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded p-3 text-xs text-green-800 dark:text-green-200">
-                                            <strong>✓ Testing with yourself:</strong> You can send events to your own team! Just make sure you have a Java SDK client connected with the same team name shown above.
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        <i class="fas fa-user-friends mr-1"></i>Target Team Name (Events will be sent here)
+                                    </label>
+                                    <div class="relative">
+                                        <input type="text" id="sdk-target-team" placeholder="Will auto-fill when you login" 
+                                               class="w-full px-3 py-2 pr-10 border-2 border-green-400 dark:border-green-600 rounded-lg dark:bg-gray-700 dark:text-white font-mono font-bold text-green-700 dark:text-green-300"
+                                               value="" readonly>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <i class="fas fa-lock text-green-600 dark:text-green-400"></i>
                                         </div>
+                                    </div>
+                                    <div class="mt-2 p-3 bg-green-100 dark:bg-green-900/40 rounded-lg border border-green-300 dark:border-green-700">
+                                        <p class="text-xs text-green-800 dark:text-green-200 flex items-start">
+                                            <i class="fas fa-info-circle mr-2 mt-0.5"></i>
+                                            <span>
+                                                <strong>How it works:</strong> Since you're using the same token in both the web UI and your Java SDK client, 
+                                                they both connect as the same team. Events sent from here will be received by your Java client running 
+                                                with this team name. No need to change anything!
+                                            </span>
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -3533,7 +3554,8 @@
             const targetTeam = document.getElementById('sdk-target-team').value.trim();
             
             if (!targetTeam) {
-                showToast('Please enter a target team name', 'warning');
+                showToast('Please login first to auto-fill your team name', 'warning');
+                logToEmulator('❌ Cannot send - not logged in. Login first to set target team.', 'error');
                 return false;
             }
             
@@ -3550,6 +3572,7 @@
             };
             
             sendMessage(emulatorMessage);
+            logToEmulator(`📤 Sending ${messageType} to your Java SDK client (${targetTeam})...`, 'sent');
             return true;
         }
         
@@ -3572,9 +3595,7 @@
             };
             
             if (sendSDKEmulatorMessage('OFFER', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`OFFER → ${targetTeam}: ${buyer} wants ${qty} ${product} @ $${maxPrice}`, 'sent');
-                showToast(`Offer sent to ${targetTeam}`, 'success');
+                showToast(`📬 OFFER sent: ${buyer} wants ${qty} ${product} @ $${maxPrice}`, 'info', 4000);
             }
         }
         
@@ -3596,9 +3617,7 @@
             };
             
             if (sendSDKEmulatorMessage('FILL', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`FILL → ${targetTeam}: ${side} ${qty} ${product} @ $${fillPrice}`, 'sent');
-                showToast(`Fill sent to ${targetTeam}`, 'success');
+                showToast(`✅ FILL sent: ${side} ${qty} ${product} @ $${fillPrice}`, 'success', 4000);
             }
         }
         
@@ -3613,9 +3632,7 @@
             };
             
             if (sendSDKEmulatorMessage('ERROR', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`ERROR → ${targetTeam}: ${code} - ${reason}`, 'sent');
-                showToast(`Error sent to ${targetTeam}`, 'error');
+                showToast(`❌ ERROR sent: ${code} - ${reason}`, 'error', 4000);
             }
         }
         
@@ -3633,9 +3650,7 @@
             };
             
             if (sendSDKEmulatorMessage('INVENTORY_UPDATE', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`INVENTORY_UPDATE → ${targetTeam}: ${product} = ${qty}`, 'sent');
-                showToast(`Inventory update sent to ${targetTeam}`, 'success');
+                showToast(`📦 INVENTORY_UPDATE sent: ${product} = ${qty}`, 'info', 4000);
             }
         }
         
@@ -3650,9 +3665,7 @@
             };
             
             if (sendSDKEmulatorMessage('BALANCE_UPDATE', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`BALANCE_UPDATE → ${targetTeam}: $${newBalance} (${reason})`, 'sent');
-                showToast(`Balance update sent to ${targetTeam}`, 'success');
+                showToast(`💰 BALANCE_UPDATE sent: $${newBalance.toFixed(2)}`, 'info', 4000);
             }
         }
         
@@ -3667,9 +3680,7 @@
             };
             
             if (sendSDKEmulatorMessage('BROADCAST_NOTIFICATION', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`BROADCAST → ${targetTeam} from ${sender}: ${message}`, 'sent');
-                showToast(`Broadcast sent to ${targetTeam}`, 'success');
+                showToast(`📢 BROADCAST sent: "${message}"`, 'info', 4000);
             }
         }
         
@@ -3684,9 +3695,7 @@
             };
             
             if (sendSDKEmulatorMessage('ORDER_ACK', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`ORDER_ACK → ${targetTeam}: ${clOrdID} - ${status}`, 'sent');
-                showToast(`Order ACK sent to ${targetTeam}`, 'success');
+                showToast(`✓ ORDER_ACK sent: ${status}`, 'info', 4000);
             }
         }
         
@@ -3704,9 +3713,7 @@
             };
             
             if (sendSDKEmulatorMessage('TICKER', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`TICKER → ${targetTeam}: ${product} @ $${price}`, 'sent');
-                showToast(`Ticker sent to ${targetTeam}`, 'success');
+                showToast(`📊 TICKER sent: ${product} @ $${price}`, 'info', 4000);
             }
         }
         
@@ -3734,9 +3741,7 @@
             };
             
             if (sendSDKEmulatorMessage('EVENT_DELTA', payload)) {
-                const targetTeam = document.getElementById('sdk-target-team').value;
-                logToEmulator(`EVENT_DELTA → ${targetTeam} with ${eventCount} events`, 'sent');
-                showToast(`Event delta sent to ${targetTeam}`, 'success');
+                showToast(`🔄 EVENT_DELTA sent with ${eventCount} events`, 'info', 4000);
             }
         }
         
