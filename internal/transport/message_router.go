@@ -1543,28 +1543,29 @@ func (r *MessageRouter) handleResetTournamentConfig(
 			continue
 		}
 
-		// Update to tournament balance (sets CurrentBalance)
-		if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, nil); err != nil {
-			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set tournament balance")
-			continue
-		}
-
-		// Update InitialBalance to match new balance (for proper P&L calculation)
+		// CRITICAL: Set InitialBalance FIRST to ensure it matches the reset balance
+		// This ensures ROI starts at 0% for all teams
 		if err := teamRepo.UpdateInitialBalance(ctx, teamConfig.TeamName, tournamentMsg.Balance); err != nil {
 			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to update initial balance")
 			continue
 		}
 
-		// Reset inventory
+		// Reset inventory to zero first
 		if err := teamRepo.ResetTeamInventory(ctx, teamConfig.TeamName); err != nil {
 			log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to reset inventory")
 			continue
 		}
 
-		// Set inventory from config
+		// Set inventory from config if provided
 		if len(teamConfig.Inventory) > 0 {
 			if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, teamConfig.Inventory); err != nil {
 				log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set team inventory")
+				continue
+			}
+		} else {
+			// Update balance with empty inventory
+			if err := teamRepo.UpdateTeam(ctx, teamConfig.TeamName, tournamentMsg.Balance, nil); err != nil {
+				log.Warn().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to set tournament balance")
 				continue
 			}
 		}
@@ -1574,8 +1575,9 @@ func (r *MessageRouter) handleResetTournamentConfig(
 		log.Info().
 			Str("team", teamConfig.TeamName).
 			Interface("inventory", teamConfig.Inventory).
-			Float64("balance", tournamentMsg.Balance).
-			Msg("Team configured for tournament")
+			Float64("initialBalance", tournamentMsg.Balance).
+			Float64("currentBalance", tournamentMsg.Balance).
+			Msg("Team reset for tournament - ROI should be 0%")
 	}
 
 	response := &domain.TournamentResetCompleteResponse{
@@ -1597,6 +1599,34 @@ func (r *MessageRouter) handleResetTournamentConfig(
 		Int("ordersCanceled", ordersCanceled).
 		Float64("balance", tournamentMsg.Balance).
 		Msg("Tournament configuration reset completed")
+
+	// Broadcast updated balance and inventory to all teams
+	// This ensures clients see the reset immediately
+	for _, teamConfig := range tournamentMsg.TeamConfigs {
+		if teamConfig.TeamName == "" || teamConfig.TeamName == "admin" {
+			continue
+		}
+
+		// Send balance update
+		balanceMsg := &domain.BalanceUpdateMessage{
+			Type:       "BALANCE_UPDATE",
+			Balance:    tournamentMsg.Balance,
+			ServerTime: time.Now().Format(time.RFC3339),
+		}
+		if err := r.broadcaster.SendToClient(teamConfig.TeamName, balanceMsg); err != nil {
+			log.Debug().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to broadcast balance update after tournament reset")
+		}
+
+		// Send inventory update
+		inventoryMsg := &domain.InventoryUpdateMessage{
+			Type:       "INVENTORY_UPDATE",
+			Inventory:  teamConfig.Inventory,
+			ServerTime: time.Now().Format(time.RFC3339),
+		}
+		if err := r.broadcaster.SendToClient(teamConfig.TeamName, inventoryMsg); err != nil {
+			log.Debug().Err(err).Str("team", teamConfig.TeamName).Msg("Failed to broadcast inventory update after tournament reset")
+		}
+	}
 
 	return client.SendMessage(response)
 }

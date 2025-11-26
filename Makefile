@@ -31,7 +31,7 @@ help: ## Show this help message
 .PHONY: build
 build: ## Build the server binary
 	@echo "$(COLOR_GREEN)Building server...$(COLOR_RESET)"
-	@go build -ldflags="-s -w -X main.Version=$(GIT_COMMIT_SHORT) -X main.BuildDate=$(BUILD_DATE)" -o $(BINARY_NAME) ./cmd/server
+	@go build -ldflags="-s -w -X 'main.Version=$(GIT_COMMIT_SHORT)' -X 'main.BuildDate=$(BUILD_DATE)'" -o $(BINARY_NAME) ./cmd/server
 	@echo "$(COLOR_GREEN)✓ Server built: $(BINARY_NAME)$(COLOR_RESET)"
 
 .PHONY: build-all
@@ -45,7 +45,7 @@ build-all: ## Build all binaries (server + clients)
 .PHONY: build-linux
 build-linux: ## Build Linux binary for deployment
 	@echo "$(COLOR_GREEN)Building Linux binary...$(COLOR_RESET)"
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.Version=$(GIT_COMMIT_SHORT)" -o $(BINARY_NAME)-linux ./cmd/server
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X 'main.Version=$(GIT_COMMIT_SHORT)' -X 'main.BuildDate=$(BUILD_DATE)'" -o $(BINARY_NAME)-linux ./cmd/server
 	@echo "$(COLOR_GREEN)✓ Linux binary built: $(BINARY_NAME)-linux$(COLOR_RESET)"
 
 ##@ Development
