@@ -118,6 +118,14 @@ func (og *OfferGenerator) cleanupExpiredOffers() {
 	for offerID, offer := range og.activeOffers {
 		if now.After(offer.ExpiresAt) {
 			expiredOffers = append(expiredOffers, offerID)
+			log.Info().
+				Str("offerID", offerID).
+				Time("now", now).
+				Time("expiresAt", offer.ExpiresAt).
+				Dur("expiredAgo", now.Sub(offer.ExpiresAt)).
+				Str("buyer", offer.BuyOrder.TeamName).
+				Str("product", offer.BuyOrder.Product).
+				Msg("Cleaning up expired offer")
 		}
 	}
 
@@ -126,8 +134,9 @@ func (og *OfferGenerator) cleanupExpiredOffers() {
 	}
 
 	if len(expiredOffers) > 0 {
-		log.Debug().
+		log.Info().
 			Int("expiredOffers", len(expiredOffers)).
+			Int("remainingOffers", len(og.activeOffers)).
 			Msg("Cleaned up expired offers")
 	}
 }
@@ -210,7 +219,13 @@ func (og *OfferGenerator) GenerateOffer(buyOrder *domain.Order) error {
 		BuyOrder:  buyOrder,
 		ExpiresAt: expiresAt,
 	}
+	activeCount := len(og.activeOffers)
 	og.mu.Unlock()
+
+	log.Info().
+		Str("offerID", offerID).
+		Int("activeOffers", activeCount).
+		Msg("Offer stored in active offers map")
 
 	// Send to potential sellers
 	sentCount := 0
@@ -319,7 +334,13 @@ func (og *OfferGenerator) GenerateTargetedOffer(buyOrder *domain.Order, eligible
 		BuyOrder:  buyOrder,
 		ExpiresAt: expiresAt,
 	}
+	activeCount := len(og.activeOffers)
 	og.mu.Unlock()
+
+	log.Info().
+		Str("offerID", offerID).
+		Int("activeOffers", activeCount).
+		Msg("Targeted offer stored in active offers map")
 
 	// Send to eligible teams only
 	sentCount := 0
@@ -359,9 +380,15 @@ func (og *OfferGenerator) GenerateTargetedOffer(buyOrder *domain.Order, eligible
 func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage, acceptorTeam string) error {
 	og.mu.RLock()
 	offer, exists := og.activeOffers[acceptMsg.OfferID]
+	activeCount := len(og.activeOffers)
 	og.mu.RUnlock()
 
 	if !exists {
+		log.Warn().
+			Str("offerID", acceptMsg.OfferID).
+			Str("acceptor", acceptorTeam).
+			Int("activeOffers", activeCount).
+			Msg("Offer not found - may have been cleaned up or never created")
 		return fmt.Errorf("offer not found or expired: %s", acceptMsg.OfferID)
 	}
 
