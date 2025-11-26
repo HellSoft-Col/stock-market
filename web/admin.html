@@ -309,6 +309,56 @@
                     <button onclick="showTournamentResetModal()" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors">
                         <i class="fas fa-trophy mr-2"></i>Reset Tournament
                     </button>
+                    <button id="tournament-control-btn" onclick="toggleTournament()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-play mr-2"></i>Start Tournament
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Tournament Dashboard -->
+        <div class="mt-6 bg-white rounded-lg shadow" id="live-tournament-dashboard">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-trophy text-red-600 mr-2"></i>Live Tournament Dashboard
+                    <span id="tournament-status" class="ml-3 px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-700">
+                        <i class="fas fa-circle text-gray-500 mr-1"></i>Stopped
+                    </span>
+                </h2>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-500">Auto-refresh: <span id="refresh-countdown">5</span>s</span>
+                    <button onclick="toggleLiveUpdates()" id="live-updates-btn" class="text-sm px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">
+                        <i class="fas fa-pause mr-1"></i>Pause
+                    </button>
+                </div>
+            </div>
+            <div class="p-4">
+                <!-- Tournament Stats -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="text-sm text-gray-600">Active Teams</div>
+                        <div class="text-2xl font-bold text-blue-600" id="stat-active-teams">0</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="text-sm text-gray-600">Total Trades</div>
+                        <div class="text-2xl font-bold text-green-600" id="stat-total-trades">0</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="text-sm text-gray-600">Total Volume</div>
+                        <div class="text-2xl font-bold text-purple-600" id="stat-total-volume">$0</div>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-lg">
+                        <div class="text-sm text-gray-600">Avg ROI</div>
+                        <div class="text-2xl font-bold text-orange-600" id="stat-avg-roi">0%</div>
+                    </div>
+                </div>
+
+                <!-- Live Leaderboard -->
+                <div class="space-y-3" id="live-leaderboard">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-trophy text-4xl mb-2"></i>
+                        <p>Start tournament to see live rankings</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1490,6 +1540,263 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadDebugModeStatus();
         });
+
+        // ===== LIVE TOURNAMENT DASHBOARD =====
+        let tournamentActive = false;
+        let liveUpdatesEnabled = true;
+        let liveUpdateInterval = null;
+        let refreshCountdown = 5;
+        let teamPerformanceData = {};
+
+        function toggleTournament() {
+            tournamentActive = !tournamentActive;
+            const btn = document.getElementById('tournament-control-btn');
+            const status = document.getElementById('tournament-status');
+            
+            if (tournamentActive) {
+                btn.innerHTML = '<i class="fas fa-stop mr-2"></i>Stop Tournament';
+                btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                status.innerHTML = '<i class="fas fa-circle text-green-500 mr-1 animate-pulse"></i>Active';
+                status.classList.remove('bg-gray-200', 'text-gray-700');
+                status.classList.add('bg-green-100', 'text-green-700');
+                startLiveUpdates();
+                showToast('Tournament started! Live updates enabled', 'success');
+            } else {
+                btn.innerHTML = '<i class="fas fa-play mr-2"></i>Start Tournament';
+                btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                status.innerHTML = '<i class="fas fa-circle text-gray-500 mr-1"></i>Stopped';
+                status.classList.remove('bg-green-100', 'text-green-700');
+                status.classList.add('bg-gray-200', 'text-gray-700');
+                stopLiveUpdates();
+                showToast('Tournament stopped', 'info');
+            }
+        }
+
+        function toggleLiveUpdates() {
+            liveUpdatesEnabled = !liveUpdatesEnabled;
+            const btn = document.getElementById('live-updates-btn');
+            
+            if (liveUpdatesEnabled) {
+                btn.innerHTML = '<i class="fas fa-pause mr-1"></i>Pause';
+                btn.classList.remove('bg-gray-600');
+                btn.classList.add('bg-red-600');
+                if (tournamentActive) startLiveUpdates();
+                showToast('Live updates resumed', 'info');
+            } else {
+                btn.innerHTML = '<i class="fas fa-play mr-1"></i>Resume';
+                btn.classList.remove('bg-red-600');
+                btn.classList.add('bg-gray-600');
+                stopLiveUpdates();
+                showToast('Live updates paused', 'info');
+            }
+        }
+
+        function startLiveUpdates() {
+            if (!liveUpdatesEnabled || !tournamentActive) return;
+            
+            // Initial update
+            updateLiveDashboard();
+            
+            // Clear any existing interval
+            if (liveUpdateInterval) clearInterval(liveUpdateInterval);
+            
+            // Update every second for countdown, every 5 seconds for data
+            refreshCountdown = 5;
+            liveUpdateInterval = setInterval(() => {
+                refreshCountdown--;
+                document.getElementById('refresh-countdown').textContent = refreshCountdown;
+                
+                if (refreshCountdown <= 0) {
+                    updateLiveDashboard();
+                    refreshCountdown = 5;
+                }
+            }, 1000);
+        }
+
+        function stopLiveUpdates() {
+            if (liveUpdateInterval) {
+                clearInterval(liveUpdateInterval);
+                liveUpdateInterval = null;
+            }
+        }
+
+        function updateLiveDashboard() {
+            // Request fresh performance data
+            sendMessage({ 
+                type: "REQUEST_PERFORMANCE_REPORT",
+                scope: "global"
+            });
+            
+            // Request all teams data
+            sendMessage({ type: "GET_ALL_TEAMS" });
+        }
+
+        function updateLiveLeaderboard(teams) {
+            if (!teams || teams.length === 0) return;
+            
+            // Calculate performance metrics for each team
+            const teamMetrics = teams.map(team => {
+                const currentValue = team.currentBalance + calculateInventoryValue(team.inventory);
+                const roi = team.initialBalance > 0 ? 
+                    ((currentValue - team.initialBalance) / team.initialBalance) * 100 : 0;
+                
+                // Store for animations
+                const oldROI = teamPerformanceData[team.teamName]?.roi || roi;
+                const roiChange = roi - oldROI;
+                
+                teamPerformanceData[team.teamName] = {
+                    roi: roi,
+                    balance: currentValue,
+                    trades: teamPerformanceData[team.teamName]?.trades || 0
+                };
+                
+                return {
+                    teamName: team.teamName,
+                    species: team.species,
+                    balance: currentValue,
+                    initialBalance: team.initialBalance,
+                    roi: roi,
+                    roiChange: roiChange,
+                    inventory: team.inventory || {},
+                    trades: teamPerformanceData[team.teamName]?.trades || 0
+                };
+            });
+            
+            // Sort by ROI descending
+            teamMetrics.sort((a, b) => b.roi - a.roi);
+            
+            // Update stats
+            document.getElementById('stat-active-teams').textContent = teams.length;
+            const avgROI = teamMetrics.reduce((sum, t) => sum + t.roi, 0) / teamMetrics.length;
+            document.getElementById('stat-avg-roi').textContent = avgROI.toFixed(2) + '%';
+            
+            // Render leaderboard
+            const leaderboard = document.getElementById('live-leaderboard');
+            leaderboard.innerHTML = teamMetrics.map((team, index) => {
+                const rankClass = index === 0 ? 'bg-yellow-50 border-yellow-300' : 
+                                 index === 1 ? 'bg-gray-50 border-gray-300' :
+                                 index === 2 ? 'bg-orange-50 border-orange-300' : 
+                                 'bg-white border-gray-200';
+                
+                const roiClass = team.roi > 0 ? 'text-green-600' : 
+                                team.roi < 0 ? 'text-red-600' : 'text-gray-600';
+                
+                const roiIcon = team.roiChange > 0 ? '<i class="fas fa-arrow-up text-green-500"></i>' :
+                               team.roiChange < 0 ? '<i class="fas fa-arrow-down text-red-500"></i>' :
+                               '<i class="fas fa-minus text-gray-500"></i>';
+                
+                const medal = index === 0 ? '<i class="fas fa-trophy text-yellow-500 text-xl"></i>' :
+                             index === 1 ? '<i class="fas fa-medal text-gray-400 text-xl"></i>' :
+                             index === 2 ? '<i class="fas fa-award text-orange-500 text-xl"></i>' :
+                             `<span class="text-lg font-bold text-gray-400">#${index + 1}</span>`;
+                
+                // Format inventory display
+                const inventoryItems = Object.entries(team.inventory)
+                    .filter(([_, qty]) => qty > 0)
+                    .map(([product, qty]) => `
+                        <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs mr-1">
+                            ${product}: ${qty}
+                        </span>
+                    `).join('');
+                
+                return `
+                    <div class="border-2 ${rankClass} rounded-lg p-4 transition-all duration-500 hover:shadow-lg">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="flex-shrink-0">${medal}</div>
+                                <div>
+                                    <div class="font-semibold text-lg">${team.teamName}</div>
+                                    <div class="text-sm text-gray-500">${team.species}</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-bold ${roiClass}">
+                                    ${team.roi >= 0 ? '+' : ''}${team.roi.toFixed(2)}%
+                                    ${roiIcon}
+                                </div>
+                                <div class="text-sm text-gray-500">$${team.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm border-t pt-3">
+                            <div>
+                                <div class="text-gray-500">Trades</div>
+                                <div class="font-semibold">${team.trades}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">Initial</div>
+                                <div class="font-semibold">$${team.initialBalance.toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">P&L</div>
+                                <div class="font-semibold ${team.roi >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                    ${team.roi >= 0 ? '+' : ''}$${(team.balance - team.initialBalance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                </div>
+                            </div>
+                        </div>
+                        ${inventoryItems ? `
+                        <div class="mt-3 border-t pt-3">
+                            <div class="text-xs text-gray-500 mb-2">Inventory:</div>
+                            <div class="flex flex-wrap gap-1">
+                                ${inventoryItems}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function calculateInventoryValue(inventory) {
+            if (!inventory) return 0;
+            // Simple estimation: use $10 per unit (can be improved with real market prices)
+            return Object.values(inventory).reduce((sum, qty) => sum + (qty * 10), 0);
+        }
+
+        // Update performance data when PERFORMANCE_REPORT or team data arrives
+        function handlePerformanceUpdate(message) {
+            if (message.type === 'PERFORMANCE_REPORT') {
+                if (message.teamName && teamPerformanceData[message.teamName]) {
+                    teamPerformanceData[message.teamName].trades = message.totalTrades || 0;
+                }
+                
+                // Update total trades stat
+                const totalTrades = Object.values(teamPerformanceData)
+                    .reduce((sum, data) => sum + (data.trades || 0), 0);
+                document.getElementById('stat-total-trades').textContent = totalTrades;
+            }
+        }
+
+        // Update the message handler to process team data for live dashboard
+        const originalHandleMessage = handleMessage;
+        function handleMessage(message) {
+            // Call original handler
+            if (typeof originalHandleMessage === 'function') {
+                originalHandleMessage(message);
+            }
+            
+            // Process for live dashboard
+            if (tournamentActive && liveUpdatesEnabled) {
+                if (message.type === 'ALL_TEAMS_RESPONSE' && message.teams) {
+                    updateLiveLeaderboard(message.teams);
+                }
+                
+                if (message.type === 'PERFORMANCE_REPORT') {
+                    handlePerformanceUpdate(message);
+                }
+                
+                if (message.type === 'FILL') {
+                    // Increment trade count
+                    const buyerTeam = message.buyer || message.teamName;
+                    if (teamPerformanceData[buyerTeam]) {
+                        teamPerformanceData[buyerTeam].trades = (teamPerformanceData[buyerTeam].trades || 0) + 1;
+                    }
+                    // Trigger dashboard update
+                    setTimeout(() => updateLiveDashboard(), 500);
+                }
+            }
+        }
     </script>
 </body>
 </html>
