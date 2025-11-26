@@ -309,9 +309,6 @@
                     <button onclick="showTournamentResetModal()" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors">
                         <i class="fas fa-trophy mr-2"></i>Reset Tournament
                     </button>
-                    <button id="tournament-control-btn" onclick="toggleTournament()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors">
-                        <i class="fas fa-play mr-2"></i>Start Tournament
-                    </button>
                 </div>
             </div>
         </div>
@@ -331,8 +328,10 @@
                     </span>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <span class="text-sm text-gray-500">Auto-refresh: <span id="refresh-countdown">5</span>s</span>
-                    <button onclick="toggleLiveUpdates()" id="live-updates-btn" class="text-sm px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">
+                    <button id="tournament-control-btn" onclick="toggleTournament()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold">
+                        <i class="fas fa-play mr-2"></i>Start Tournament
+                    </button>
+                    <button onclick="toggleLiveUpdates()" id="live-updates-btn" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                         <i class="fas fa-pause mr-1"></i>Pause
                     </button>
                 </div>
@@ -1724,16 +1723,9 @@
             // Clear any existing interval
             if (liveUpdateInterval) clearInterval(liveUpdateInterval);
             
-            // Update every second for countdown, every 5 seconds for data
-            refreshCountdown = 5;
+            // Update every second
             liveUpdateInterval = setInterval(() => {
-                refreshCountdown--;
-                document.getElementById('refresh-countdown').textContent = refreshCountdown;
-                
-                if (refreshCountdown <= 0) {
-                    updateLiveDashboard();
-                    refreshCountdown = 5;
-                }
+                updateLiveDashboard();
             }, 1000);
         }
 
@@ -1760,9 +1752,9 @@
             
             // Calculate performance metrics for each team
             const teamMetrics = teams.map(team => {
-                const currentValue = team.currentBalance + calculateInventoryValue(team.inventory);
+                // ROI should be based on current balance only, not inventory
                 const roi = team.initialBalance > 0 ? 
-                    ((currentValue - team.initialBalance) / team.initialBalance) * 100 : 0;
+                    ((team.currentBalance - team.initialBalance) / team.initialBalance) * 100 : 0;
                 
                 // Store for animations
                 const oldROI = teamPerformanceData[team.teamName]?.roi || roi;
@@ -1770,7 +1762,7 @@
                 
                 teamPerformanceData[team.teamName] = {
                     roi: roi,
-                    balance: currentValue,
+                    balance: team.currentBalance,
                     trades: teamPerformanceData[team.teamName]?.trades || 0
                 };
                 
@@ -1778,12 +1770,13 @@
                     teamName: team.teamName,
                     species: team.species,
                     members: team.members || '',
-                    balance: currentValue,
+                    balance: team.currentBalance,
                     initialBalance: team.initialBalance,
                     roi: roi,
                     roiChange: roiChange,
                     inventory: team.inventory || {},
-                    trades: teamPerformanceData[team.teamName]?.trades || 0
+                    trades: teamPerformanceData[team.teamName]?.trades || 0,
+                    connected: team.connected || false
                 };
             });
             
@@ -1791,7 +1784,8 @@
             teamMetrics.sort((a, b) => b.roi - a.roi);
             
             // Update stats
-            document.getElementById('stat-active-teams').textContent = teams.length;
+            const connectedTeams = teamMetrics.filter(t => t.connected).length;
+            document.getElementById('stat-active-teams').textContent = connectedTeams;
             const avgROI = teamMetrics.reduce((sum, t) => sum + t.roi, 0) / teamMetrics.length;
             document.getElementById('stat-avg-roi').textContent = avgROI.toFixed(2) + '%';
             
