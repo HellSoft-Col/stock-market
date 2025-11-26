@@ -716,20 +716,13 @@
                     break;
                     
                 case 'ALL_TEAMS':
-                    displayTeamsList(message.teams);
-                    allTeamsData = message.teams || [];
-                    updateTeamSelector();
-                    break;
-                    
                 case 'ALL_TEAMS_RESPONSE':
                     if (message.teams) {
                         displayTeamsList(message.teams);
                         allTeamsData = message.teams || [];
                         updateTeamSelector();
-                        // Update live dashboard if tournament is active
-                        if (tournamentActive && liveUpdatesEnabled) {
-                            updateLiveLeaderboard(message.teams);
-                        }
+                        // Always update live dashboard when we receive team data
+                        updateLiveLeaderboard(message.teams);
                     }
                     break;
                     

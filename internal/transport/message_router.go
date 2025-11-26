@@ -1305,6 +1305,7 @@ func (r *MessageRouter) handleGetAllTeams(ctx context.Context, client MessageCli
 		teamsData = append(teamsData, &domain.TeamData{
 			TeamName:           team.TeamName,
 			Species:            team.Species,
+			Members:            team.Members,
 			InitialBalance:     team.InitialBalance,
 			CurrentBalance:     team.CurrentBalance,
 			Inventory:          team.Inventory,

@@ -372,6 +372,7 @@ type AllTeamsResponse struct {
 type TeamData struct {
 	TeamName           string         `json:"teamName"`
 	Species            string         `json:"species"`
+	Members            string         `json:"members,omitempty"`
 	InitialBalance     float64        `json:"initialBalance"`
 	CurrentBalance     float64        `json:"currentBalance"`
 	Inventory          map[string]int `json:"inventory"`
