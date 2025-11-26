@@ -66,8 +66,8 @@ func (og *OfferGenerator) Start() error {
 	log.Info().Msg("Starting offer generator")
 	og.running = true
 
-	// Start cleanup ticker
-	og.cleanup = time.NewTicker(100 * time.Millisecond)
+	// Start cleanup ticker - run every 10 seconds (less aggressive)
+	og.cleanup = time.NewTicker(10 * time.Second)
 	og.wg.Add(1)
 	go og.cleanupLoop()
 
@@ -113,10 +113,12 @@ func (og *OfferGenerator) cleanupExpiredOffers() {
 	defer og.mu.Unlock()
 
 	now := time.Now()
+	gracePeriod := 30 * time.Second // Same grace period as acceptance
 	expiredOffers := make([]string, 0)
 
 	for offerID, offer := range og.activeOffers {
-		if now.After(offer.ExpiresAt) {
+		// Only cleanup offers that are expired beyond the grace period
+		if now.After(offer.ExpiresAt.Add(gracePeriod)) {
 			expiredOffers = append(expiredOffers, offerID)
 			log.Info().
 				Str("offerID", offerID).
@@ -125,7 +127,7 @@ func (og *OfferGenerator) cleanupExpiredOffers() {
 				Dur("expiredAgo", now.Sub(offer.ExpiresAt)).
 				Str("buyer", offer.BuyOrder.TeamName).
 				Str("product", offer.BuyOrder.Product).
-				Msg("Cleaning up expired offer")
+				Msg("Cleaning up expired offer (beyond grace period)")
 		}
 	}
 
@@ -392,9 +394,10 @@ func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage
 		return fmt.Errorf("offer not found or expired: %s", acceptMsg.OfferID)
 	}
 
-	// Check expiration
+	// Check expiration with 30-second grace period for network delays
 	now := time.Now()
-	if now.After(offer.ExpiresAt) {
+	gracePeriod := 30 * time.Second
+	if now.After(offer.ExpiresAt.Add(gracePeriod)) {
 		og.mu.Lock()
 		delete(og.activeOffers, acceptMsg.OfferID)
 		og.mu.Unlock()
@@ -405,9 +408,19 @@ func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage
 			Time("now", now).
 			Time("expiresAt", offer.ExpiresAt).
 			Dur("expiredAgo", now.Sub(offer.ExpiresAt)).
-			Msg("Offer acceptance rejected - offer has expired")
+			Dur("gracePeriod", gracePeriod).
+			Msg("Offer acceptance rejected - offer has expired (beyond grace period)")
 
 		return fmt.Errorf("offer expired: %s", acceptMsg.OfferID)
+	}
+
+	// Log if accepting within grace period
+	if now.After(offer.ExpiresAt) {
+		log.Info().
+			Str("offerID", acceptMsg.OfferID).
+			Str("acceptor", acceptorTeam).
+			Dur("overdue", now.Sub(offer.ExpiresAt)).
+			Msg("Accepting offer within grace period (after advertised expiry)")
 	}
 
 	if !acceptMsg.Accept {
@@ -438,16 +451,23 @@ func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage
 		FilledQty: 0,
 	}
 
-	// Execute immediate match
-	err := og.executeOfferMatch(offer.BuyOrder, virtualSellOrder)
-	if err != nil {
-		return fmt.Errorf("failed to execute offer acceptance: %w", err)
-	}
-
-	// Clean up
+	// Remove offer from active offers BEFORE executing to prevent double-acceptance
 	og.mu.Lock()
 	delete(og.activeOffers, acceptMsg.OfferID)
 	og.mu.Unlock()
+
+	// Execute immediate match
+	err := og.executeOfferMatch(offer.BuyOrder, virtualSellOrder)
+	if err != nil {
+		// If execution fails, we've already removed the offer, so log the error
+		log.Error().
+			Err(err).
+			Str("offerID", acceptMsg.OfferID).
+			Str("buyer", offer.BuyOrder.TeamName).
+			Str("seller", acceptorTeam).
+			Msg("Failed to execute offer match after removing from active offers")
+		return fmt.Errorf("failed to execute offer acceptance: %w", err)
+	}
 
 	log.Info().
 		Str("offerID", acceptMsg.OfferID).
