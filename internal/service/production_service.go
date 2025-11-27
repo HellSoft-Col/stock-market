@@ -170,9 +170,10 @@ func (s *ProductionService) validateProduction(prodMsg *domain.ProductionUpdateM
 		"FOSFO":        true,
 		"NUCREM":       true,
 		"CASCAR-ALLOY": true,
-		"GTRON":        true,
-		"H-GUACA":      true,
 		"PITA":         true,
+		"QUANTUM-PULP": true,
+		"SKIN-WRAP":    true,
+		"ASTRO-BUTTER": true,
 	}
 
 	if !validProducts[prodMsg.Product] {
