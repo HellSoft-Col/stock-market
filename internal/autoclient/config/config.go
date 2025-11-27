@@ -12,7 +12,8 @@ import (
 // Config is the root configuration structure
 type Config struct {
 	Server       ServerConfig                  `yaml:"server"`
-	DeepSeek     DeepSeekConfig                `yaml:"deepseek"`
+	AI           AIConfig                      `yaml:"ai"`       // New unified AI config
+	DeepSeek     DeepSeekConfig                `yaml:"deepseek"` // Legacy - deprecated
 	Global       GlobalConfig                  `yaml:"global"`
 	SpeciesRoles map[string]*production.Role   `yaml:"species_roles"`
 	Recipes      map[string]*production.Recipe `yaml:"recipes"`
@@ -28,7 +29,17 @@ type ServerConfig struct {
 	MaxReconnectAttempts int           `yaml:"maxReconnectAttempts"`
 }
 
-// DeepSeekConfig contains DeepSeek API settings
+// AIConfig contains unified AI provider settings (OpenAI, DeepSeek, etc.)
+type AIConfig struct {
+	Provider   string        `yaml:"provider"` // "openai" or "deepseek"
+	APIKey     string        `yaml:"apiKey"`
+	Model      string        `yaml:"model"` // e.g., "gpt-4o", "deepseek-chat"
+	Endpoint   string        `yaml:"endpoint"`
+	Timeout    time.Duration `yaml:"timeout"`
+	MaxRetries int           `yaml:"maxRetries"`
+}
+
+// DeepSeekConfig contains DeepSeek API settings (LEGACY - use AIConfig instead)
 type DeepSeekConfig struct {
 	APIKey     string        `yaml:"apiKey"`
 	Endpoint   string        `yaml:"endpoint"`

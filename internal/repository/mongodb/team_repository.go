@@ -248,4 +248,28 @@ func (r *TeamRepository) UpdateMembers(ctx context.Context, teamName string, mem
 	return nil
 }
 
+func (r *TeamRepository) UpdateRecipes(ctx context.Context, teamName string, recipes map[string]domain.Recipe) error {
+	update := bson.M{
+		"$set": bson.M{
+			"recipes": recipes,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"teamName": teamName}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update recipes: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return domain.ErrTeamNotFound
+	}
+
+	log.Info().
+		Str("teamName", teamName).
+		Int("recipeCount", len(recipes)).
+		Msg("Team recipes updated")
+
+	return nil
+}
+
 var _ domain.TeamRepository = (*TeamRepository)(nil)

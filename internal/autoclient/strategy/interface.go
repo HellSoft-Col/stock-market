@@ -79,6 +79,7 @@ type StrategyHealth struct {
 	OpenOrders int
 	ErrorCount int
 	LastUpdate time.Time
+	Metadata   map[string]interface{} // Additional strategy-specific metrics
 }
 
 // HealthStatus defines health statuses

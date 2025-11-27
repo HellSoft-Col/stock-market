@@ -542,16 +542,39 @@ func (a *TradingAgent) GetStats() map[string]interface{} {
 	defer a.mu.RUnlock()
 
 	pnl := a.state.CalculatePnL()
+	inventoryValue := a.state.CalculateInventoryValue()
+
+	// Get strategy stats
+	strategyHealth := a.strategy.Health()
+	aiDecisions := 0
+	productionCount := 0
+	lastAction := ""
+
+	if strategyHealth.Metadata != nil {
+		if ai, ok := strategyHealth.Metadata["aiDecisions"].(int); ok {
+			aiDecisions = ai
+		}
+		if prod, ok := strategyHealth.Metadata["productionCount"].(int); ok {
+			productionCount = prod
+		}
+		if action, ok := strategyHealth.Metadata["lastAction"].(string); ok {
+			lastAction = action
+		}
+	}
 
 	return map[string]interface{}{
-		"ordersSent":     a.ordersSent,
-		"fillsReceived":  a.fillsReceived,
-		"errorCount":     a.errorCount,
-		"timeoutCount":   a.timeoutCount,
-		"pendingOrders":  len(a.pendingOrders),
-		"avgFillTime":    a.avgFillTime.String(),
-		"pnl":            pnl,
-		"balance":        a.state.Balance,
-		"strategyHealth": a.strategy.Health(),
+		"ordersSent":      a.ordersSent,
+		"fillsReceived":   a.fillsReceived,
+		"errorCount":      a.errorCount,
+		"timeoutCount":    a.timeoutCount,
+		"activeOrders":    len(a.pendingOrders),
+		"avgFillTime":     a.avgFillTime.String(),
+		"pnl":             pnl,
+		"balance":         a.state.Balance,
+		"inventoryValue":  inventoryValue,
+		"strategyHealth":  strategyHealth,
+		"aiDecisions":     aiDecisions,
+		"productionCount": productionCount,
+		"lastAction":      lastAction,
 	}
 }

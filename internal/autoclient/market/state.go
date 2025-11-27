@@ -274,3 +274,25 @@ func (ms *MarketState) HasSufficientInventory(product string, quantity int) bool
 	defer ms.mu.RUnlock()
 	return ms.Inventory[product] >= quantity
 }
+
+// GetTicker returns the ticker for a product
+func (ms *MarketState) GetTicker(product string) *domain.TickerMessage {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return ms.Tickers[product]
+}
+
+// CalculateInventoryValue calculates the total value of inventory
+func (ms *MarketState) CalculateInventoryValue() float64 {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	inventoryValue := 0.0
+	for product, quantity := range ms.Inventory {
+		ticker, exists := ms.Tickers[product]
+		if exists && ticker.Mid != nil {
+			inventoryValue += float64(quantity) * *ticker.Mid
+		}
+	}
+	return inventoryValue
+}

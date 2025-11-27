@@ -134,6 +134,18 @@ type SDKEmulatorMessage struct {
 	MessagePayload map[string]interface{} `json:"messagePayload"` // The actual message content
 }
 
+type SandboxOrderMessage struct {
+	Type           string   `json:"type"`
+	SandboxTeam    string   `json:"sandboxTeam"` // Fictitious team name that places the order
+	Side           string   `json:"side"`        // BUY or SELL
+	Mode           string   `json:"mode"`        // MARKET or LIMIT
+	Product        string   `json:"product"`
+	Qty            int      `json:"qty"`
+	LimitPrice     *float64 `json:"limitPrice,omitempty"`
+	Message        string   `json:"message,omitempty"`
+	SandboxBalance float64  `json:"sandboxBalance,omitempty"` // Virtual balance for sandbox team
+}
+
 // Server to Client Messages
 
 type LoginOKMessage struct {

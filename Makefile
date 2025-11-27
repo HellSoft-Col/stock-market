@@ -31,16 +31,18 @@ help: ## Show this help message
 .PHONY: build
 build: ## Build the server binary
 	@echo "$(COLOR_GREEN)Building server...$(COLOR_RESET)"
-	@go build -ldflags="-s -w -X 'main.Version=$(GIT_COMMIT_SHORT)' -X 'main.BuildDate=$(BUILD_DATE)'" -o $(BINARY_NAME) ./cmd/server
-	@echo "$(COLOR_GREEN)✓ Server built: $(BINARY_NAME)$(COLOR_RESET)"
+	@mkdir -p bin
+	@go build -ldflags="-s -w -X 'main.Version=$(GIT_COMMIT_SHORT)' -X 'main.BuildDate=$(BUILD_DATE)'" -o bin/$(BINARY_NAME) ./cmd/server
+	@echo "$(COLOR_GREEN)✓ Server built: bin/$(BINARY_NAME)$(COLOR_RESET)"
 
 .PHONY: build-all
 build-all: ## Build all binaries (server + clients)
 	@echo "$(COLOR_GREEN)Building all binaries...$(COLOR_RESET)"
-	@go build -ldflags="-s -w" -o $(BINARY_NAME) ./cmd/server
-	@go build -ldflags="-s -w" -o $(AUTOMATED_CLIENT) ./cmd/automated-client
+	@mkdir -p bin
+	@go build -ldflags="-s -w -X 'main.Version=$(GIT_COMMIT_SHORT)' -X 'main.BuildDate=$(BUILD_DATE)'" -o bin/$(BINARY_NAME) ./cmd/server
+	@go build -ldflags="-s -w" -o bin/$(AUTOMATED_CLIENT) ./cmd/automated-client
 	@go build -ldflags="-s -w" -o bin/trading-cli ./cmd/trading-cli
-	@echo "$(COLOR_GREEN)✓ All binaries built$(COLOR_RESET)"
+	@echo "$(COLOR_GREEN)✓ All binaries built in bin/$(COLOR_RESET)"
 
 .PHONY: build-linux
 build-linux: ## Build Linux binary for deployment

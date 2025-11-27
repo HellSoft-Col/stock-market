@@ -309,6 +309,9 @@
                     <button onclick="showTournamentResetModal()" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors">
                         <i class="fas fa-trophy mr-2"></i>Reset Tournament
                     </button>
+                    <button onclick="updateAllRecipes()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-flask mr-2"></i>Update All Recipes
+                    </button>
                 </div>
             </div>
         </div>
@@ -782,6 +785,11 @@
                     showToast(`🏆 Tournament reset complete! ${message.teamsReset} teams configured`, 'success', 5000);
                     refreshTeams();
                     refreshAll();
+                    break;
+                    
+                case 'RECIPES_UPDATED':
+                    showToast(`🧪 Recipes updated! ${message.teamsUpdated} teams now have premium recipes`, 'success', 5000);
+                    refreshTeams();
                     break;
                     
                 case 'ORDER_ACK':
@@ -2116,6 +2124,19 @@
                     teamPerformanceData[message.teamName].trades = message.totalTrades || 0;
                 }
             }
+        }
+
+        // Update All Recipes - applies premium recipes to all teams based on species
+        function updateAllRecipes() {
+            if (!confirm('🧪 Update All Team Recipes\n\nThis will update ALL teams with premium production recipes based on their species.\n\nEach team will get:\n- 1 BASIC recipe (free, no ingredients)\n- 2 PREMIUM recipes (30% bonus, requires ingredients)\n\nContinue?')) {
+                return;
+            }
+
+            sendMessage({
+                type: "UPDATE_ALL_RECIPES"
+            });
+
+            showToast('Updating all team recipes...', 'info');
         }
     </script>
 </body>

@@ -117,6 +117,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleResetTeamProduction(ctx, rawMessage, client)
 	case "RESET_TOURNAMENT_CONFIG":
 		return r.handleResetTournamentConfig(ctx, rawMessage, client)
+	case "UPDATE_ALL_RECIPES":
+		return r.handleUpdateAllRecipes(ctx, client)
 	case "SDK_EMULATOR":
 		return r.handleSDKEmulator(ctx, rawMessage, client)
 	default:
@@ -1955,4 +1957,237 @@ func (r *MessageRouter) handleResetTournamentConfig(
 	}
 
 	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleUpdateAllRecipes(
+	ctx context.Context,
+	client MessageClient,
+) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	teamRepo, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	// Get all teams
+	teams, err := teamRepo.GetAllTeams(ctx)
+	if err != nil {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get teams", "")
+	}
+
+	// Update recipes for each team based on species
+	teamsUpdated := 0
+	for _, team := range teams {
+		if team.TeamName == "admin" {
+			continue
+		}
+
+		// Get the basic product (first authorized product)
+		basicProduct := ""
+		if len(team.AuthorizedProducts) > 0 {
+			basicProduct = team.AuthorizedProducts[0]
+		} else {
+			log.Warn().Str("team", team.TeamName).Msg("Team has no authorized products, skipping")
+			continue
+		}
+
+		// Build recipes based on species
+		recipes := buildRecipesForSpecies(team.Species, basicProduct)
+
+		// Update team recipes
+		if err := teamRepo.UpdateRecipes(ctx, team.TeamName, recipes); err != nil {
+			log.Warn().
+				Err(err).
+				Str("team", team.TeamName).
+				Msg("Failed to update team recipes")
+			continue
+		}
+
+		teamsUpdated++
+		log.Info().
+			Str("team", team.TeamName).
+			Str("species", team.Species).
+			Int("recipeCount", len(recipes)).
+			Msg("Team recipes updated")
+	}
+
+	// Send response
+	response := map[string]interface{}{
+		"type":         "RECIPES_UPDATED",
+		"success":      true,
+		"teamsUpdated": teamsUpdated,
+		"message":      fmt.Sprintf("Updated recipes for %d teams", teamsUpdated),
+		"serverTime":   time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Int("teamsUpdated", teamsUpdated).
+		Msg("All team recipes updated")
+
+	return client.SendMessage(response)
+}
+
+// buildRecipesForSpecies creates all recipes (basic + premium) for a species
+func buildRecipesForSpecies(species string, basicProduct string) map[string]domain.Recipe {
+	recipes := make(map[string]domain.Recipe)
+
+	// Add basic recipe (free production)
+	recipes[basicProduct] = domain.Recipe{
+		Type:         "BASIC",
+		Ingredients:  map[string]int{},
+		PremiumBonus: 1.0,
+	}
+
+	// Add premium recipes based on species (30% bonus)
+	switch species {
+	case "Avocultores":
+		recipes["GUACA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 5, "PITA": 3},
+			PremiumBonus: 1.3,
+		}
+		recipes["SEBO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"NUCREM": 8},
+			PremiumBonus: 1.3,
+		}
+
+	case "Monjes de Fosforescencia":
+		recipes["GUACA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 5, "PITA": 3},
+			PremiumBonus: 1.3,
+		}
+		recipes["NUCREM"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SEBO": 6},
+			PremiumBonus: 1.3,
+		}
+
+	case "Cosechadores de Pita":
+		recipes["SEBO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"NUCREM": 8},
+			PremiumBonus: 1.3,
+		}
+		recipes["CASCAR-ALLOY"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 10},
+			PremiumBonus: 1.3,
+		}
+
+	case "Herreros Cósmicos":
+		recipes["QUANTUM-PULP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 7},
+			PremiumBonus: 1.3,
+		}
+		recipes["SKIN-WRAP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"ASTRO-BUTTER": 12},
+			PremiumBonus: 1.3,
+		}
+
+	case "Extractores":
+		recipes["NUCREM"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SEBO": 6},
+			PremiumBonus: 1.3,
+		}
+		recipes["FOSFO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SKIN-WRAP": 9},
+			PremiumBonus: 1.3,
+		}
+
+	case "Tejemanteles":
+		recipes["PITA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"CASCAR-ALLOY": 8},
+			PremiumBonus: 1.3,
+		}
+		recipes["ASTRO-BUTTER"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"GUACA": 10},
+			PremiumBonus: 1.3,
+		}
+
+	case "Cremeros Astrales":
+		recipes["CASCAR-ALLOY"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 10},
+			PremiumBonus: 1.3,
+		}
+		recipes["PALTA-OIL"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"QUANTUM-PULP": 7},
+			PremiumBonus: 1.3,
+		}
+
+	case "Mineros del Sebo":
+		recipes["ASTRO-BUTTER"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"GUACA": 10},
+			PremiumBonus: 1.3,
+		}
+		recipes["GUACA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 5, "PITA": 3},
+			PremiumBonus: 1.3,
+		}
+
+	case "Núcleo Cremero":
+		recipes["SKIN-WRAP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"ASTRO-BUTTER": 12},
+			PremiumBonus: 1.3,
+		}
+		recipes["QUANTUM-PULP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 7},
+			PremiumBonus: 1.3,
+		}
+
+	case "Destiladores":
+		recipes["PALTA-OIL"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"QUANTUM-PULP": 7},
+			PremiumBonus: 1.3,
+		}
+		recipes["FOSFO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SKIN-WRAP": 9},
+			PremiumBonus: 1.3,
+		}
+
+	case "Cartógrafos":
+		recipes["NUCREM"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SEBO": 6},
+			PremiumBonus: 1.3,
+		}
+		recipes["PITA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"CASCAR-ALLOY": 8},
+			PremiumBonus: 1.3,
+		}
+
+	case "Someliers Andorianos":
+		recipes["SEBO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"NUCREM": 8},
+			PremiumBonus: 1.3,
+		}
+		recipes["CASCAR-ALLOY"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 10},
+			PremiumBonus: 1.3,
+		}
+	}
+
+	return recipes
 }

@@ -219,7 +219,8 @@ func (s *HybridStrategy) OnFill(ctx context.Context, fill *domain.FillMessage) e
 		Str("side", fill.Side).
 		Int("qty", fill.FillQty).
 		Float64("price", fill.FillPrice).
-		Msg("Fill received")
+		Str("counterparty", fill.Counterparty).
+		Msg("✅ Fill received")
 	return nil
 }
 
@@ -319,10 +320,24 @@ func (s *HybridStrategy) Execute(ctx context.Context, state *market.MarketState)
 	s.health.PnL = s.dailyPnL
 
 	if len(actions) > 0 {
+		// Count action types
+		orderCount := 0
+		productionCount := 0
+		for _, action := range actions {
+			switch action.Type {
+			case ActionTypeOrder:
+				orderCount++
+			case ActionTypeProduction:
+				productionCount++
+			}
+		}
+
 		log.Info().
 			Str("strategy", s.name).
-			Int("actions", len(actions)).
-			Msg("Hybrid strategy executing actions")
+			Int("total", len(actions)).
+			Int("orders", orderCount).
+			Int("production", productionCount).
+			Msg("🎯 Hybrid strategy generating actions")
 	}
 
 	return actions, nil

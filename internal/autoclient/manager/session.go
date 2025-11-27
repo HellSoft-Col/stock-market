@@ -486,6 +486,7 @@ func (s *TradingSession) GetStats() map[string]interface{} {
 		"authenticated":     s.authenticated,
 		"lastSync":          s.lastSync,
 		"reconnectAttempts": s.reconnectAttempts,
+		"strategy":          s.strategy.Name(),
 	}
 
 	if s.agent != nil {

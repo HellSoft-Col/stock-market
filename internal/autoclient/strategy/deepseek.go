@@ -26,6 +26,8 @@ type DeepSeekStrategy struct {
 	name string
 
 	// Configuration
+	provider          string // "openai" or "deepseek"
+	model             string // e.g., "gpt-4o", "deepseek-chat"
 	apiKey            string
 	endpoint          string
 	decisionInterval  time.Duration
@@ -36,23 +38,35 @@ type DeepSeekStrategy struct {
 	maxRetries        int
 	includeProduction bool
 
+	// Fallback configuration (for when primary API fails)
+	fallbackProvider string
+	fallbackModel    string
+	fallbackApiKey   string
+	fallbackEndpoint string
+
 	// Production system (if enabled)
 	calculator    *production.ProductionCalculator
 	recipeManager *production.RecipeManager
 	role          *production.Role
 
 	// State
-	lastDecision  time.Time
-	balance       float64
-	inventory     map[string]int
-	marketState   *market.MarketState
-	eventHistory  *EventHistory
-	teamName      string
-	lastError     string // Last error to feed back to AI
-	errorAttempts int    // Number of retry attempts with error feedback
-	health        StrategyHealth
-	errorCount    int
-	httpClient    *http.Client
+	lastDecision     time.Time
+	balance          float64
+	inventory        map[string]int
+	marketState      *market.MarketState
+	eventHistory     *EventHistory
+	teamName         string
+	lastError        string // Last error to feed back to AI
+	errorAttempts    int    // Number of retry attempts with error feedback
+	health           StrategyHealth
+	errorCount       int
+	httpClient       *http.Client
+	messageGenerator *MessageGenerator // Per-strategy message generator
+
+	// Metrics
+	aiDecisions     int
+	productionCount int
+	lastAction      string
 }
 
 // NewDeepSeekStrategy creates a new DeepSeek AI strategy
@@ -75,8 +89,10 @@ func (s *DeepSeekStrategy) Name() string {
 
 // Initialize initializes the strategy with configuration
 func (s *DeepSeekStrategy) Initialize(config map[string]interface{}) error {
+	s.provider = GetConfigString(config, "provider", "openai")
+	s.model = GetConfigString(config, "model", "gpt-4o")
 	s.apiKey = GetConfigString(config, "apiKey", "")
-	s.endpoint = GetConfigString(config, "endpoint", "https://api.deepseek.com/v1/chat/completions")
+	s.endpoint = GetConfigString(config, "endpoint", "https://api.openai.com/v1/chat/completions")
 	s.decisionInterval = GetConfigDuration(config, "decisionInterval", 15*time.Second)
 	s.temperature = GetConfigFloat(config, "temperature", 0.7)
 	s.maxTokens = GetConfigInt(config, "maxTokens", 500)
@@ -85,8 +101,41 @@ func (s *DeepSeekStrategy) Initialize(config map[string]interface{}) error {
 	s.maxRetries = GetConfigInt(config, "maxRetries", 3)
 	s.includeProduction = GetConfigBool(config, "includeProduction", true)
 
+	// Auto-configure endpoint based on provider if not explicitly set
+	if s.provider == "deepseek" && s.endpoint == "https://api.openai.com/v1/chat/completions" {
+		s.endpoint = "https://api.deepseek.com/v1/chat/completions"
+		if s.model == "gpt-4o" {
+			s.model = "deepseek-chat"
+		}
+	}
+
 	if s.apiKey == "" {
-		return fmt.Errorf("apiKey is required for DeepSeek strategy")
+		return fmt.Errorf("apiKey is required for AI strategy")
+	}
+
+	// Setup fallback provider (GPT -> DeepSeek or DeepSeek -> GPT)
+	if s.provider == "openai" {
+		// Primary is GPT, fallback to DeepSeek
+		s.fallbackProvider = "deepseek"
+		s.fallbackModel = "deepseek-chat"
+		s.fallbackApiKey = GetConfigString(config, "fallbackApiKey", "")
+		s.fallbackEndpoint = "https://api.deepseek.com/v1/chat/completions"
+
+		// Try to get DeepSeek key from env if not in config
+		if s.fallbackApiKey == "" {
+			s.fallbackApiKey = GetConfigString(config, "deepseekApiKey", "")
+		}
+	} else {
+		// Primary is DeepSeek, fallback to GPT
+		s.fallbackProvider = "openai"
+		s.fallbackModel = "gpt-4o-mini" // Use cheaper model for fallback
+		s.fallbackApiKey = GetConfigString(config, "fallbackApiKey", "")
+		s.fallbackEndpoint = "https://api.openai.com/v1/chat/completions"
+
+		// Try to get OpenAI key from env if not in config
+		if s.fallbackApiKey == "" {
+			s.fallbackApiKey = GetConfigString(config, "openaiApiKey", "")
+		}
 	}
 
 	// Initialize HTTP client
@@ -101,10 +150,15 @@ func (s *DeepSeekStrategy) Initialize(config map[string]interface{}) error {
 
 	log.Info().
 		Str("strategy", s.name).
+		Str("provider", s.provider).
+		Str("model", s.model).
+		Str("fallbackProvider", s.fallbackProvider).
+		Str("fallbackModel", s.fallbackModel).
+		Bool("hasFallback", s.fallbackApiKey != "").
 		Dur("decisionInterval", s.decisionInterval).
 		Float64("minConfidence", s.minConfidence).
 		Bool("includeProduction", s.includeProduction).
-		Msg("DeepSeek AI strategy initialized")
+		Msg("🤖 AI strategy initialized")
 
 	return nil
 }
@@ -114,8 +168,8 @@ func (s *DeepSeekStrategy) OnLogin(ctx context.Context, loginInfo *domain.LoginO
 	s.balance = loginInfo.CurrentBalance
 	s.teamName = loginInfo.Team
 
-	// Initialize message generator with team name
-	InitMessageGenerator(s.teamName, s.apiKey)
+	// Initialize message generator for this specific strategy
+	s.messageGenerator = NewMessageGenerator(s.teamName, s.apiKey)
 
 	if s.includeProduction {
 		// Initialize production system
@@ -232,25 +286,34 @@ func (s *DeepSeekStrategy) Execute(ctx context.Context, state *market.MarketStat
 	if err != nil {
 		s.errorCount++
 		s.health.ErrorCount = s.errorCount
+		s.lastAction = fmt.Sprintf("AI Error: %v", err)
 
 		if s.errorCount > 5 {
 			s.health.Status = HealthStatusDegraded
 			s.health.Message = fmt.Sprintf("Multiple API errors: %v", err)
 		}
 
-		log.Error().
+		log.Warn().
 			Err(err).
 			Str("strategy", s.name).
 			Int("errorCount", s.errorCount).
-			Msg("Failed to get AI decisions")
+			Msg("⚠️ AI API failed, using fallback: PRODUCE specialty product")
 
-		return nil, err
+		// FALLBACK: When API fails, just produce the specialty product
+		// This ensures traders stay active even when DeepSeek API is down/slow
+		if s.includeProduction && s.recipeManager != nil {
+			return s.executeFallbackProduction()
+		}
+
+		// If no production available, just hold
+		return nil, nil
 	}
 
 	// Reset error count on success
 	s.errorCount = 0
 	s.health.Status = HealthStatusHealthy
 	s.health.LastUpdate = time.Now()
+	s.aiDecisions++ // Track AI decision
 
 	// Convert AI decisions to actions
 	allActions := []*Action{}
@@ -268,10 +331,21 @@ func (s *DeepSeekStrategy) Execute(ctx context.Context, state *market.MarketStat
 				Str("action", decision.Action).
 				Str("product", decision.Product).
 				Err(err).
-				Msg("AI decision validation failed")
+				Msg("⚠️ AI decision validation failed")
 		} else {
 			allActions = append(allActions, actions...)
 			successfulDecisions = append(successfulDecisions, decision)
+
+			// Log successful decision
+			log.Info().
+				Str("strategy", s.name).
+				Str("action", decision.Action).
+				Str("product", decision.Product).
+				Int("qty", decision.Quantity).
+				Float64("price", decision.Price).
+				Float64("confidence", decision.Confidence).
+				Str("reasoning", decision.Reasoning).
+				Msg("🤖 AI Decision Validated")
 		}
 	}
 
@@ -296,7 +370,7 @@ func (s *DeepSeekStrategy) Execute(ctx context.Context, state *market.MarketStat
 		s.lastError = ""
 
 		// Track successful decisions as events
-		for _, decision := range successfulDecisions {
+		for i, decision := range successfulDecisions {
 			s.eventHistory.AddEvent(TradingEvent{
 				Timestamp: time.Now(),
 				Type:      "ORDER",
@@ -306,6 +380,16 @@ func (s *DeepSeekStrategy) Execute(ctx context.Context, state *market.MarketStat
 				Price:     decision.Price,
 				Message:   decision.Reasoning,
 			})
+
+			// Track production actions
+			if decision.Action == "PRODUCE" {
+				s.productionCount++
+			}
+
+			// Update last action (use the most recent one)
+			if i == len(successfulDecisions)-1 {
+				s.lastAction = fmt.Sprintf("%s %s", decision.Action, decision.Product)
+			}
 
 			log.Info().
 				Str("strategy", s.name).
@@ -325,7 +409,143 @@ func (s *DeepSeekStrategy) Execute(ctx context.Context, state *market.MarketStat
 
 // Health returns the strategy's current health status
 func (s *DeepSeekStrategy) Health() StrategyHealth {
+	// Update metadata with latest metrics
+	s.health.Metadata = map[string]interface{}{
+		"aiDecisions":     s.aiDecisions,
+		"productionCount": s.productionCount,
+		"lastAction":      s.lastAction,
+	}
 	return s.health
+}
+
+// executeFallbackProduction executes simple production when AI API fails
+func (s *DeepSeekStrategy) executeFallbackProduction() ([]*Action, error) {
+	// Determine specialty product based on team name
+	specialtyProduct := s.getSpecialtyProduct()
+	if specialtyProduct == "" {
+		return nil, nil
+	}
+
+	// Check if we can produce it
+	recipe, err := s.recipeManager.GetRecipe(specialtyProduct)
+	if err != nil {
+		return nil, nil
+	}
+
+	// Check ingredients
+	for ingredient, needed := range recipe.Ingredients {
+		have := s.inventory[ingredient]
+		if have < needed {
+			// Can't produce, skip
+			return nil, nil
+		}
+	}
+
+	// Calculate production units
+	baseUnits := s.calculator.CalculateUnits(s.role)
+	totalUnits := baseUnits
+	if len(recipe.Ingredients) > 0 {
+		totalUnits = s.calculator.ApplyPremiumBonus(baseUnits, recipe.PremiumBonus)
+	}
+
+	// Create production action
+	production := &domain.ProductionUpdateMessage{
+		Type:     "PRODUCTION_UPDATE",
+		Product:  specialtyProduct,
+		Quantity: totalUnits,
+	}
+
+	// Track fallback production
+	s.productionCount++
+	s.lastAction = fmt.Sprintf("PRODUCE %s (fallback)", specialtyProduct)
+
+	log.Info().
+		Str("strategy", s.name).
+		Str("product", specialtyProduct).
+		Int("quantity", totalUnits).
+		Msg("🏭 Fallback: Producing specialty product")
+
+	return []*Action{{
+		Type:       ActionTypeProduction,
+		Production: production,
+	}}, nil
+}
+
+// getSpecialtyProduct returns the specialty product for this team
+// Dynamically chooses based on available recipes
+func (s *DeepSeekStrategy) getSpecialtyProduct() string {
+	if s.recipeManager == nil {
+		return ""
+	}
+
+	// Preferred products based on team name (if available in recipes)
+	preferredProducts := map[string][]string{
+		"Alquimistas de Palta":          {"PALTA-OIL", "PALTA-CREAM", "PALTA"},
+		"Arpistas de Pita-Pita":         {"PITA-WRAP", "PITA", "GUACA"},
+		"Avocultores del Hueso Cósmico": {"GUACA", "NUCREM", "PALTA"},
+		"Cartógrafos de Fosfolima":      {"FOSFO-MAP", "FOSFO", "PALTA"},
+		"Cosechadores de Semillas":      {"PITA", "GUACA", "PALTA"},
+		"Forjadores Holográficos":       {"CASCAR-ALLOY", "FOSFO", "PALTA"},
+		"Ingenieros Holo-Aguacate":      {"NUCREM", "GUACA", "PALTA"},
+		"Mensajeros del Núcleo":         {"NUCREM", "PALTA-CREAM", "GUACA"},
+		"Monjes del Guacamole Estelar":  {"GUACA", "NUCREM", "PALTA"},
+		"Orfebres de Cáscara":           {"CASCAR-ALLOY", "FOSFO", "PALTA"},
+		"Someliers de Aceite":           {"PALTA-OIL", "PALTA-CREAM", "PALTA"},
+	}
+
+	// Try preferred products in order
+	if preferred, ok := preferredProducts[s.teamName]; ok {
+		for _, product := range preferred {
+			if _, err := s.recipeManager.GetRecipe(product); err == nil {
+				log.Debug().
+					Str("team", s.teamName).
+					Str("product", product).
+					Msg("Selected specialty product from preferences")
+				return product
+			}
+		}
+	}
+
+	// Fallback: Find any producible product
+	// Prefer premium products (ones with ingredients) over base products
+	availableRecipes := s.recipeManager.GetAllRecipes()
+
+	// First try products with ingredients (premium products)
+	for product, recipe := range availableRecipes {
+		if len(recipe.Ingredients) > 0 {
+			// Check if we have ingredients
+			canProduce := true
+			for ingredient, needed := range recipe.Ingredients {
+				if s.inventory[ingredient] < needed {
+					canProduce = false
+					break
+				}
+			}
+			if canProduce {
+				log.Debug().
+					Str("team", s.teamName).
+					Str("product", product).
+					Msg("Selected specialty product (premium with ingredients)")
+				return product
+			}
+		}
+	}
+
+	// Last resort: any base product (no ingredients required)
+	for product, recipe := range availableRecipes {
+		if len(recipe.Ingredients) == 0 {
+			log.Debug().
+				Str("team", s.teamName).
+				Str("product", product).
+				Msg("Selected specialty product (base product)")
+			return product
+		}
+	}
+
+	log.Warn().
+		Str("team", s.teamName).
+		Msg("No producible specialty product found")
+	return ""
 }
 
 // AIDecision represents a single decision from the AI
@@ -343,6 +563,21 @@ type AIDecisionResponse struct {
 	Actions []AIDecision `json:"actions"`
 }
 
+// calculateInventoryValue calculates current inventory value using market prices
+func (s *DeepSeekStrategy) calculateInventoryValue() float64 {
+	if s.marketState == nil {
+		return 0
+	}
+
+	value := 0.0
+	for product, qty := range s.inventory {
+		if ticker, exists := s.marketState.Tickers[product]; exists && ticker.Mid != nil {
+			value += float64(qty) * *ticker.Mid
+		}
+	}
+	return value
+}
+
 // buildMarketContext creates a context string for the AI
 func (s *DeepSeekStrategy) buildMarketContext() string {
 	// Get market snapshot
@@ -356,19 +591,145 @@ func (s *DeepSeekStrategy) buildMarketContext() string {
 	teamSpecialty := ""
 
 	switch s.teamName {
-	case "Mensajeros del Núcleo":
-		teamContext = `You are the MENSAJEROS DEL NÚCLEO - Elite NUCREM miners and cosmic messengers.
-SPECIES TRAITS: Efficient, strategic, technologically advanced. Masters of NUCREM extraction and trading.`
+	// BILL GATES - Tech Innovator & Strategic Monopolist
+	case "Alquimistas de Palta":
+		teamContext = `BILL GATES: Produce and scale PALTA-OIL aggressively`
+		teamSpecialty = "PALTA-OIL"
+
+	// ELON MUSK - Disruptor & Chaos Agent
+	case "Arpistas de Pita-Pita":
+		teamContext = `You are channeling ELON MUSK - Revolutionary disruptor and chaos agent.
+STRATEGY: Move fast, break things, generate CHAOS in the market!
+FOCUS: Massive volume, wild price swings, unpredictable actions, MAXIMUM market impact!
+MINDSET: "When something is important enough, you do it even if the odds are not in your favor."
+ACTION: HUGE orders (400-500 units), rapid trades, CREATE VOLATILITY, dominate order books!`
+		teamSpecialty = "PITA"
+
+	// CARL ICAHN - Aggressive Activist
+	case "Avocultores del Hueso Cósmico":
+		teamContext = `You are channeling CARL ICAHN - Aggressive activist investor.
+STRATEGY: Attack inefficiencies, force market changes, extract maximum value.
+FOCUS: Arbitrage, aggressive buying, hostile takeovers of market positions.
+MINDSET: "In life and business, there are two cardinal sins... The first is to act precipitously without thought and the second is to not act at all."
+ACTION: Large aggressive trades, exploit every arbitrage opportunity!`
+		teamSpecialty = "GUACA"
+
+	// PETER THIEL - Contrarian & Monopoly Builder
+	case "Cartógrafos de Fosfolima":
+		teamContext = `You are channeling PETER THIEL - Contrarian thinker and monopoly builder.
+STRATEGY: Do the opposite of the crowd, build monopolies in production.
+FOCUS: Unique products, production dominance, avoid competition through differentiation.
+MINDSET: "Competition is for losers. Build monopolies."
+ACTION: Massive production of unique items, corner specific markets!`
+		teamSpecialty = "FOSFO"
+
+	// CATHIE WOOD - Innovation & High Growth
+	case "Cosechadores de Semillas":
+		teamContext = `You are channeling CATHIE WOOD - Innovation-focused high-growth investor.
+STRATEGY: Bet big on innovation, embrace volatility, focus on disruption.
+FOCUS: High-volume production, rapid turnover, growth at all costs.
+MINDSET: "We focus on the big ideas that are going to change the world."
+ACTION: Maximum production, aggressive selling, reinvest everything into growth!`
+		teamSpecialty = "PITA"
+
+	// RAY DALIO - Systematic & Diversified
+	case "Forjadores Holográficos":
+		teamContext = `You are channeling RAY DALIO - Systematic investor and risk manager.
+STRATEGY: Diversify, balance risk, systematic approach to all decisions.
+FOCUS: Multiple products, balanced portfolio, consistent execution.
+MINDSET: "He who lives by the crystal ball will eat shattered glass."
+ACTION: Diversified actions across multiple products, systematic production & trading!`
+		teamSpecialty = "CASCAR-ALLOY"
+
+	// MICHAEL BURRY - Contrarian Value Hunter
+	case "Ingenieros Holo-Aguacate":
+		teamContext = `You are channeling MICHAEL BURRY - Deep value contrarian.
+STRATEGY: Find what others miss, bet against the crowd when you see value.
+FOCUS: Undervalued products, contrarian positions, patient accumulation.
+MINDSET: "I don't make money on the market going up. I make money when I'm right."
+ACTION: Buy undervalued, produce cheaply, sell at fair value!`
 		teamSpecialty = "NUCREM"
 
+	// MENSAJEROS - Aggressive DeepSeek AI
+	case "Mensajeros del Núcleo":
+		teamContext = `You are MENSAJEROS DEL NÚCLEO - Elite AI-powered traders.
+STRATEGY: Maximum automation, data-driven decisions, computational advantage.
+FOCUS: High-frequency production, algorithmic trading, market domination through speed.
+MINDSET: Pure calculation and execution. No emotions, only optimal decisions.
+ACTION: Maximum production rate, rapid order execution, dominate through volume!`
+		teamSpecialty = "NUCREM"
+
+	// PRODUCTION FOCUSED - Mass Producer
+	case "Orfebres de Cáscara":
+		teamContext = `You are ORFEBRES DE CÁSCARA - Industrial mass production specialists.
+STRATEGY: PRODUCTION FIRST. Produce at maximum capacity, flood the market!
+FOCUS: Maximize production output, minimal inventory holding, rapid sales.
+MINDSET: "The factory must never stop!"
+ACTION: PRODUCE 500 units EVERY turn, SELL immediately, repeat forever!`
+		teamSpecialty = "CASCAR-ALLOY"
+
+	// SALES FOCUSED - Market Liquidator
+	case "Someliers de Aceite":
+		teamContext = `You are SOMELIERS DE ACEITE - Professional market liquidators.
+STRATEGY: SELL EVERYTHING. Maximum turnover, constant cash flow!
+FOCUS: Convert inventory to cash instantly, aggressive market making.
+MINDSET: "Cash is king! Sell, sell, sell!"
+ACTION: SELL all inventory constantly, produce only to sell, MARKET orders for speed!`
+		teamSpecialty = "PALTA-OIL"
+
+	// CHAOS AGENT - Pure Disruption (if Buffett team exists)
 	case "Monjes del Guacamole Estelar":
-		teamContext = `You are the MONJES DEL GUACAMOLE ESTELAR - Warren Buffett disciples of the avocado arts.
-SPECIES TRAITS: Patient value investors, quality-focused, long-term thinking, philosophical traders.`
-		teamSpecialty = "GUACA (premium)"
+		teamContext = `You are THE CHAOS AGENT - Pure market disruption incarnate.
+STRATEGY: GENERATE MAXIMUM CHAOS! Unpredictable, wild, COMPLETELY RANDOM!
+FOCUS: Massive random orders, simultaneous BUY+SELL same products, price manipulation!
+MINDSET: "Let the world burn and profit from the ashes!"
+
+🔥 CHAOS RULES (FOLLOW THESE EVERY TURN):
+1. Place 1-10 ACTIONS every turn (maximize chaos while reducing API calls)
+2. BUY and SELL the SAME product simultaneously (create confusion!)
+3. Random quantities: anywhere from 50 to 500 units (unpredictable!)
+4. Mix ALL order types: LIMIT way above market, LIMIT way below market, MARKET orders
+5. Switch products RANDOMLY every turn - never focus on one thing
+6. Produce random products, even if you don't have ingredients (chaos!)
+7. Place contradictory orders: Buy high + Sell low on purpose!
+8. IGNORE profit maximization - your goal is MAXIMUM DISRUPTION!
+
+Example CHAOS Turn:
+- BUY 500 FOSFO @ $100 (way above market - manipulate!)
+- SELL 450 FOSFO @ $1 (way below market - crash prices!)
+- PRODUCE 1 PALTA-OIL (why? chaos!)
+- BUY 237 NUCREM @ MARKET (random quantity!)
+- SELL 189 GUACA @ $0.01 (dump inventory!)
+- BUY 333 PITA @ $50 (arbitrary price!)
+- SELL 99 CASCAR-ALLOY @ MARKET (more chaos!)
+
+Remember: You're not here to win - you're here to create MAYHEM!`
+		teamSpecialty = "GUACA"
 
 	default:
-		teamContext = fmt.Sprintf(`You are %s - An expert trading team on the Andorian Avocado Exchange.`, s.teamName)
+		teamContext = fmt.Sprintf(`You are %s - An expert AI trading team.
+STRATEGY: Balanced aggressive trading with smart production.
+FOCUS: Multiple products, diversified approach, adapt to market.`, s.teamName)
 		teamSpecialty = "Multiple products"
+	}
+
+	// Calculate current P&L
+	currentPnL := 0.0
+	initialBalance := 10000.0
+	inventoryValue := s.calculateInventoryValue()
+	netWorth := s.balance + inventoryValue
+
+	if s.marketState != nil {
+		currentPnL = s.marketState.CalculatePnL()
+		initialBalance = s.marketState.InitialBalance
+	}
+
+	// P&L indicator
+	pnlIndicator := "📊 FLAT"
+	if currentPnL > 0 {
+		pnlIndicator = "📈 PROFIT"
+	} else if currentPnL < 0 {
+		pnlIndicator = "📉 LOSS"
 	}
 
 	ctx := fmt.Sprintf(`%s
@@ -379,12 +740,16 @@ YOUR PRODUCTION CAPABILITIES:
 - Base Energy: %.0f units per production cycle
 - YOUR SPECIALTY: %s - Focus on this for maximum profit!
 
-CURRENT STATUS:
+💰 CURRENT PERFORMANCE:
 - Balance: $%.2f
-- Inventory: %v`,
+- Inventory Value: $%.2f
+- Net Worth: $%.2f (cash + inventory)
+- P&L: %.2f%% %s
+- Initial Balance: $%.2f
+- Inventory Items: %v`,
 		teamContext,
 		s.role.Branches, s.role.MaxDepth, s.role.BaseEnergy, teamSpecialty,
-		s.balance, s.inventory)
+		s.balance, inventoryValue, netWorth, currentPnL, pnlIndicator, initialBalance, s.inventory)
 
 	// Add pending orders info
 	if snapshot != nil && len(snapshot.ActiveOrders) > 0 {
@@ -463,92 +828,40 @@ CURRENT STATUS:
 	ctx += `
 
 INSTRUCTIONS:
-You should make 2-4 DIFFERENT decisions per turn to maximize profit and market activity!
+Make 1-10 ACTIONS per turn to maximize efficiency! More actions = fewer API calls = faster trading!
 
-Available actions:
-1. BUY products (MARKET with price=0 OR LIMIT with specific price)
-2. SELL inventory products (MARKET or LIMIT)
-3. PRODUCE products (free or with ingredients)
-4. HOLD on specific products (wait for better price)
+Actions: BUY, SELL, PRODUCE, or HOLD
+1. PRODUCE your specialty: ` + teamSpecialty + ` (FREE! Do this EVERY turn!)
+2. SELL inventory to generate cash
+3. BUY undervalued products
+4. PRODUCE premium products if you have ingredients
+5. Make LIMIT orders for better prices (price > 0)
+6. Make MARKET orders for quick execution (price = 0)
 
-🎯 DECISION STRATEGY - Make MULTIPLE actions per turn:
-✓ Example Turn: PRODUCE ` + teamSpecialty + ` (free) → SELL 50 ` + teamSpecialty + ` (LIMIT @ $X) → BUY 30 PITA (LIMIT @ $Y)
-✓ Diversify: Don't just produce OR sell - do BOTH plus strategic buying!
-✓ BE AGGRESSIVE: Your specialty product (` + teamSpecialty + `) costs ZERO - produce and sell it EVERY turn!
+Rules:
+- Check inventory before SELL
+- Check balance before BUY  
+- Max 200 units per order
+- ALWAYS produce specialty first!
+- Return 1-10 actions to reduce API calls!
 
-📊 ORDER TYPE STRATEGY (60% LIMIT, 40% MARKET):
-- LIMIT orders (PREFERRED): Better profit margins, strategic positioning
-  * LIMIT BUY: Set 3-7% BELOW mid price (e.g., Mid $10 → Buy @ $9.30-$9.70)
-  * LIMIT SELL: Set 3-7% ABOVE mid price (e.g., Mid $10 → Sell @ $10.30-$10.70)
-- MARKET orders: When you need guaranteed execution
-  * Use when: Inventory full, urgent sale, or grabbing good deals
-
-💰 PROFIT MAXIMIZATION TACTICS:
-1. FREE PRODUCTION ADVANTAGE: Your specialty (` + teamSpecialty + `) has ZERO cost!
-   → Produce it EVERY turn and sell at ANY positive price = pure profit!
-   
-2. SPREAD CAPTURE: Place both buy and sell orders on same product
-   → Example: Buy FOSFO @ $7.50, Sell FOSFO @ $8.50 = $1 profit per unit
-   
-3. INVENTORY CHURN: Don't hoard - constantly produce and sell
-   → High turnover = more profit opportunities
-   
-4. INGREDIENT ARBITRAGE: Buy cheap ingredients, produce premium, sell high
-   → Calculate: Premium sell price > (ingredient costs + 10% margin)?
-
-5. MARKET MAKING: Help provide liquidity while earning spreads
-   → Place orders on multiple products simultaneously
-
-⚠️ VALIDATION RULES:
-- For SELL: Check you have enough inventory BEFORE selling
-- For BUY: Check balance is sufficient (quantity × price ≤ current balance)
-- For PRODUCE: Check you have required ingredients BEFORE producing
-- Quantity: Reasonable positive integers (typically 10-200 units)
-- Price: Set to 0 for MARKET orders, or specify price for LIMIT orders
-- NEVER use quantities over 500 - orders will fail validation
-- Always verify (quantity × estimated_price) <= your balance
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "actions": [
-    {
-      "action": "BUY|SELL|PRODUCE|HOLD",
-      "product": "PRODUCT-NAME",
-      "quantity": 100,
-      "price": 0,
-      "confidence": 0.75,
-      "reasoning": "Brief explanation of this action"
-    }
-  ]
-}
-
-Examples:
-1. LIMIT buy below market:
-   {"actions": [{"action": "BUY", "product": "FOSFO", "quantity": 50, "price": 7.5, "confidence": 0.8, "reasoning": "Limit buy 5% below mid price"}]}
-
-2. MARKET order (immediate):
-   {"actions": [{"action": "SELL", "product": "PALTA-OIL", "quantity": 100, "price": 0, "confidence": 0.9, "reasoning": "Quick liquidation needed"}]}
-
-3. Multiple actions (produce + sell):
-   {"actions": [
-     {"action": "PRODUCE", "product": "PALTA-OIL", "quantity": 1, "price": 0, "confidence": 0.95, "reasoning": "Free production"},
-     {"action": "SELL", "product": "PALTA-OIL", "quantity": 80, "price": 10.5, "confidence": 0.85, "reasoning": "LIMIT sell 5% above market"}
-   ]}
-
-4. Hold and wait:
-   {"actions": [{"action": "HOLD", "product": "", "quantity": 0, "price": 0, "confidence": 0.5, "reasoning": "Waiting for better prices"}]}
-
-Remember: Set price=0 for MARKET orders (instant), or specify price for LIMIT orders (better control). Confidence should be 0-1.`
+Respond with JSON (1-10 actions, more is better):
+{"actions": [
+  {"action": "PRODUCE", "product": "` + teamSpecialty + `", "quantity": 1, "price": 0, "confidence": 0.95, "reasoning": "free production"},
+  {"action": "SELL", "product": "` + teamSpecialty + `", "quantity": 100, "price": 10, "confidence": 0.9, "reasoning": "sell at premium"},
+  {"action": "BUY", "product": "OTHER", "quantity": 50, "price": 8, "confidence": 0.85, "reasoning": "buy cheap"}
+]}`
 
 	return ctx
 }
 
 // DeepSeekRequest represents the API request format
 type DeepSeekRequest struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	Temperature float64   `json:"temperature"`
-	MaxTokens   int       `json:"max_tokens"`
+	Model               string    `json:"model"`
+	Messages            []Message `json:"messages"`
+	Temperature         float64   `json:"temperature"`
+	MaxTokens           int       `json:"max_tokens,omitempty"`            // For older models (GPT-4, DeepSeek)
+	MaxCompletionTokens int       `json:"max_completion_tokens,omitempty"` // For GPT-5.1 and newer
 }
 
 // Message represents a chat message
@@ -704,29 +1017,91 @@ func extractJSON(content string) string {
 	return content
 }
 
-// getAIDecisions calls the DeepSeek API to get multiple trading decisions
+// getAIDecisions calls the AI API to get multiple trading decisions
+// Tries primary provider first, then falls back to secondary provider if available
 func (s *DeepSeekStrategy) getAIDecisions(ctx context.Context, marketContext string) ([]AIDecision, error) {
+	// Try primary provider
+	decisions, err := s.getAIDecisionsFromProvider(ctx, marketContext, s.provider, s.model, s.apiKey, s.endpoint)
+	if err == nil {
+		return decisions, nil
+	}
+
+	// Log primary failure
+	log.Warn().
+		Err(err).
+		Str("strategy", s.name).
+		Str("provider", s.provider).
+		Str("model", s.model).
+		Msg("⚠️ Primary AI provider failed")
+
+	// Try fallback provider if configured
+	if s.fallbackApiKey != "" {
+		log.Info().
+			Str("strategy", s.name).
+			Str("fallbackProvider", s.fallbackProvider).
+			Str("fallbackModel", s.fallbackModel).
+			Msg("🔄 Attempting fallback to secondary AI provider")
+
+		decisions, fallbackErr := s.getAIDecisionsFromProvider(ctx, marketContext, s.fallbackProvider, s.fallbackModel, s.fallbackApiKey, s.fallbackEndpoint)
+		if fallbackErr == nil {
+			log.Info().
+				Str("strategy", s.name).
+				Str("fallbackProvider", s.fallbackProvider).
+				Int("decisions", len(decisions)).
+				Msg("✅ Fallback AI provider succeeded")
+			return decisions, nil
+		}
+
+		log.Error().
+			Err(fallbackErr).
+			Str("strategy", s.name).
+			Str("fallbackProvider", s.fallbackProvider).
+			Msg("❌ Fallback AI provider also failed")
+	}
+
+	// Both failed or no fallback configured
+	return nil, fmt.Errorf("primary API failed: %w", err)
+}
+
+// getAIDecisionsFromProvider calls a specific AI provider
+func (s *DeepSeekStrategy) getAIDecisionsFromProvider(ctx context.Context, marketContext, provider, model, apiKey, endpoint string) ([]AIDecision, error) {
+	// GPT-5.1 and o1/o3 models have specific requirements
+	isGPT5orReasoning := strings.Contains(model, "gpt-5") || strings.Contains(model, "o1") || strings.Contains(model, "o3")
+
+	// Temperature: GPT-5.1 and reasoning models only support 1.0
+	temperature := s.temperature
+	if isGPT5orReasoning {
+		temperature = 1.0
+	}
+
 	request := DeepSeekRequest{
-		Model: "deepseek-chat",
+		Model: model,
 		Messages: []Message{
 			{
 				Role:    "user",
 				Content: marketContext,
 			},
 		},
-		Temperature: s.temperature,
-		MaxTokens:   s.maxTokens,
+		Temperature: temperature,
 	}
 
-	// Retry logic
+	// GPT-5.1 and newer use max_completion_tokens, older models use max_tokens
+	if isGPT5orReasoning {
+		request.MaxCompletionTokens = s.maxTokens
+	} else {
+		request.MaxTokens = s.maxTokens
+	}
+
+	// Retry logic (fewer retries to fail fast and try fallback)
+	maxRetries := 2 // Reduced from s.maxRetries to fail fast
 	var lastErr error
-	for attempt := 0; attempt < s.maxRetries; attempt++ {
+	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			// Exponential backoff
 			time.Sleep(time.Duration(attempt*2) * time.Second)
 		}
 
-		decisions, err := s.callDeepSeekAPIMultiple(ctx, request)
+		decisions, err := s.callAIAPI(ctx, request, apiKey, endpoint)
 		if err == nil {
 			// Filter decisions by confidence threshold
 			validDecisions := []AIDecision{}
@@ -756,19 +1131,21 @@ func (s *DeepSeekStrategy) getAIDecisions(ctx context.Context, marketContext str
 		}
 
 		lastErr = err
-		log.Warn().
+		log.Debug().
 			Err(err).
 			Str("strategy", s.name).
+			Str("provider", provider).
 			Int("attempt", attempt+1).
-			Int("maxRetries", s.maxRetries).
-			Msg("DeepSeek API call failed, retrying")
+			Int("maxRetries", maxRetries).
+			Msg("AI API call failed, retrying")
 	}
 
-	return nil, fmt.Errorf("failed after %d retries: %w", s.maxRetries, lastErr)
+	return nil, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 }
 
-// callDeepSeekAPIMultiple makes the actual API call and parses multiple actions
-func (s *DeepSeekStrategy) callDeepSeekAPIMultiple(ctx context.Context, request DeepSeekRequest) ([]AIDecision, error) {
+// callAIAPI makes the actual API call and parses multiple actions
+// Works with both OpenAI and DeepSeek (compatible APIs)
+func (s *DeepSeekStrategy) callAIAPI(ctx context.Context, request DeepSeekRequest, apiKey, endpoint string) ([]AIDecision, error) {
 	// Marshal request
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -776,13 +1153,13 @@ func (s *DeepSeekStrategy) callDeepSeekAPIMultiple(ctx context.Context, request 
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	// Execute request
 	resp, err := s.httpClient.Do(req)
@@ -870,10 +1247,11 @@ func (s *DeepSeekStrategy) executeDecisionWithValidation(decision AIDecision) ([
 
 		// Create order with funny message
 		var order *domain.OrderMessage
+		message := s.messageGenerator.GenerateOrderMessage("BUY", decision.Product, decision.Quantity, decision.Price)
 		if decision.Price > 0 {
-			order = CreateLimitBuyOrder(decision.Product, decision.Quantity, decision.Price, "")
+			order = CreateLimitBuyOrder(decision.Product, decision.Quantity, decision.Price, message)
 		} else {
-			order = CreateBuyOrder(decision.Product, decision.Quantity, "")
+			order = CreateBuyOrder(decision.Product, decision.Quantity, message)
 		}
 
 		actions = append(actions, &Action{
@@ -900,10 +1278,11 @@ func (s *DeepSeekStrategy) executeDecisionWithValidation(decision AIDecision) ([
 
 		// Create order with funny message
 		var order *domain.OrderMessage
+		message := s.messageGenerator.GenerateOrderMessage("SELL", decision.Product, decision.Quantity, decision.Price)
 		if decision.Price > 0 {
-			order = CreateLimitSellOrder(decision.Product, decision.Quantity, decision.Price, "")
+			order = CreateLimitSellOrder(decision.Product, decision.Quantity, decision.Price, message)
 		} else {
-			order = CreateSellOrder(decision.Product, decision.Quantity, "")
+			order = CreateSellOrder(decision.Product, decision.Quantity, message)
 		}
 
 		actions = append(actions, &Action{

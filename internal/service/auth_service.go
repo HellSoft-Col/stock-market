@@ -272,3 +272,11 @@ func (s *AuthService) UpdateTeamMembers(ctx context.Context, teamName string, me
 
 	return s.teamRepo.UpdateMembers(ctx, teamName, members)
 }
+
+func (s *AuthService) UpdateRecipes(ctx context.Context, teamName string, recipes map[string]domain.Recipe) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	return s.teamRepo.UpdateRecipes(ctx, teamName, recipes)
+}
