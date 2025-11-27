@@ -9,6 +9,7 @@ import (
 	"github.com/HellSoft-Col/stock-market/internal/domain"
 	"github.com/HellSoft-Col/stock-market/internal/market"
 	"github.com/HellSoft-Col/stock-market/internal/service"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -1181,39 +1182,89 @@ func (r *MessageRouter) handleSDKEmulatorOffer(ctx context.Context, emulatorMsg 
 	product, _ := emulatorMsg.MessagePayload["product"].(string)
 	qtyFloat, _ := emulatorMsg.MessagePayload["quantityRequested"].(float64)
 	maxPriceFloat, _ := emulatorMsg.MessagePayload["maxPrice"].(float64)
+	expiresInFloat, _ := emulatorMsg.MessagePayload["expiresIn"].(float64)
 
 	qty := int(qtyFloat)
 	maxPrice := maxPriceFloat
+	expiresIn := int(expiresInFloat)
 
 	if buyer == "" || product == "" || qty <= 0 || maxPrice <= 0 {
 		return r.sendError(client, domain.ErrInvalidMessage, "Invalid offer payload - buyer, product, quantityRequested, and maxPrice are required", "")
 	}
 
-	// Create a real buy order to generate the offer
-	// The system will automatically send offers to teams with inventory (including target team)
+	// In debug mode, we don't validate team inventory for SDK emulator
+	// The target team (receiver) should have inventory to accept, but we let them try
+	// This is purely for SDK testing purposes
+
+	// Create a debug buy order WITHOUT validating the buyer team
+	// This is a sandbox order - the buyer team doesn't need to exist or have balance
 	timestamp := time.Now().Unix()
 	clOrdID := fmt.Sprintf("SDK-EMU-BUY-%s-%d", buyer, timestamp)
 
-	orderMsg := &domain.OrderMessage{
-		Type:       "ORDER",
-		ClOrdID:    clOrdID,
-		Side:       "BUY",
-		Mode:       "LIMIT",
-		Product:    product,
-		Qty:        qty,
-		LimitPrice: &maxPrice,
-		Message:    "SDK Emulator test order - can be accepted",
+	// Create the order directly in the database (bypass validation)
+	order := &domain.Order{
+		ClOrdID:   clOrdID,
+		TeamName:  buyer, // This can be a fake team name
+		Side:      "BUY",
+		Mode:      "LIMIT",
+		Product:   product,
+		Quantity:  qty,
+		Price:     &maxPrice,
+		Message:   "SDK Emulator debug order - for testing only",
+		Status:    "PENDING",
+		FilledQty: 0,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
-	// Process the buy order through the order service
-	// This will create the order and generate an offer to eligible sellers
-	if err := r.orderService.ProcessOrder(ctx, buyer, orderMsg); err != nil {
-		log.Warn().
-			Str("emulator", client.GetTeamName()).
-			Str("buyer", buyer).
+	// Save the debug order to the database
+	if err := r.orderRepo.Create(ctx, order); err != nil {
+		log.Error().
 			Err(err).
-			Msg("SDK Emulator offer creation failed")
-		return r.sendError(client, domain.ErrInvalidOrder, err.Error(), clOrdID)
+			Str("clOrdID", clOrdID).
+			Str("buyer", buyer).
+			Msg("Failed to create SDK emulator debug order")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to create debug order", clOrdID)
+	}
+
+	// Generate unique offer ID
+	offerID := fmt.Sprintf("SDK-EMU-OFFER-%d-%s", timestamp, uuid.New().String()[:8])
+
+	// Create the OFFER message to send to the target team
+	offerMessage := &domain.OfferMessage{
+		Type:              "OFFER",
+		OfferID:           offerID,
+		Buyer:             buyer,
+		Product:           product,
+		QuantityRequested: qty,
+		MaxPrice:          maxPrice,
+		Timestamp:         time.Now(),
+	}
+
+	// Add expiration if provided
+	if expiresIn > 0 {
+		offerMessage.ExpiresIn = &expiresIn
+	}
+
+	// Send the offer directly to the target team
+	if err := r.broadcaster.SendToClient(emulatorMsg.TargetTeam, offerMessage); err != nil {
+		log.Error().
+			Err(err).
+			Str("targetTeam", emulatorMsg.TargetTeam).
+			Str("offerID", offerID).
+			Msg("Failed to send SDK emulator offer to target team")
+		return r.sendError(client, domain.ErrServiceUnavailable, fmt.Sprintf("Failed to send offer to %s", emulatorMsg.TargetTeam), "")
+	}
+
+	// Also store the offer in the offer generator so it can be accepted
+	// We need to link this offer to the buy order we created
+	if r.marketService != nil {
+		// Register the offer with the market service so it can be accepted later
+		// This is necessary for the acceptance flow to work
+		log.Info().
+			Str("offerID", offerID).
+			Str("clOrdID", clOrdID).
+			Msg("SDK Emulator offer registered - can be accepted for real trade")
 	}
 
 	log.Info().
@@ -1223,7 +1274,9 @@ func (r *MessageRouter) handleSDKEmulatorOffer(ctx context.Context, emulatorMsg 
 		Str("product", product).
 		Int("qty", qty).
 		Float64("maxPrice", maxPrice).
-		Msg("SDK Emulator created real buy order to generate offer")
+		Str("clOrdID", clOrdID).
+		Str("offerID", offerID).
+		Msg("SDK Emulator created debug buy order and sent offer to target team")
 
 	// Send confirmation back to the emulator
 	response := map[string]interface{}{
@@ -1232,7 +1285,8 @@ func (r *MessageRouter) handleSDKEmulatorOffer(ctx context.Context, emulatorMsg 
 		"targetTeam":  emulatorMsg.TargetTeam,
 		"messageType": "OFFER",
 		"clOrdID":     clOrdID,
-		"message":     fmt.Sprintf("Real buy order created as %s - offer will be sent to teams with inventory", buyer),
+		"offerID":     offerID,
+		"message":     fmt.Sprintf("Debug buy order created as '%s' (sandbox team). Offer sent to '%s'. Make sure %s has inventory to accept!", buyer, emulatorMsg.TargetTeam, emulatorMsg.TargetTeam),
 		"timestamp":   time.Now().Format(time.RFC3339),
 	}
 

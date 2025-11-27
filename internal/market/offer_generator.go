@@ -152,6 +152,11 @@ func (og *OfferGenerator) GenerateOffer(buyOrder *domain.Order) error {
 		return og.handleAutoAcceptOrder(buyOrder)
 	}
 
+	// Handle TEAM_ONLY debug mode - send offer to the same team for testing
+	if buyOrder.DebugMode == "TEAM_ONLY" {
+		return og.generateSelfOffer(buyOrder)
+	}
+
 	// Find teams that recently sold this product
 	recentSellers, err := og.fillRepo.GetRecentSellersByProduct(
 		context.Background(),
@@ -286,6 +291,11 @@ func (og *OfferGenerator) GenerateTargetedOffer(buyOrder *domain.Order, eligible
 	// Handle debug modes
 	if buyOrder.DebugMode == "AUTO_ACCEPT" {
 		return og.handleAutoAcceptOrder(buyOrder)
+	}
+
+	// Handle TEAM_ONLY debug mode - send offer to the same team for testing
+	if buyOrder.DebugMode == "TEAM_ONLY" {
+		return og.generateSelfOffer(buyOrder)
 	}
 
 	// Calculate offer price (10% above current mid price)
@@ -614,6 +624,96 @@ func (og *OfferGenerator) handleAutoAcceptOrder(buyOrder *domain.Order) error {
 		Int("qty", virtualSellOrder.Quantity).
 		Float64("price", price).
 		Msg("Auto-accept debug order executed")
+
+	return nil
+}
+
+func (og *OfferGenerator) generateSelfOffer(buyOrder *domain.Order) error {
+	// For TEAM_ONLY debug mode, generate an offer and send it to the same team
+	// This allows testing the offer flow end-to-end for a single team
+
+	// Calculate offer price (10% above current mid price)
+	marketState, err := og.marketRepo.GetByProduct(context.Background(), buyOrder.Product)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to get market state for team-only offer")
+		return err
+	}
+
+	var offerPrice float64
+	if marketState.Mid != nil {
+		offerPrice = *marketState.Mid * 1.10 // 10% premium
+	} else {
+		offerPrice = 10.0 // Default price
+	}
+
+	// Generate unique offer ID
+	offerID := fmt.Sprintf("off-%d-%s", time.Now().Unix(), uuid.New().String()[:8])
+
+	// Determine expiration (configurable or default)
+	var expiresIn *int
+	var expiresAt time.Time
+
+	if og.config.Market.OfferTimeout > 0 {
+		timeoutMs := int(og.config.Market.OfferTimeout.Milliseconds())
+		expiresIn = &timeoutMs
+		expiresAt = time.Now().Add(og.config.Market.OfferTimeout)
+		log.Info().
+			Str("offerID", offerID).
+			Dur("timeout", og.config.Market.OfferTimeout).
+			Int("timeoutMs", timeoutMs).
+			Time("expiresAt", expiresAt).
+			Msg("Team-only offer created with configured timeout")
+	} else {
+		// No expiration
+		expiresAt = time.Now().Add(24 * time.Hour) // Far future
+		log.Warn().Msg("No offer timeout configured for team-only offer, using 24 hour default")
+	}
+
+	// Create offer message
+	offerMsg := &domain.OfferMessage{
+		Type:              "OFFER",
+		OfferID:           offerID,
+		Buyer:             buyOrder.TeamName,
+		Product:           buyOrder.Product,
+		QuantityRequested: buyOrder.Quantity,
+		MaxPrice:          offerPrice,
+		ExpiresIn:         expiresIn,
+		Timestamp:         time.Now(),
+	}
+
+	// Store in memory
+	og.mu.Lock()
+	og.activeOffers[offerID] = &ActiveOffer{
+		OfferMsg:  offerMsg,
+		BuyOrder:  buyOrder,
+		ExpiresAt: expiresAt,
+	}
+	activeCount := len(og.activeOffers)
+	og.mu.Unlock()
+
+	log.Info().
+		Str("offerID", offerID).
+		Int("activeOffers", activeCount).
+		Msg("Team-only offer stored in active offers map")
+
+	// Send offer to the same team that placed the order (for testing)
+	err = og.broadcaster.SendToClient(buyOrder.TeamName, offerMsg)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("team", buyOrder.TeamName).
+			Str("offerID", offerID).
+			Msg("Failed to send team-only offer")
+		return fmt.Errorf("failed to send team-only offer: %w", err)
+	}
+
+	log.Info().
+		Str("offerID", offerID).
+		Str("team", buyOrder.TeamName).
+		Str("product", buyOrder.Product).
+		Int("qty", buyOrder.Quantity).
+		Float64("maxPrice", offerPrice).
+		Msg("Team-only offer sent to same team for testing")
 
 	return nil
 }
