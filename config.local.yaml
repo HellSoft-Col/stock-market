@@ -1,0 +1,35 @@
+server:
+  protocol: "tcp"
+  host: "0.0.0.0"
+  port: 9000
+  maxConnections: 100
+  readTimeout: 60s
+  writeTimeout: 30s
+  maxMessageSize: 16384
+
+mongodb:
+  uri: "mongodb://localhost:27017"  # Single node for local dev
+  database: "avocado_exchange"
+  timeout: 5s
+
+market:
+  tickerInterval: 5s
+  offerTimeout: 5m
+  orderBookDepth: 100
+  enablePartialFills: true
+  transactionRetries: 3
+  debugModeEnabled: true
+
+tournament:
+  enabled: false
+  duration: 15m
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+
+security:
+  rateLimitOrdersPerMin: 100
+  rateLimitConnectionsPerIP: 5
+  maxMessageRetries: 3

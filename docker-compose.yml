@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # MongoDB Replica Set - Node 1
+  mongodb1:
+    image: mongo:7.0
+    container_name: stock-market-mongo1
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    network_mode: "host"
+    volumes:
+      - mongo1-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # MongoDB Replica Set - Node 2
+  mongodb2:
+    image: mongo:7.0
+    container_name: stock-market-mongo2
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
+    network_mode: "host"
+    volumes:
+      - mongo2-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27018/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # MongoDB Replica Set - Node 3
+  mongodb3:
+    image: mongo:7.0
+    container_name: stock-market-mongo3
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27019"]
+    network_mode: "host"
+    volumes:
+      - mongo3-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27019/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # MongoDB Replica Set Initializer
+  mongo-init:
+    image: mongo:7.0
+    container_name: stock-market-mongo-init
+    depends_on:
+      mongodb1:
+        condition: service_healthy
+      mongodb2:
+        condition: service_healthy
+      mongodb3:
+        condition: service_healthy
+    network_mode: "host"
+    command: >
+      bash -c "
+      echo 'Waiting for MongoDB nodes to be ready...' &&
+      sleep 5 &&
+      echo 'Initiating replica set...' &&
+      mongosh --host localhost:27017 --eval '
+      rs.initiate({
+        _id: \"rs0\",
+        members: [
+          { _id: 0, host: \"localhost:27017\" },
+          { _id: 1, host: \"localhost:27018\" },
+          { _id: 2, host: \"localhost:27019\" }
+        ]
+      })
+      ' &&
+      echo 'Waiting for replica set to stabilize...' &&
+      sleep 10 &&
+      echo 'Replica set initialized successfully!'
+      "
+    restart: "no"
+
+volumes:
+  mongo1-data:
+    driver: local
+  mongo2-data:
+    driver: local
+  mongo3-data:
+    driver: local
