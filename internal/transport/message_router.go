@@ -1256,16 +1256,35 @@ func (r *MessageRouter) handleSDKEmulatorOffer(ctx context.Context, emulatorMsg 
 		return r.sendError(client, domain.ErrServiceUnavailable, fmt.Sprintf("Failed to send offer to %s", emulatorMsg.TargetTeam), "")
 	}
 
-	// Also store the offer in the offer generator so it can be accepted
+	// Register the offer in the offer generator so it can be accepted
 	// We need to link this offer to the buy order we created
-	if r.marketService != nil {
-		// Register the offer with the market service so it can be accepted later
-		// This is necessary for the acceptance flow to work
-		log.Info().
-			Str("offerID", offerID).
-			Str("clOrdID", clOrdID).
-			Msg("SDK Emulator offer registered - can be accepted for real trade")
+	marketEngine, ok := r.marketService.(*market.MarketEngine)
+	if !ok || marketEngine == nil || marketEngine.OfferGenerator == nil {
+		log.Error().Msg("Failed to access offer generator for SDK emulator")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Market service unavailable", "")
 	}
+
+	// Calculate expiration time
+	expiresAt := time.Now().Add(24 * time.Hour) // Default 24 hours
+	if expiresIn > 0 {
+		expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Millisecond)
+	}
+
+	// Store the offer in the active offers map so it can be accepted
+	activeOffer := &market.ActiveOffer{
+		OfferMsg:  offerMessage,
+		BuyOrder:  order,
+		ExpiresAt: expiresAt,
+	}
+
+	// Register the offer with the offer generator
+	marketEngine.OfferGenerator.RegisterOffer(offerID, activeOffer)
+
+	log.Info().
+		Str("offerID", offerID).
+		Str("clOrdID", clOrdID).
+		Time("expiresAt", expiresAt).
+		Msg("SDK Emulator offer registered - can be accepted for real trade")
 
 	log.Info().
 		Str("emulator", client.GetTeamName()).

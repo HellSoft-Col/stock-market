@@ -628,6 +628,16 @@ func (og *OfferGenerator) handleAutoAcceptOrder(buyOrder *domain.Order) error {
 	return nil
 }
 
+func (og *OfferGenerator) RegisterOffer(offerID string, activeOffer *ActiveOffer) {
+	og.mu.Lock()
+	defer og.mu.Unlock()
+	og.activeOffers[offerID] = activeOffer
+	log.Info().
+		Str("offerID", offerID).
+		Int("totalActiveOffers", len(og.activeOffers)).
+		Msg("Offer registered in active offers map")
+}
+
 func (og *OfferGenerator) generateSelfOffer(buyOrder *domain.Order) error {
 	// For TEAM_ONLY debug mode, generate an offer and send it to the same team
 	// This allows testing the offer flow end-to-end for a single team
