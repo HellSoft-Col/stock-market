@@ -454,6 +454,21 @@ func (og *OfferGenerator) HandleAcceptOffer(acceptMsg *domain.AcceptOfferMessage
 		return fmt.Errorf("invalid quantity or price in offer acceptance")
 	}
 
+	// Validate that seller team exists before proceeding
+	// Note: Buyer team validation is skipped for debug mode sandbox offers (fake teams allowed)
+	// The buyer validation happens later in the transaction where SERVER teams are also handled
+	if acceptorTeam != "SERVER" {
+		_, err := og.marketEngine.teamRepo.GetByTeamName(context.Background(), acceptorTeam)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("offerID", acceptMsg.OfferID).
+				Str("sellerTeamName", acceptorTeam).
+				Msg("Seller team not found - cannot execute offer")
+			return fmt.Errorf("seller team '%s' not found: %w", acceptorTeam, err)
+		}
+	}
+
 	// Create virtual SELL order from acceptor
 	virtualSellOrder := &domain.Order{
 		ClOrdID:   fmt.Sprintf("VIRT-SELL-%d-%s", time.Now().UnixNano(), uuid.New().String()[:8]),

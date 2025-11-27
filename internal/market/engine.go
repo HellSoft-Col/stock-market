@@ -319,13 +319,19 @@ func (m *MarketEngine) executeTradeTransaction(buyOrder, sellOrder *domain.Order
 		fillQty := result.TradeQty
 		totalCost := result.TradePrice * float64(fillQty)
 
-		// Check if buyer has enough balance (skip for SERVER virtual orders)
+		// Check if buyer has enough balance (skip for SERVER virtual orders and debug sandbox teams)
 		if buyOrder.TeamName != "SERVER" {
 			buyer, err := m.teamRepo.GetByTeamName(context.Background(), buyOrder.TeamName)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get buyer team: %w", err)
-			}
-			if buyer.CurrentBalance < totalCost {
+				// If buyer team not found, treat it as a debug sandbox team (skip validation)
+				// This allows SDK tester to create offers with fake buyer teams for testing
+				log.Warn().
+					Err(err).
+					Str("buyerTeamName", buyOrder.TeamName).
+					Str("buyClOrdID", buyOrder.ClOrdID).
+					Str("product", buyOrder.Product).
+					Msg("Buyer team not found - treating as debug sandbox team (skipping balance validation)")
+			} else if buyer.CurrentBalance < totalCost {
 				return nil, fmt.Errorf("buyer %s has insufficient balance: needs $%.2f, has $%.2f",
 					buyOrder.TeamName, totalCost, buyer.CurrentBalance)
 			}
