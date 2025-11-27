@@ -182,6 +182,7 @@ public class TareaAutomaticaManager {
     private final TareaAutomatica tarea;
     private final Semaphore lock;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicBoolean cancelled = new AtomicBoolean(false);
     private volatile CompletableFuture<Void> currentExecution;
 
     TaskRunner(TareaAutomatica tarea, Semaphore lock) {
@@ -203,6 +204,7 @@ public class TareaAutomaticaManager {
         return; // Already stopped
       }
 
+      cancelled.set(true);
       cancelExecution();
       invokeCleanupHook();
     }
@@ -267,6 +269,13 @@ public class TareaAutomaticaManager {
       if (throwable == null) {
         return;
       }
+
+      // Don't log error if task was intentionally cancelled
+      if (cancelled.get() && throwable instanceof java.util.concurrent.CancellationException) {
+        log.debug("Task {} cancelled as expected", tarea.getTaskKey());
+        return;
+      }
+
       log.error("Task {} failed: {}", tarea.getTaskKey(), throwable.getMessage(), throwable);
     }
 
