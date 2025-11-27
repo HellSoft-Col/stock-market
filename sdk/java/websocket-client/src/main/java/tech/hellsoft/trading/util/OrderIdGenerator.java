@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p><b>Thread Safety:</b> All methods are thread-safe and lock-free using
  * {@link AtomicLong} for the counter.
  *
- * @see OrderMessage
+ * @see tech.hellsoft.trading.dto.client.OrderMessage
  */
 public class OrderIdGenerator {
     private final String prefix;
