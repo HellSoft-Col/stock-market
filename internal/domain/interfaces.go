@@ -41,6 +41,7 @@ type OrderRepository interface {
 	) error
 	GetPendingByProductAndSide(ctx context.Context, product, side string) ([]*Order, error)
 	GetPendingOrders(ctx context.Context) ([]*Order, error)
+	GetHistoricalOrders(ctx context.Context, limit int) ([]*Order, error)
 	Cancel(ctx context.Context, clOrdID string) error
 }
 

@@ -234,13 +234,22 @@ type OrderSummary struct {
 	Quantity  int      `json:"quantity"`
 	Price     *float64 `json:"price,omitempty"`
 	FilledQty int      `json:"filledQty"`
+	Status    string   `json:"status,omitempty"`
 	Message   string   `json:"message,omitempty"`
 	CreatedAt string   `json:"createdAt"`
+	UpdatedAt string   `json:"updatedAt,omitempty"`
 }
 
 type AllOrdersMessage struct {
 	Type       string          `json:"type"`
 	Orders     []*OrderSummary `json:"orders"`
+	ServerTime string          `json:"serverTime"`
+}
+
+type HistoricalOrdersMessage struct {
+	Type       string          `json:"type"`
+	Orders     []*OrderSummary `json:"orders"`
+	Count      int             `json:"count"`
 	ServerTime string          `json:"serverTime"`
 }
 

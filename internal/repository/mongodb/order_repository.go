@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/HellSoft-Col/stock-market/internal/domain"
 )
@@ -63,6 +64,7 @@ func (r *OrderRepository) UpdateToFilled(
 			"filledBy":  fillID,
 			"filledQty": filledQty,
 			"filledAt":  now,
+			"updatedAt": now,
 		},
 	}
 
@@ -87,9 +89,10 @@ func (r *OrderRepository) UpdateToPartiallyFilled(
 	now := time.Now()
 	update := bson.M{
 		"$set": bson.M{
-			"status":   "PARTIALLY_FILLED",
-			"filledBy": fillID,
-			"filledAt": now,
+			"status":    "PARTIALLY_FILLED",
+			"filledBy":  fillID,
+			"filledAt":  now,
+			"updatedAt": now,
 		},
 		"$inc": bson.M{
 			"filledQty": filledQty,
@@ -175,10 +178,53 @@ func (r *OrderRepository) GetPendingOrders(ctx context.Context) ([]*domain.Order
 	return orders, nil
 }
 
+func (r *OrderRepository) GetHistoricalOrders(ctx context.Context, limit int) ([]*domain.Order, error) {
+	// Get orders that are not pending (FILLED, CANCELLED, REJECTED, PARTIALLY_FILLED)
+	filter := bson.M{
+		"status": bson.M{"$in": []string{"FILLED", "CANCELLED", "REJECTED", "PARTIALLY_FILLED"}},
+	}
+
+	// Set default limit if not specified
+	if limit <= 0 {
+		limit = 100
+	}
+
+	// Sort by updatedAt descending (most recent first)
+	opts := options.Find().
+		SetSort(bson.D{{Key: "updatedAt", Value: -1}, {Key: "createdAt", Value: -1}}).
+		SetLimit(int64(limit))
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get historical orders: %w", err)
+	}
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Failed to close cursor")
+		}
+	}()
+
+	var orders []*domain.Order
+	for cursor.Next(ctx) {
+		var order domain.Order
+		if err := cursor.Decode(&order); err != nil {
+			return nil, fmt.Errorf("failed to decode order: %w", err)
+		}
+		orders = append(orders, &order)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
+	}
+
+	return orders, nil
+}
+
 func (r *OrderRepository) Cancel(ctx context.Context, clOrdID string) error {
 	update := bson.M{
 		"$set": bson.M{
-			"status": "CANCELLED",
+			"status":    "CANCELLED",
+			"updatedAt": time.Now(),
 		},
 	}
 

@@ -82,16 +82,16 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleCancelOrder(ctx, rawMessage, client)
 	case "REQUEST_ALL_ORDERS":
 		return r.handleRequestAllOrders(ctx, client)
-	case "REQUEST_ORDER_BOOK":
-		return r.handleRequestOrderBook(ctx, rawMessage, client)
-	case "REQUEST_CONNECTED_SESSIONS":
-		return r.handleRequestConnectedSessions(ctx, client)
+	case "REQUEST_HISTORICAL_ORDERS":
+		return r.handleRequestHistoricalOrders(ctx, rawMessage, client)
 	case "REQUEST_PERFORMANCE_REPORT":
 		return r.handleRequestPerformanceReport(ctx, rawMessage, client)
 	case "PING":
 		return r.handlePing(ctx, client)
 	case "ADMIN_CANCEL_ALL_ORDERS":
 		return r.handleAdminCancelAllOrders(ctx, client)
+	case "ADMIN_CANCEL_ORDER":
+		return r.handleAdminCancelOrder(ctx, rawMessage, client)
 	case "ADMIN_BROADCAST":
 		return r.handleAdminBroadcast(ctx, rawMessage, client)
 	case "ADMIN_CREATE_ORDER":
@@ -600,6 +600,69 @@ func (r *MessageRouter) handleRequestAllOrders(ctx context.Context, client Messa
 	return client.SendMessage(response)
 }
 
+func (r *MessageRouter) handleRequestHistoricalOrders(ctx context.Context, rawMessage string, client MessageClient) error {
+	// Only admin can view historical orders
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	if r.orderRepo == nil {
+		log.Error().Msg("OrderRepository is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Order service unavailable", "")
+	}
+
+	// Parse message to get limit
+	var requestMsg struct {
+		Type  string `json:"type"`
+		Limit int    `json:"limit"`
+	}
+	if err := json.Unmarshal([]byte(rawMessage), &requestMsg); err != nil {
+		log.Warn().Err(err).Msg("Failed to parse historical orders request")
+		requestMsg.Limit = 100 // Default limit
+	}
+
+	// Get historical orders from repository
+	orders, err := r.orderRepo.GetHistoricalOrders(ctx, requestMsg.Limit)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get historical orders")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get historical orders", "")
+	}
+
+	// Convert to summaries
+	orderSummaries := make([]*domain.OrderSummary, 0, len(orders))
+	for _, order := range orders {
+		if order == nil {
+			continue
+		}
+		summary := &domain.OrderSummary{
+			ClOrdID:   order.ClOrdID,
+			TeamName:  order.TeamName,
+			Side:      order.Side,
+			Mode:      order.Mode,
+			Product:   order.Product,
+			Quantity:  order.Quantity,
+			Price:     order.Price,
+			FilledQty: order.FilledQty,
+			Status:    order.Status,
+			Message:   order.Message,
+			CreatedAt: order.CreatedAt.Format(time.RFC3339),
+		}
+		if !order.UpdatedAt.IsZero() {
+			summary.UpdatedAt = order.UpdatedAt.Format(time.RFC3339)
+		}
+		orderSummaries = append(orderSummaries, summary)
+	}
+
+	response := &domain.HistoricalOrdersMessage{
+		Type:       "HISTORICAL_ORDERS",
+		Orders:     orderSummaries,
+		Count:      len(orderSummaries),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
 func (r *MessageRouter) handleRequestOrderBook(ctx context.Context, rawMessage string, client MessageClient) error {
 	if client == nil || client.GetTeamName() == "" {
 		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
@@ -920,6 +983,82 @@ func (r *MessageRouter) handleAdminCancelAllOrders(ctx context.Context, client M
 		Success:    true,
 		Message:    fmt.Sprintf("Successfully cancelled %d orders", cancelledCount),
 		Count:      cancelledCount,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleAdminCancelOrder(ctx context.Context, rawMessage string, client MessageClient) error {
+	// Check if client is admin
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	// Parse the cancel order message
+	var cancelMsg struct {
+		Type     string `json:"type"`
+		ClOrdID  string `json:"clOrdID"`
+		TeamName string `json:"teamName"`
+	}
+	if err := json.Unmarshal([]byte(rawMessage), &cancelMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid cancel order message format", "")
+	}
+
+	if cancelMsg.ClOrdID == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Order ID is required", "")
+	}
+
+	if r.orderRepo == nil {
+		log.Error().Msg("OrderRepository is nil")
+		return r.sendError(client, domain.ErrServiceUnavailable, "Order service unavailable", "")
+	}
+
+	// Get the order to verify it exists and get its details
+	order, err := r.orderRepo.GetByClOrdID(ctx, cancelMsg.ClOrdID)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Str("clOrdID", cancelMsg.ClOrdID).
+			Msg("Order not found for cancellation")
+		return r.sendError(client, "ORDER_NOT_FOUND", "Order not found", cancelMsg.ClOrdID)
+	}
+
+	// Cancel the order
+	if err := r.orderRepo.Cancel(ctx, cancelMsg.ClOrdID); err != nil {
+		log.Error().
+			Err(err).
+			Str("clOrdID", cancelMsg.ClOrdID).
+			Msg("Failed to cancel order")
+
+		response := &domain.AdminActionResponse{
+			Type:       "ADMIN_ACTION_RESPONSE",
+			Action:     "CANCEL_ORDER",
+			Success:    false,
+			Message:    fmt.Sprintf("Failed to cancel order: %v", err),
+			ServerTime: time.Now().Format(time.RFC3339),
+		}
+		return client.SendMessage(response)
+	}
+
+	// Remove from order book
+	if r.orderBook != nil && order != nil {
+		r.orderBook.RemoveOrder(order.Product, order.Side, order.ClOrdID)
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Str("clOrdID", cancelMsg.ClOrdID).
+		Str("teamName", cancelMsg.TeamName).
+		Msg("Admin cancelled individual order")
+
+	// Send success response to admin
+	response := &domain.AdminActionResponse{
+		Type:       "ADMIN_ACTION_RESPONSE",
+		Action:     "CANCEL_ORDER",
+		Success:    true,
+		Message:    fmt.Sprintf("Successfully cancelled order %s", cancelMsg.ClOrdID),
+		Count:      1,
 		ServerTime: time.Now().Format(time.RFC3339),
 	}
 

@@ -54,6 +54,7 @@ type Order struct {
 	FilledBy   *string            `bson:"filledBy,omitempty"   json:"filledBy,omitempty"`
 	FilledQty  int                `bson:"filledQty"            json:"filledQty"`
 	CreatedAt  time.Time          `bson:"createdAt"            json:"createdAt"`
+	UpdatedAt  time.Time          `bson:"updatedAt,omitempty"  json:"updatedAt,omitempty"`
 	FilledAt   *time.Time         `bson:"filledAt,omitempty"   json:"filledAt,omitempty"`
 	ExpiresAt  *time.Time         `bson:"expiresAt,omitempty"  json:"expiresAt,omitempty"`
 }
