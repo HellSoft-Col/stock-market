@@ -996,6 +996,11 @@ func (r *MessageRouter) handleSDKEmulator(ctx context.Context, rawMessage string
 		return r.sendError(client, domain.ErrServiceUnavailable, "Broadcast service unavailable", "")
 	}
 
+	// Special handling for OFFER emulation - create a real backing buy order
+	if emulatorMsg.MessageType == "OFFER" {
+		return r.handleSDKEmulatorOffer(ctx, emulatorMsg, client)
+	}
+
 	// Build the message to send - add the type field to the payload
 	messageToSend := make(map[string]interface{})
 	messageToSend["type"] = emulatorMsg.MessageType
@@ -1025,6 +1030,70 @@ func (r *MessageRouter) handleSDKEmulator(ctx context.Context, rawMessage string
 		"success":     true,
 		"targetTeam":  emulatorMsg.TargetTeam,
 		"messageType": emulatorMsg.MessageType,
+		"timestamp":   time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleSDKEmulatorOffer(ctx context.Context, emulatorMsg domain.SDKEmulatorMessage, client MessageClient) error {
+	// Extract offer details from the payload
+	buyer, _ := emulatorMsg.MessagePayload["buyer"].(string)
+	product, _ := emulatorMsg.MessagePayload["product"].(string)
+	qtyFloat, _ := emulatorMsg.MessagePayload["quantityRequested"].(float64)
+	maxPriceFloat, _ := emulatorMsg.MessagePayload["maxPrice"].(float64)
+
+	qty := int(qtyFloat)
+	maxPrice := maxPriceFloat
+
+	if buyer == "" || product == "" || qty <= 0 || maxPrice <= 0 {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid offer payload - buyer, product, quantityRequested, and maxPrice are required", "")
+	}
+
+	// Create a real buy order to generate the offer
+	// The system will automatically send offers to teams with inventory (including target team)
+	timestamp := time.Now().Unix()
+	clOrdID := fmt.Sprintf("SDK-EMU-BUY-%s-%d", buyer, timestamp)
+
+	orderMsg := &domain.OrderMessage{
+		Type:       "ORDER",
+		ClOrdID:    clOrdID,
+		Side:       "BUY",
+		Mode:       "LIMIT",
+		Product:    product,
+		Qty:        qty,
+		LimitPrice: &maxPrice,
+		Message:    "SDK Emulator test order - can be accepted",
+	}
+
+	// Process the buy order through the order service
+	// This will create the order and generate an offer to eligible sellers
+	if err := r.orderService.ProcessOrder(ctx, buyer, orderMsg); err != nil {
+		log.Warn().
+			Str("emulator", client.GetTeamName()).
+			Str("buyer", buyer).
+			Err(err).
+			Msg("SDK Emulator offer creation failed")
+		return r.sendError(client, domain.ErrInvalidOrder, err.Error(), clOrdID)
+	}
+
+	log.Info().
+		Str("emulator", client.GetTeamName()).
+		Str("buyer", buyer).
+		Str("targetTeam", emulatorMsg.TargetTeam).
+		Str("product", product).
+		Int("qty", qty).
+		Float64("maxPrice", maxPrice).
+		Msg("SDK Emulator created real buy order to generate offer")
+
+	// Send confirmation back to the emulator
+	response := map[string]interface{}{
+		"type":        "SDK_EMULATOR_ACK",
+		"success":     true,
+		"targetTeam":  emulatorMsg.TargetTeam,
+		"messageType": "OFFER",
+		"clOrdID":     clOrdID,
+		"message":     fmt.Sprintf("Real buy order created as %s - offer will be sent to teams with inventory", buyer),
 		"timestamp":   time.Now().Format(time.RFC3339),
 	}
 
