@@ -147,6 +147,11 @@ func (og *OfferGenerator) cleanupExpiredOffers() {
 }
 
 func (og *OfferGenerator) GenerateOffer(buyOrder *domain.Order) error {
+	// Handle AUTO_ACCEPT debug mode - don't generate offers, just auto-fill
+	if buyOrder.DebugMode == "AUTO_ACCEPT" {
+		return og.handleAutoAcceptOrder(buyOrder)
+	}
+
 	// Find teams that recently sold this product
 	recentSellers, err := og.fillRepo.GetRecentSellersByProduct(
 		context.Background(),
