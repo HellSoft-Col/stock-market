@@ -168,11 +168,8 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 			Str("species", team.Species).
 			Msg("Team has no recipes - rebuilding from species")
 
-		// Get basic product from authorized products
-		basicProduct := ""
-		if len(team.AuthorizedProducts) > 0 {
-			basicProduct = team.AuthorizedProducts[0]
-		}
+		// Get basic product from species mapping (not from authorized products!)
+		basicProduct := getBasicProductForSpecies(team.Species)
 
 		// Build recipes
 		team.Recipes = buildRecipesForSpecies(team.Species, basicProduct)
@@ -2018,12 +2015,13 @@ func (r *MessageRouter) handleUpdateAllRecipes(
 			continue
 		}
 
-		// Get the basic product (first authorized product)
-		basicProduct := ""
-		if len(team.AuthorizedProducts) > 0 {
-			basicProduct = team.AuthorizedProducts[0]
-		} else {
-			log.Warn().Str("team", team.TeamName).Msg("Team has no authorized products, skipping")
+		// Get the basic product from species mapping (not from authorized products!)
+		basicProduct := getBasicProductForSpecies(team.Species)
+		if basicProduct == "" {
+			log.Warn().
+				Str("team", team.TeamName).
+				Str("species", team.Species).
+				Msg("Unknown species - skipping recipe update")
 			continue
 		}
 
@@ -2062,6 +2060,25 @@ func (r *MessageRouter) handleUpdateAllRecipes(
 		Msg("All team recipes updated")
 
 	return client.SendMessage(response)
+}
+
+// getBasicProductForSpecies returns the basic (free) product for each species
+func getBasicProductForSpecies(species string) string {
+	basicProducts := map[string]string{
+		"Avocultores":              "PALTA-OIL",
+		"Monjes de Fosforescencia": "FOSFO",
+		"Cosechadores de Pita":     "PITA",
+		"Herreros Cósmicos":        "CASCAR-ALLOY",
+		"Extractores":              "QUANTUM-PULP",
+		"Tejemanteles":             "SKIN-WRAP",
+		"Cremeros Astrales":        "ASTRO-BUTTER",
+		"Mineros del Sebo":         "SEBO",
+		"Núcleo Cremero":           "NUCREM",
+		"Destiladores":             "GUACA",
+		"Cartógrafos":              "GUACA",
+		"Someliers Andorianos":     "PALTA-OIL",
+	}
+	return basicProducts[species]
 }
 
 // buildRecipesForSpecies creates all recipes (basic + premium) for a species
