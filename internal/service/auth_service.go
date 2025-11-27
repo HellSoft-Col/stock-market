@@ -237,6 +237,33 @@ func (s *AuthService) CreateTeam(ctx context.Context, team *domain.Team) error {
 	return s.teamRepo.Create(ctx, team)
 }
 
+func (s *AuthService) AddInventory(ctx context.Context, teamName string, product string, quantity int) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	// Get current team
+	team, err := s.teamRepo.GetByTeamName(ctx, teamName)
+	if err != nil {
+		return fmt.Errorf("failed to get team: %w", err)
+	}
+
+	// Initialize inventory if nil
+	if team.Inventory == nil {
+		team.Inventory = make(map[string]int)
+	}
+
+	// Add to inventory
+	team.Inventory[product] += quantity
+
+	// Update in database
+	if err := s.teamRepo.UpdateInventory(ctx, teamName, team.Inventory); err != nil {
+		return fmt.Errorf("failed to update inventory: %w", err)
+	}
+
+	return nil
+}
+
 func (s *AuthService) ResetTeamBalance(ctx context.Context, teamName string) error {
 	if s.teamRepo == nil {
 		return fmt.Errorf("team repository is nil")

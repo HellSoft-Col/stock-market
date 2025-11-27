@@ -47,6 +47,13 @@ type CancelMessage struct {
 	ClOrdID string `json:"clOrdID"`
 }
 
+type AddInventoryMessage struct {
+	Type     string `json:"type"`
+	Product  string `json:"product"`
+	Quantity int    `json:"quantity"`
+	TeamName string `json:"teamName,omitempty"` // Optional: admin can add inventory to any team
+}
+
 type AdminCancelAllOrdersMessage struct {
 	Type string `json:"type"`
 }

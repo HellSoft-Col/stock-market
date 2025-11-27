@@ -81,6 +81,10 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleResync(ctx, rawMessage, client)
 	case "CANCEL":
 		return r.handleCancelOrder(ctx, rawMessage, client)
+	case "ADD_INVENTORY":
+		return r.handleAddInventory(ctx, rawMessage, client)
+	case "GET_INVENTORY":
+		return r.handleGetInventory(ctx, client)
 	case "REQUEST_ALL_ORDERS":
 		return r.handleRequestAllOrders(ctx, client)
 	case "REQUEST_HISTORICAL_ORDERS":
@@ -1765,6 +1769,121 @@ func (r *MessageRouter) handleResetTeamBalance(ctx context.Context, rawMessage s
 		Msg("Admin reset team balance")
 
 	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleAddInventory(ctx context.Context, rawMessage string, client MessageClient) error {
+	// Parse message
+	var msg domain.AddInventoryMessage
+	if err := json.Unmarshal([]byte(rawMessage), &msg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid ADD_INVENTORY message format", "")
+	}
+
+	// Validate required fields
+	if msg.Product == "" {
+		return r.sendError(client, domain.ErrInvalidMessage, "Product is required", "")
+	}
+	if msg.Quantity <= 0 {
+		return r.sendError(client, domain.ErrInvalidMessage, "Quantity must be positive", "")
+	}
+
+	// Determine target team
+	targetTeam := msg.TeamName
+	isAdmin := client != nil && client.GetTeamName() == "admin"
+
+	// If TeamName is specified, only admin can do this
+	if targetTeam != "" && !isAdmin {
+		return r.sendError(client, domain.ErrAuthFailed, "Only admin can add inventory to other teams", "")
+	}
+
+	// If no TeamName specified, use the authenticated client's team
+	if targetTeam == "" {
+		if client == nil {
+			return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+		}
+		targetTeam = client.GetTeamName()
+		if targetTeam == "" {
+			return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+		}
+	}
+
+	// Get auth service
+	authService, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Auth service unavailable", "")
+	}
+
+	// Add inventory using auth service
+	if err := authService.AddInventory(ctx, targetTeam, msg.Product, msg.Quantity); err != nil {
+		log.Error().
+			Err(err).
+			Str("team", targetTeam).
+			Str("product", msg.Product).
+			Int("quantity", msg.Quantity).
+			Msg("Failed to add inventory")
+		return r.sendError(client, domain.ErrServiceUnavailable, fmt.Sprintf("Failed to add inventory: %v", err), "")
+	}
+
+	log.Info().
+		Str("team", targetTeam).
+		Str("product", msg.Product).
+		Int("quantity", msg.Quantity).
+		Bool("isAdmin", isAdmin).
+		Msg("Inventory added successfully")
+
+	// Send success response
+	response := &domain.TeamUpdatedResponse{
+		Type:       "INVENTORY_ADDED",
+		Success:    true,
+		Message:    fmt.Sprintf("Added %d %s to %s's inventory", msg.Quantity, msg.Product, targetTeam),
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleGetInventory(ctx context.Context, client MessageClient) error {
+	// Check authentication
+	if client == nil {
+		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	teamName := client.GetTeamName()
+	if teamName == "" {
+		return r.sendError(client, domain.ErrAuthFailed, "Must login first", "")
+	}
+
+	// Get auth service
+	authService, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Auth service unavailable", "")
+	}
+
+	// Get all teams and find the current team
+	allTeams, err := authService.GetAllTeams(ctx)
+	if err != nil {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get team data", "")
+	}
+
+	var team *domain.Team
+	for _, t := range allTeams {
+		if t.TeamName == teamName {
+			team = t
+			break
+		}
+	}
+
+	if team == nil {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team not found", "")
+	}
+
+	// Send inventory update
+	inventoryMsg := &domain.InventoryUpdateMessage{
+		Type:       "INVENTORY_UPDATE",
+		Inventory:  team.Inventory,
+		ServerTime: time.Now().Format(time.RFC3339),
+	}
+
+	return client.SendMessage(inventoryMsg)
 }
 
 func (r *MessageRouter) handleResetTeamInventory(ctx context.Context, rawMessage string, client MessageClient) error {
