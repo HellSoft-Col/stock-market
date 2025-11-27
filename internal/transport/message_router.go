@@ -121,6 +121,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleResetTournamentConfig(ctx, rawMessage, client)
 	case "UPDATE_ALL_RECIPES":
 		return r.handleUpdateAllRecipes(ctx, client)
+	case "SEED_TEAMS":
+		return r.handleSeedTeams(ctx, rawMessage, client)
 	case "SDK_EMULATOR":
 		return r.handleSDKEmulator(ctx, rawMessage, client)
 	default:
@@ -2071,6 +2073,138 @@ func (r *MessageRouter) handleUpdateAllRecipes(
 		Int("teamsUpdated", teamsUpdated).
 		Int("teamsSkipped", teamsSkipped).
 		Msg("Recipe update completed")
+
+	return client.SendMessage(response)
+}
+
+func (r *MessageRouter) handleSeedTeams(
+	ctx context.Context,
+	rawMessage string,
+	client MessageClient,
+) error {
+	if client == nil || client.GetTeamName() != "admin" {
+		return r.sendError(client, domain.ErrAuthFailed, "Admin access required", "")
+	}
+
+	// Parse message to get team data
+	var seedMsg struct {
+		Type  string                   `json:"type"`
+		Teams []map[string]interface{} `json:"teams"`
+	}
+	if err := json.Unmarshal([]byte(rawMessage), &seedMsg); err != nil {
+		return r.sendError(client, domain.ErrInvalidMessage, "Invalid SEED_TEAMS message format", "")
+	}
+
+	// Get team repository - same pattern as handleUpdateAllRecipes
+	teamRepoService, ok := r.authService.(*service.AuthService)
+	if !ok {
+		return r.sendError(client, domain.ErrServiceUnavailable, "Team service unavailable", "")
+	}
+
+	// We need access to the actual repository - let's use a different approach
+	// Get all existing teams first to check for duplicates
+	existingTeams, err := teamRepoService.GetAllTeams(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get existing teams")
+	}
+
+	existingTeamNames := make(map[string]bool)
+	for _, t := range existingTeams {
+		existingTeamNames[t.TeamName] = true
+	}
+
+	log.Info().
+		Int("teamCount", len(seedMsg.Teams)).
+		Int("existingTeams", len(existingTeams)).
+		Msg("Starting team seeding from admin UI")
+
+	successCount := 0
+	errorCount := 0
+	skippedCount := 0
+	errors := []string{}
+
+	for _, teamData := range seedMsg.Teams {
+		teamName, _ := teamData["teamName"].(string)
+		token, _ := teamData["token"].(string)
+		species, _ := teamData["species"].(string)
+		specialty, _ := teamData["specialty"].(string)
+		initialBalance, _ := teamData["initialBalance"].(float64)
+
+		// Skip if team already exists
+		if existingTeamNames[teamName] {
+			log.Info().
+				Str("teamName", teamName).
+				Msg("Team already exists, skipping")
+			skippedCount++
+			continue
+		}
+
+		// Parse authorizedProducts
+		authorizedProducts := []string{}
+		if products, ok := teamData["authorizedProducts"].([]interface{}); ok {
+			for _, p := range products {
+				if product, ok := p.(string); ok {
+					authorizedProducts = append(authorizedProducts, product)
+				}
+			}
+		}
+
+		// Create domain team
+		team := &domain.Team{
+			APIKey:             token,
+			TeamName:           teamName,
+			Species:            species,
+			InitialBalance:     initialBalance,
+			CurrentBalance:     initialBalance,
+			AuthorizedProducts: authorizedProducts,
+			Recipes:            buildRecipesForSpecies(species, specialty),
+			Inventory:          make(map[string]int),
+			Role: domain.TeamRole{
+				Branches:    2,
+				MaxDepth:    4,
+				Decay:       0.75,
+				Budget:      25.0,
+				BaseEnergy:  3.0,
+				LevelEnergy: 2.0,
+			},
+		}
+
+		// Create team using auth service's CreateTeam method
+		if err := teamRepoService.CreateTeam(ctx, team); err != nil {
+			log.Error().
+				Str("teamName", teamName).
+				Err(err).
+				Msg("Failed to create team")
+			errorCount++
+			errors = append(errors, fmt.Sprintf("%s: %v", teamName, err))
+		} else {
+			log.Info().
+				Str("teamName", teamName).
+				Str("species", species).
+				Str("specialty", specialty).
+				Msg("Team created successfully")
+			successCount++
+		}
+	}
+
+	// Send response
+	response := map[string]interface{}{
+		"type":         "TEAMS_SEEDED",
+		"success":      errorCount == 0,
+		"teamsCreated": successCount,
+		"teamsSkipped": skippedCount,
+		"teamsFailed":  errorCount,
+		"errors":       errors,
+		"message":      fmt.Sprintf("Created %d teams, %d skipped, %d failed", successCount, skippedCount, errorCount),
+		"serverTime":   time.Now().Format(time.RFC3339),
+	}
+
+	log.Info().
+		Str("admin", client.GetTeamName()).
+		Int("successCount", successCount).
+		Int("skippedCount", skippedCount).
+		Int("errorCount", errorCount).
+		Msg("Team seeding completed")
 
 	return client.SendMessage(response)
 }

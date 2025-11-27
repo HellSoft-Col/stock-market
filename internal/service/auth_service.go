@@ -229,6 +229,14 @@ func (s *AuthService) UpdateTeam(
 	return nil
 }
 
+func (s *AuthService) CreateTeam(ctx context.Context, team *domain.Team) error {
+	if s.teamRepo == nil {
+		return fmt.Errorf("team repository is nil")
+	}
+
+	return s.teamRepo.Create(ctx, team)
+}
+
 func (s *AuthService) ResetTeamBalance(ctx context.Context, teamName string) error {
 	if s.teamRepo == nil {
 		return fmt.Errorf("team repository is nil")

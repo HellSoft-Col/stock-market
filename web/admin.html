@@ -312,6 +312,9 @@
                     <button onclick="updateAllRecipes()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg transition-colors">
                         <i class="fas fa-flask mr-2"></i>Update All Recipes
                     </button>
+                    <button onclick="seedTeams()" class="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-seedling mr-2"></i>Seed Teams
+                    </button>
                 </div>
             </div>
         </div>
@@ -789,6 +792,15 @@
                     
                 case 'RECIPES_UPDATED':
                     showToast(`🧪 Recipes updated! ${message.teamsUpdated} teams now have premium recipes`, 'success', 5000);
+                    refreshTeams();
+                    break;
+                    
+                case 'TEAMS_SEEDED':
+                    const seedMsg = `🌱 Teams seeded! Created: ${message.teamsCreated}, Skipped: ${message.teamsSkipped || 0}, Failed: ${message.teamsFailed || 0}`;
+                    showToast(seedMsg, message.success ? 'success' : 'warning', 5000);
+                    if (message.errors && message.errors.length > 0) {
+                        console.error('Team seeding errors:', message.errors);
+                    }
                     refreshTeams();
                     break;
                     
@@ -2124,6 +2136,120 @@
                     teamPerformanceData[message.teamName].trades = message.totalTrades || 0;
                 }
             }
+        }
+
+        // Seed Teams - creates all 12 teams with proper configuration
+        function seedTeams() {
+            if (!confirm('🌱 Seed All Teams\n\nThis will create 12 teams (one for each species) with:\n- Unique tokens for login\n- Species-specific recipes (1 basic + 2 premium)\n- Initial balance of $1000\n- Empty inventory\n\nTeams that already exist will be skipped.\n\nContinue?')) {
+                return;
+            }
+
+            // Default team data for all 12 species
+            const teams = [
+                {
+                    teamName: "Avocultores de Paltalima",
+                    token: "TK-AVOCULTORES-001",
+                    species: "Avocultores",
+                    specialty: "PALTA-OIL",
+                    initialBalance: 1000,
+                    authorizedProducts: ["PALTA-OIL", "GUACA", "SEBO"]
+                },
+                {
+                    teamName: "Monjes de Fosforescencia",
+                    token: "TK-FOSFO-002",
+                    species: "Monjes de Fosforescencia",
+                    specialty: "FOSFO",
+                    initialBalance: 1000,
+                    authorizedProducts: ["FOSFO", "GUACA", "NUCREM"]
+                },
+                {
+                    teamName: "Cosechadores de Pita",
+                    token: "TK-PITA-003",
+                    species: "Cosechadores de Pita",
+                    specialty: "PITA",
+                    initialBalance: 1000,
+                    authorizedProducts: ["PITA", "SEBO", "CASCAR-ALLOY"]
+                },
+                {
+                    teamName: "Herreros Cósmicos",
+                    token: "TK-HERREROS-004",
+                    species: "Herreros Cósmicos",
+                    specialty: "CASCAR-ALLOY",
+                    initialBalance: 1000,
+                    authorizedProducts: ["CASCAR-ALLOY", "QUANTUM-PULP", "SKIN-WRAP"]
+                },
+                {
+                    teamName: "Extractores Cuánticos",
+                    token: "TK-EXTRACTORES-005",
+                    species: "Extractores",
+                    specialty: "QUANTUM-PULP",
+                    initialBalance: 1000,
+                    authorizedProducts: ["QUANTUM-PULP", "NUCREM", "FOSFO"]
+                },
+                {
+                    teamName: "Tejemanteles Estelares",
+                    token: "TK-TEJEMANTELES-006",
+                    species: "Tejemanteles",
+                    specialty: "SKIN-WRAP",
+                    initialBalance: 1000,
+                    authorizedProducts: ["SKIN-WRAP", "PITA", "ASTRO-BUTTER"]
+                },
+                {
+                    teamName: "Cremeros Astrales",
+                    token: "TK-CREMEROS-007",
+                    species: "Cremeros Astrales",
+                    specialty: "ASTRO-BUTTER",
+                    initialBalance: 1000,
+                    authorizedProducts: ["ASTRO-BUTTER", "CASCAR-ALLOY", "PALTA-OIL"]
+                },
+                {
+                    teamName: "Mineros del Sebo",
+                    token: "TK-MINEROS-008",
+                    species: "Mineros del Sebo",
+                    specialty: "SEBO",
+                    initialBalance: 1000,
+                    authorizedProducts: ["SEBO", "ASTRO-BUTTER", "GUACA"]
+                },
+                {
+                    teamName: "Núcleo Cremero",
+                    token: "TK-NUCLEO-009",
+                    species: "Núcleo Cremero",
+                    specialty: "NUCREM",
+                    initialBalance: 1000,
+                    authorizedProducts: ["NUCREM", "SKIN-WRAP", "QUANTUM-PULP"]
+                },
+                {
+                    teamName: "Destiladores de Guaca",
+                    token: "TK-DESTILADORES-010",
+                    species: "Destiladores",
+                    specialty: "GUACA",
+                    initialBalance: 1000,
+                    authorizedProducts: ["GUACA", "PALTA-OIL", "FOSFO"]
+                },
+                {
+                    teamName: "Cartógrafos de Fosfolima",
+                    token: "TK-CARTOGRAFOS-011",
+                    species: "Cartógrafos",
+                    specialty: "GUACA",
+                    initialBalance: 1000,
+                    authorizedProducts: ["GUACA", "NUCREM", "PITA"]
+                },
+                {
+                    teamName: "Someliers Andorianos",
+                    token: "TK-SOMELIERS-012",
+                    species: "Someliers Andorianos",
+                    specialty: "PALTA-OIL",
+                    initialBalance: 1000,
+                    authorizedProducts: ["PALTA-OIL", "SEBO", "CASCAR-ALLOY"]
+                }
+            ];
+
+            sendMessage({
+                type: "SEED_TEAMS",
+                teams: teams
+            });
+
+            showToast('Seeding teams...', 'info');
         }
 
         // Update All Recipes - applies premium recipes to all teams based on species
