@@ -56,35 +56,60 @@ func (s *ProductionService) ProcessProduction(
 		return err
 	}
 
-	// Get team to check authorized products
+	// Get team to check authorized products and recipes
 	team, err := s.teamRepo.GetByTeamName(ctx, teamName)
 	if err != nil {
-		log.Warn().
+		log.Error().
 			Str("teamName", teamName).
 			Err(err).
-			Msg("Could not verify team for production - allowing production")
+			Msg("Failed to get team for production validation")
+		return fmt.Errorf("failed to validate team: %w", err)
+	}
+
+	if team == nil {
+		log.Error().
+			Str("teamName", teamName).
+			Msg("Team not found for production")
+		return fmt.Errorf("team not found: %s", teamName)
 	}
 
 	// Check if team is authorized to produce this product
-	if team != nil {
-		if err := s.validateAuthorization(team, prodMsg.Product); err != nil {
-			return err
+	if err := s.validateAuthorization(team, prodMsg.Product); err != nil {
+		return err
+	}
+
+	// Check if this is premium production (requires ingredients)
+	recipe, hasRecipe := team.Recipes[prodMsg.Product]
+	if hasRecipe && recipe.Type == "PREMIUM" && len(recipe.Ingredients) > 0 {
+		log.Info().
+			Str("teamName", teamName).
+			Str("product", prodMsg.Product).
+			Int("quantity", prodMsg.Quantity).
+			Interface("ingredients", recipe.Ingredients).
+			Msg("Premium production - validating and deducting ingredients")
+
+		// Validate and deduct ingredients for premium production
+		if err := s.deductIngredients(ctx, teamName, prodMsg.Product, prodMsg.Quantity, recipe.Ingredients); err != nil {
+			log.Warn().
+				Str("teamName", teamName).
+				Str("product", prodMsg.Product).
+				Int("quantity", prodMsg.Quantity).
+				Err(err).
+				Msg("Failed to deduct ingredients for premium production")
+			return fmt.Errorf("insufficient ingredients for premium production: %w", err)
 		}
 
-		// Check if this is premium production (requires ingredients)
-		recipe, hasRecipe := team.Recipes[prodMsg.Product]
-		if hasRecipe && recipe.Type == "PREMIUM" && len(recipe.Ingredients) > 0 {
-			// Validate and deduct ingredients for premium production
-			if err := s.deductIngredients(ctx, teamName, prodMsg.Product, prodMsg.Quantity, recipe.Ingredients); err != nil {
-				log.Warn().
-					Str("teamName", teamName).
-					Str("product", prodMsg.Product).
-					Int("quantity", prodMsg.Quantity).
-					Err(err).
-					Msg("Failed to deduct ingredients for premium production")
-				return fmt.Errorf("insufficient ingredients for premium production: %w", err)
-			}
-		}
+		log.Info().
+			Str("teamName", teamName).
+			Str("product", prodMsg.Product).
+			Int("quantity", prodMsg.Quantity).
+			Msg("Ingredients deducted successfully for premium production")
+	} else if hasRecipe && recipe.Type == "BASIC" {
+		log.Info().
+			Str("teamName", teamName).
+			Str("product", prodMsg.Product).
+			Int("quantity", prodMsg.Quantity).
+			Msg("Basic production - no ingredients required")
 	}
 
 	// Update inventory
