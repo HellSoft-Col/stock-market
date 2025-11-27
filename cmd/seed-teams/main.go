@@ -46,13 +46,7 @@ func createDomainTeam(teamData TeamData) *domain.Team {
 		Species:            teamData.Species,
 		InitialBalance:     float64(teamData.InitialBalance),
 		AuthorizedProducts: teamData.AuthorizedProducts,
-		Recipes: map[string]domain.Recipe{
-			teamData.Specialty: {
-				Type:         "BASIC",
-				Ingredients:  parseRecipe(teamData.Recipe),
-				PremiumBonus: 1.0,
-			},
-		},
+		Recipes:            buildRecipesForSpecies(teamData.Species, teamData.Specialty),
 		Role: domain.TeamRole{
 			Branches:    2,
 			MaxDepth:    4,
@@ -62,6 +56,167 @@ func createDomainTeam(teamData TeamData) *domain.Team {
 			LevelEnergy: 2.0,
 		},
 	}
+}
+
+// buildRecipesForSpecies creates all recipes (basic + premium) for a species
+func buildRecipesForSpecies(species string, basicProduct string) map[string]domain.Recipe {
+	recipes := make(map[string]domain.Recipe)
+
+	// Add basic recipe (free production)
+	recipes[basicProduct] = domain.Recipe{
+		Type:         "BASIC",
+		Ingredients:  map[string]int{},
+		PremiumBonus: 1.0,
+	}
+
+	// Add premium recipes based on species (30% bonus)
+	switch species {
+	case "Avocultores":
+		recipes["GUACA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 5, "PITA": 3},
+			PremiumBonus: 1.3,
+		}
+		recipes["SEBO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"NUCREM": 8},
+			PremiumBonus: 1.3,
+		}
+
+	case "Monjes de Fosforescencia":
+		recipes["GUACA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 5, "PITA": 3},
+			PremiumBonus: 1.3,
+		}
+		recipes["NUCREM"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SEBO": 6},
+			PremiumBonus: 1.3,
+		}
+
+	case "Cosechadores de Pita":
+		recipes["SEBO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"NUCREM": 8},
+			PremiumBonus: 1.3,
+		}
+		recipes["CASCAR-ALLOY"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 10},
+			PremiumBonus: 1.3,
+		}
+
+	case "Herreros Cósmicos":
+		recipes["QUANTUM-PULP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 7},
+			PremiumBonus: 1.3,
+		}
+		recipes["SKIN-WRAP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"ASTRO-BUTTER": 12},
+			PremiumBonus: 1.3,
+		}
+
+	case "Extractores":
+		recipes["NUCREM"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SEBO": 6},
+			PremiumBonus: 1.3,
+		}
+		recipes["FOSFO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SKIN-WRAP": 9},
+			PremiumBonus: 1.3,
+		}
+
+	case "Tejemanteles":
+		recipes["PITA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"CASCAR-ALLOY": 8},
+			PremiumBonus: 1.3,
+		}
+		recipes["ASTRO-BUTTER"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"GUACA": 10},
+			PremiumBonus: 1.3,
+		}
+
+	case "Cremeros Astrales":
+		recipes["CASCAR-ALLOY"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 10},
+			PremiumBonus: 1.3,
+		}
+		recipes["PALTA-OIL"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"QUANTUM-PULP": 7},
+			PremiumBonus: 1.3,
+		}
+
+	case "Mineros del Sebo":
+		recipes["ASTRO-BUTTER"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"GUACA": 10},
+			PremiumBonus: 1.3,
+		}
+		recipes["GUACA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 5, "PITA": 3},
+			PremiumBonus: 1.3,
+		}
+
+	case "Núcleo Cremero":
+		recipes["SKIN-WRAP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"ASTRO-BUTTER": 12},
+			PremiumBonus: 1.3,
+		}
+		recipes["QUANTUM-PULP"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"PALTA-OIL": 7},
+			PremiumBonus: 1.3,
+		}
+
+	case "Destiladores":
+		recipes["PALTA-OIL"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"QUANTUM-PULP": 7},
+			PremiumBonus: 1.3,
+		}
+		recipes["FOSFO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SKIN-WRAP": 9},
+			PremiumBonus: 1.3,
+		}
+
+	case "Cartógrafos":
+		recipes["NUCREM"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"SEBO": 6},
+			PremiumBonus: 1.3,
+		}
+		recipes["PITA"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"CASCAR-ALLOY": 8},
+			PremiumBonus: 1.3,
+		}
+
+	case "Someliers Andorianos":
+		recipes["SEBO"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"NUCREM": 8},
+			PremiumBonus: 1.3,
+		}
+		recipes["CASCAR-ALLOY"] = domain.Recipe{
+			Type:         "PREMIUM",
+			Ingredients:  map[string]int{"FOSFO": 10},
+			PremiumBonus: 1.3,
+		}
+	}
+
+	return recipes
 }
 
 func main() {
