@@ -2005,13 +2005,22 @@ func (r *MessageRouter) handleUpdateAllRecipes(
 	// Get all teams
 	teams, err := teamRepo.GetAllTeams(ctx)
 	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("Failed to get teams for recipe update")
 		return r.sendError(client, domain.ErrServiceUnavailable, "Failed to get teams", "")
 	}
 
+	log.Info().
+		Int("teamCount", len(teams)).
+		Msg("Starting recipe update for all teams")
+
 	// Update recipes for each team based on species
 	teamsUpdated := 0
+	teamsSkipped := 0
 	for _, team := range teams {
 		if team.TeamName == "admin" {
+			teamsSkipped++
 			continue
 		}
 
@@ -2022,6 +2031,7 @@ func (r *MessageRouter) handleUpdateAllRecipes(
 				Str("team", team.TeamName).
 				Str("species", team.Species).
 				Msg("Unknown species - skipping recipe update")
+			teamsSkipped++
 			continue
 		}
 
@@ -2034,6 +2044,7 @@ func (r *MessageRouter) handleUpdateAllRecipes(
 				Err(err).
 				Str("team", team.TeamName).
 				Msg("Failed to update team recipes")
+			teamsSkipped++
 			continue
 		}
 
@@ -2056,8 +2067,10 @@ func (r *MessageRouter) handleUpdateAllRecipes(
 
 	log.Info().
 		Str("admin", client.GetTeamName()).
+		Int("totalTeams", len(teams)).
 		Int("teamsUpdated", teamsUpdated).
-		Msg("All team recipes updated")
+		Int("teamsSkipped", teamsSkipped).
+		Msg("Recipe update completed")
 
 	return client.SendMessage(response)
 }
