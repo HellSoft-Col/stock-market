@@ -17,6 +17,7 @@ import tech.hellsoft.trading.enums.MessageType;
 import tech.hellsoft.trading.enums.OrderMode;
 import tech.hellsoft.trading.enums.OrderSide;
 import tech.hellsoft.trading.enums.Product;
+import tech.hellsoft.trading.util.OrderIdGenerator;
 
 public class TradingBot implements EventListener {
 
@@ -24,6 +25,9 @@ public class TradingBot implements EventListener {
     private String serverHost = "localhost";
     private int serverPort = 8080;
     private String token = "YOUR_TOKEN_HERE";
+    
+    // Thread-safe order ID generator - prevents duplicate order IDs
+    private final OrderIdGenerator orderIdGen = new OrderIdGenerator("MYTEAM");
 
     public static void main(String[] args) throws Exception {
         TradingBot bot = new TradingBot();
@@ -116,7 +120,7 @@ public class TradingBot implements EventListener {
     private void placeExampleOrder() {
         OrderMessage order = OrderMessage.builder()
             .type(MessageType.ORDER)
-            .clOrdID("ORDER-" + System.currentTimeMillis())
+            .clOrdID(orderIdGen.next())  // Thread-safe unique ID
             .product(Product.USD)
             .side(OrderSide.BUY)
             .mode(OrderMode.LIMIT)
