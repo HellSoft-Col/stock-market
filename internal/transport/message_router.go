@@ -87,6 +87,8 @@ func (r *MessageRouter) RouteMessage(ctx context.Context, rawMessage string, cli
 		return r.handleRequestHistoricalOrders(ctx, rawMessage, client)
 	case "REQUEST_PERFORMANCE_REPORT":
 		return r.handleRequestPerformanceReport(ctx, rawMessage, client)
+	case "REQUEST_CONNECTED_SESSIONS":
+		return r.handleRequestConnectedSessions(ctx, client)
 	case "PING":
 		return r.handlePing(ctx, client)
 	case "ADMIN_CANCEL_ALL_ORDERS":
