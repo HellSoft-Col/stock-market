@@ -161,6 +161,37 @@ func (r *MessageRouter) handleLogin(ctx context.Context, rawMessage string, clie
 	client.RegisterWithServer(team.TeamName)
 	r.broadcaster.RegisterClient(team.TeamName, client)
 
+	// Ensure team has correct recipes - if missing or empty, rebuild them
+	if team.Recipes == nil || len(team.Recipes) == 0 {
+		log.Warn().
+			Str("teamName", team.TeamName).
+			Str("species", team.Species).
+			Msg("Team has no recipes - rebuilding from species")
+
+		// Get basic product from authorized products
+		basicProduct := ""
+		if len(team.AuthorizedProducts) > 0 {
+			basicProduct = team.AuthorizedProducts[0]
+		}
+
+		// Build recipes
+		team.Recipes = buildRecipesForSpecies(team.Species, basicProduct)
+
+		// Update in database
+		if authSvc, ok := r.authService.(*service.AuthService); ok {
+			if err := authSvc.UpdateRecipes(ctx, team.TeamName, team.Recipes); err != nil {
+				log.Error().
+					Err(err).
+					Str("teamName", team.TeamName).
+					Msg("Failed to update team recipes in database")
+			} else {
+				log.Info().
+					Str("teamName", team.TeamName).
+					Msg("Team recipes updated in database during login")
+			}
+		}
+	}
+
 	// Get team inventory
 	inventory := team.Inventory
 	if inventory == nil {

@@ -78,8 +78,23 @@ func (s *ProductionService) ProcessProduction(
 		return err
 	}
 
+	// Log team recipes for debugging
+	log.Info().
+		Str("teamName", teamName).
+		Str("species", team.Species).
+		Interface("allRecipes", team.Recipes).
+		Msg("Team recipes loaded")
+
 	// Check if this is premium production (requires ingredients)
 	recipe, hasRecipe := team.Recipes[prodMsg.Product]
+
+	log.Info().
+		Str("teamName", teamName).
+		Str("product", prodMsg.Product).
+		Bool("hasRecipe", hasRecipe).
+		Interface("recipe", recipe).
+		Msg("Recipe lookup result")
+
 	if hasRecipe && recipe.Type == "PREMIUM" && len(recipe.Ingredients) > 0 {
 		log.Info().
 			Str("teamName", teamName).
@@ -110,6 +125,20 @@ func (s *ProductionService) ProcessProduction(
 			Str("product", prodMsg.Product).
 			Int("quantity", prodMsg.Quantity).
 			Msg("Basic production - no ingredients required")
+	} else if !hasRecipe {
+		log.Warn().
+			Str("teamName", teamName).
+			Str("product", prodMsg.Product).
+			Int("quantity", prodMsg.Quantity).
+			Msg("WARNING: No recipe found for product - allowing production without ingredient check")
+	} else {
+		log.Warn().
+			Str("teamName", teamName).
+			Str("product", prodMsg.Product).
+			Str("recipeType", recipe.Type).
+			Int("ingredientCount", len(recipe.Ingredients)).
+			Int("quantity", prodMsg.Quantity).
+			Msg("WARNING: Recipe exists but doesn't match PREMIUM or BASIC criteria")
 	}
 
 	// Update inventory
