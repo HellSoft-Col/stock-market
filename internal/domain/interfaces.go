@@ -18,6 +18,7 @@ type TeamRepository interface {
 	UpdateBalanceBy(ctx context.Context, teamName string, deltaBalance float64) error
 	UpdateInitialBalance(ctx context.Context, teamName string, initialBalance float64) error
 	UpdateMembers(ctx context.Context, teamName string, members string) error
+	UpdateSpecies(ctx context.Context, teamName string, species string) error
 	UpdateRecipes(ctx context.Context, teamName string, recipes map[string]Recipe) error
 	Create(ctx context.Context, team *Team) error
 	GetAll(ctx context.Context) ([]*Team, error)

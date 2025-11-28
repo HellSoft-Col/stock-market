@@ -2397,18 +2397,22 @@ func buildRecipesForSpecies(species string, basicProduct string) map[string]doma
 		}
 
 	case "Herreros Cósmicos":
-		recipes["QUANTUM-PULP"] = domain.Recipe{
+		// ORIGINAL: QUANTUM-PULP (7 PALTA-OIL), SKIN-WRAP (12 ASTRO-BUTTER)
+		// MODIFIED: Using only existing products (QUANTUM-PULP, SKIN-WRAP, ASTRO-BUTTER don't exist)
+		recipes["GUACA"] = domain.Recipe{
 			Type:         "PREMIUM",
 			Ingredients:  map[string]int{"PALTA-OIL": 7},
 			PremiumBonus: 1.3,
 		}
-		recipes["SKIN-WRAP"] = domain.Recipe{
+		recipes["NUCREM"] = domain.Recipe{
 			Type:         "PREMIUM",
-			Ingredients:  map[string]int{"ASTRO-BUTTER": 12},
+			Ingredients:  map[string]int{"SEBO": 6},
 			PremiumBonus: 1.3,
 		}
 
 	case "Extractores":
+		// ORIGINAL: NUCREM (6 SEBO), FOSFO (9 SKIN-WRAP)
+		// MODIFIED: Using only existing products
 		recipes["NUCREM"] = domain.Recipe{
 			Type:         "PREMIUM",
 			Ingredients:  map[string]int{"SEBO": 6},
@@ -2416,23 +2420,27 @@ func buildRecipesForSpecies(species string, basicProduct string) map[string]doma
 		}
 		recipes["FOSFO"] = domain.Recipe{
 			Type:         "PREMIUM",
-			Ingredients:  map[string]int{"SKIN-WRAP": 9},
+			Ingredients:  map[string]int{"PALTA-OIL": 7},
 			PremiumBonus: 1.3,
 		}
 
 	case "Tejemanteles":
+		// ORIGINAL: PITA (8 CASCAR-ALLOY), ASTRO-BUTTER (10 GUACA)
+		// MODIFIED: Using only existing products
 		recipes["PITA"] = domain.Recipe{
 			Type:         "PREMIUM",
 			Ingredients:  map[string]int{"CASCAR-ALLOY": 8},
 			PremiumBonus: 1.3,
 		}
-		recipes["ASTRO-BUTTER"] = domain.Recipe{
+		recipes["GUACA"] = domain.Recipe{
 			Type:         "PREMIUM",
-			Ingredients:  map[string]int{"GUACA": 10},
+			Ingredients:  map[string]int{"FOSFO": 5, "PITA": 3},
 			PremiumBonus: 1.3,
 		}
 
 	case "Cremeros Astrales":
+		// ORIGINAL: CASCAR-ALLOY (10 FOSFO), PALTA-OIL (7 QUANTUM-PULP)
+		// MODIFIED: Using only existing products
 		recipes["CASCAR-ALLOY"] = domain.Recipe{
 			Type:         "PREMIUM",
 			Ingredients:  map[string]int{"FOSFO": 10},
@@ -2440,12 +2448,14 @@ func buildRecipesForSpecies(species string, basicProduct string) map[string]doma
 		}
 		recipes["PALTA-OIL"] = domain.Recipe{
 			Type:         "PREMIUM",
-			Ingredients:  map[string]int{"QUANTUM-PULP": 7},
+			Ingredients:  map[string]int{"SEBO": 6},
 			PremiumBonus: 1.3,
 		}
 
 	case "Mineros del Sebo":
-		recipes["ASTRO-BUTTER"] = domain.Recipe{
+		// ORIGINAL: ASTRO-BUTTER (10 GUACA), GUACA (5 PALTA-OIL + 3 PITA)
+		// MODIFIED: Using only existing products
+		recipes["NUCREM"] = domain.Recipe{
 			Type:         "PREMIUM",
 			Ingredients:  map[string]int{"GUACA": 10},
 			PremiumBonus: 1.3,
@@ -2457,26 +2467,30 @@ func buildRecipesForSpecies(species string, basicProduct string) map[string]doma
 		}
 
 	case "Núcleo Cremero":
-		recipes["SKIN-WRAP"] = domain.Recipe{
+		// ORIGINAL: SKIN-WRAP (12 ASTRO-BUTTER), QUANTUM-PULP (7 PALTA-OIL)
+		// MODIFIED: Using only existing products
+		recipes["PITA"] = domain.Recipe{
 			Type:         "PREMIUM",
-			Ingredients:  map[string]int{"ASTRO-BUTTER": 12},
+			Ingredients:  map[string]int{"GUACA": 10},
 			PremiumBonus: 1.3,
 		}
-		recipes["QUANTUM-PULP"] = domain.Recipe{
+		recipes["FOSFO"] = domain.Recipe{
 			Type:         "PREMIUM",
 			Ingredients:  map[string]int{"PALTA-OIL": 7},
 			PremiumBonus: 1.3,
 		}
 
 	case "Destiladores":
+		// ORIGINAL: PALTA-OIL (7 QUANTUM-PULP), FOSFO (9 SKIN-WRAP)
+		// MODIFIED: Using only existing products
 		recipes["PALTA-OIL"] = domain.Recipe{
 			Type:         "PREMIUM",
-			Ingredients:  map[string]int{"QUANTUM-PULP": 7},
+			Ingredients:  map[string]int{"SEBO": 7},
 			PremiumBonus: 1.3,
 		}
 		recipes["FOSFO"] = domain.Recipe{
 			Type:         "PREMIUM",
-			Ingredients:  map[string]int{"SKIN-WRAP": 9},
+			Ingredients:  map[string]int{"NUCREM": 6},
 			PremiumBonus: 1.3,
 		}
 

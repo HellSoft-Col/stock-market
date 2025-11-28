@@ -2254,7 +2254,7 @@
 
         // Update All Recipes - applies premium recipes to all teams based on species
         function updateAllRecipes() {
-            if (!confirm('🧪 Update All Team Recipes\n\nThis will update ALL teams with premium production recipes based on their species.\n\nEach team will get:\n- 1 BASIC recipe (free, no ingredients)\n- 2 PREMIUM recipes (30% bonus, requires ingredients)\n\nContinue?')) {
+            if (!confirm('🧪 Update All Team Recipes\n\nThis will update ALL teams with production recipes based on their species.\n\nEach team will get:\n- 1 BASIC recipe (free, no ingredients)\n- 2 PREMIUM recipes (30% bonus, requires ingredients)\n\n✅ Using ONLY existing products:\nGUACA, SEBO, PALTA-OIL, FOSFO, NUCREM, CASCAR-ALLOY, PITA\n\nContinue?')) {
                 return;
             }
 
@@ -2262,7 +2262,7 @@
                 type: "UPDATE_ALL_RECIPES"
             });
 
-            showToast('Updating all team recipes...', 'info');
+            showToast('🧪 Updating all team recipes with correct species recipes...', 'info');
         }
     </script>
 </body>
