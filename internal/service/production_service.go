@@ -126,19 +126,21 @@ func (s *ProductionService) ProcessProduction(
 			Int("quantity", prodMsg.Quantity).
 			Msg("Basic production - no ingredients required")
 	} else if !hasRecipe {
-		log.Warn().
+		log.Error().
 			Str("teamName", teamName).
 			Str("product", prodMsg.Product).
 			Int("quantity", prodMsg.Quantity).
-			Msg("WARNING: No recipe found for product - allowing production without ingredient check")
+			Msg("No recipe found for product - production denied")
+		return fmt.Errorf("no recipe found for product: %s", prodMsg.Product)
 	} else {
-		log.Warn().
+		log.Error().
 			Str("teamName", teamName).
 			Str("product", prodMsg.Product).
 			Str("recipeType", recipe.Type).
 			Int("ingredientCount", len(recipe.Ingredients)).
 			Int("quantity", prodMsg.Quantity).
-			Msg("WARNING: Recipe exists but doesn't match PREMIUM or BASIC criteria")
+			Msg("Recipe exists but doesn't match PREMIUM or BASIC criteria - production denied")
+		return fmt.Errorf("invalid recipe type for product: %s (type: %s)", prodMsg.Product, recipe.Type)
 	}
 
 	// Update inventory
